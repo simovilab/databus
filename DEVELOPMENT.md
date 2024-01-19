@@ -12,14 +12,40 @@ Investigar y proponer una **especificación de los datos** de telemetría (?) re
 - A veces no podemos ser exhaustivos en la lista de variables pero sí podemos hacer una clasificación sensata de grandes categorías donde están esos datos.
 - Asumir que para nuestro prototipo vamos a probar con datos sintéticos creados con esta especificación.
 
+## Posibles fuentes de datos
+
+- Un _feed_ GTFS Realtime de alguna agencia (ejemplo: MBTA). Pros: ya están listos y accesibles. Contras: ya son GTFS Realtime (no incluye la transformación), son masivos y ajenos a nuestras pantallas.
+- Datos sintéticos para pruebas. Pros: pueden diseñarse para ser un MWE (ejemplo viable mínimo) para nuestro contexto específico. Contras: no son realistas, requieren pensar dedicadamente en la "simulación".
+  - _Hard-coded_
+  - Simulación con [SUMO](https://eclipse.dev/sumo/). Nota: hay un proyecto con Gustavo Núñez que desarrolló algo como esto.
+- Datos generados por un prototipo en la UCR (ejemplo: la implementación con RACSA). Pros: es el objetivo del proyecto. Contras: es laborioso y caro de implementar pues requiere de equipo de hardware y conexión a la red.
+
+El consenso es iniciar con datos sintéticos de prueba.
+
 ## Datos sintéticos para pruebas del sistema
 
-Hacer un *script* de creación de **datos sintéticos** donde podamos simular datos "en tiempo real" para desplegarlos en las pantallas
+Hacer un *script* de creación de **datos sintéticos** donde podamos simular datos "en tiempo real" para desplegarlos en las pantallas.
  
 - Posiblemente, crear un *toy model* para la prueba del prototipo, no necesariamente un modelo realista del sistema de la U, pero sí tiene que ser consistente con un GTFS Schedule.
 - Considerar la aleatoriedad de los tiempos de desplazamiento y de la ocupación del bus. Para que tenga un realismo aceptable, debe ser coherente con, por ejemplo, los tiempos de subida y bajada de los pasajeros, etc.
 - Como referencia, hay un proyecto en SUMO (simulador de redes de tránsito vehicular), preguntar a Gustavo Núñez.
 - Los datos entre los buses son asincrónicos, es decir, llegan en cualquier momento, no están coordinados entre sí. Para que sea realista debe haber más de un bus (de preferencia muchos) circulando en cualquier momento dado.
+
+Premisas para hacer un modelo simplificado:
+
+- Utilizar el GTFS del bus UCR
+- La pantalla objetivo está en Facultad de Ingeniería (la visualización sería ahí)
+- Hacer salidas regulares de buses. Si un bus tarda aproximadamente de 20 a 30 minutos haciendo un viaje (depende de la trayectoria, con o sin "milla"), entonces con un tiempo de salida regular cada aproximadamente 15 minutos, siempre habría más de un bus reportando datos en el sistema. Esto es útil para probar la visualización. Dado el caso, sería posible modificar ese "headway" (tiempo entre salidas) para hacerlo menor o mayor y probar el sistema.
+- Podemos asumir libremente que el sistema opera 24/7 con salidas regulares. Que no se nos olvide probar el caso en el que no hay datos (ejemplo: la pantalla debe tener un mensaje de que no hay buses actualmente o algo así).
+- Elegir solamente los datos de GTFS Realtime (ocupación, velocidad, dirección, posición, odómetro) y *tal vez* algún dato complementario para enviar
+- Simulación de datos:
+  - Posición: elegir un punto de la secuencia de puntos de la trayectoria en la tabla `shapes.txt` basados en la distancia recorrida (`shape_dist_traveled`) y algún criterio de velocidad promedio del bus (por ejemplo 15 km/h para una trayectoria de 5 km recorrida en 20 minutos).
+  - Velocidad: un número aleatorio elegido de una distribución normal con valor medio 15 km/h (u otra velocidad promedio) con una desviación estándar "sensata".
+  - Ocupación: un número aleatorio entre 0 y C (capacidad máxima del bus) pero que cambia únicamente después de pasar por una parada. Para esto hay que conocer dónde están las paradas (tabla `stops.txt`). Mejor enfocar la aleatoriedad como: "se subieron o bajaron N personas en cada parada".
+  - Dirección: la dirección del vector que une el punto de la trayectoria anterior con la posición actual, y según GTFS Realtime: "Bearing, in degrees, clockwise from True North, i.e., 0 is North and 90 is East."
+  - Odómetro: distancia recorrida en el viaje, igual a `shape_dist_traveled`.
+- Luego: crear el `FeedMessage` binaro del GTFS Realtime a partir de esto.
+- Sugerencia: un _script_ para la creación de los datos simulados y otro _script_ para la conversión en GTFS Realtime (usar paquetes de Google para eso).
 
 ## Creación de GTFS Realtime
 
