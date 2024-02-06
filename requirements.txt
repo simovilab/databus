@@ -1,0 +1,3 @@
+django
+python-decouple
+psycopg2
