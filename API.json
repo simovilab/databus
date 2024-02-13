@@ -1,0 +1,26 @@
+{
+    "vehicle_id": "1234",
+    "route_id": "bUCR_L1",
+    "trip_id": "EYU94JE743",
+    "start_date": "20231112",
+    "start_time": "10:03:00",
+    "location": {
+        "latitude": 42.0,
+        "longitude": -71.0
+    },
+    "inertial": {
+        "bearing": 225,
+        "speed": 23,
+    },
+    "vehicle_health": {
+        "fuel_level": 0.5,
+        "oil_level": 0.5,
+        "tire_pressure": 0.5,
+        "battery_voltage": 12.5
+    },
+    "environmental": {
+        "temperature": 72,
+        "humidity": 0.5,
+        "pressure": 1013
+    }
+}
