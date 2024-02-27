@@ -34,6 +34,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     "gtfs.apps.GtfsConfig",
+    "feed.apps.FeedConfig",
     "website.apps.WebsiteConfig",
     "django.contrib.admin",
     "django.contrib.auth",
