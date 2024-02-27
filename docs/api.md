@@ -49,3 +49,7 @@ Pero también está diseñado para prever necesidades y aplicaciones futuras con
     }
 }
 ```
+
+``` title="Ejemplo de JSON"
+--8<-- "./API.json"
+```

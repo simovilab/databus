@@ -1,5 +1,8 @@
 # Especificación del equipo de abordo
 
+!!! info
+    Trabajo en desarrollo
+
 Un equipo de abordo (**OBE**, del inglés *On-Board Equipment*) es una computadora/router ubicada en las unidades de autobús diseñadas para varias tareas, entre ellas:
 
 - Recopilar datos del bus a través de sensores, como:
@@ -46,3 +49,4 @@ Ejemplo de secuencia de inicio de viaje:
 3. Seleccionar viaje, según hora (lista prestablecida en GTFS Schedule)
 4. [Botón de iniciar viaje]
     - Al iniciar viaje, se registran la fecha y hora
+
