@@ -68,3 +68,17 @@ Secuencia prevista de esta tarea:
 - Es necesario "desempacar" estos datos y crear la entidad `vehicle` de GTFS Realtime dentro de `FeedMessage`.
 - Finalmente, dejar el archivo `.pb` y quizá `.json` en una URL, por ejemplo: `buses.ucr.ac.cr/realtime/vehicle_positions.pb`.
 - Repetir *ad infinitum*
+
+Nota mental:
+
+- `VehiclePositions` se construye a partir de los datos de los buses
+- `TripUpdates` se construye a partir de cálculos hechos en el servidor
+- `ServiceAlerts` se construye a partir de *input* de una plataforma de interfaz con la administración del servicio
+
+## Estructura del proyecto en Django
+
+### Aplicaciones
+
+- `gtfs`: maneja la base de datos con los datos GTFS
+- `feed`: realiza las tareas periódicas de recolección de datos de los buses y la (futura) plataforma de `ServiceAlerts` para crear el `FeedMessage`.
+- `website`: controla las páginas misceláneas del servidor como panel de administración y panel de datos, etc.

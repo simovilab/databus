@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     "gtfs.apps.GtfsConfig",
     "feed.apps.FeedConfig",
     "website.apps.WebsiteConfig",
+    "django_celery_results",
+    "django_celery_beat",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -109,13 +111,24 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Redis settings
+
+REDIS_HOST = config("REDIS_HOST")
+REDIS_PORT = config("REDIS_PORT")
+
+# Celery settings
+
+CELERY_BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_CACHE_BACKEND = "django-cache"
+CELERY_RESULTS_EXTENDED = True
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "es-cr"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "America/Costa_Rica"
 
 USE_I18N = True
 
