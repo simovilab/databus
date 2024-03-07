@@ -1,0 +1,25 @@
+{
+    "header": {
+        "gtfs_realtime_version": "2.0",
+        "incrementality": "FULL_DATASET",
+        "timestamp": 1709835480
+    },
+    "entity": [
+        {
+            "id": "abc",
+            "vehicle": {
+                "vehicle": {
+                    "id": "abc"
+                }
+            }
+        },
+        {
+            "id": "cde",
+            "vehicle": {
+                "vehicle": {
+                    "id": "cde"
+                }
+            }
+        }
+    ]
+}
