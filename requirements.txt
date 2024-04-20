@@ -4,3 +4,5 @@ celery[redis]
 django-celery-results
 django-celery-beat
 python-decouple
+psycopg2-binary
+gunicorn
