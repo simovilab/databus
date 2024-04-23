@@ -1,0 +1,127 @@
+openapi: '3.0.2'
+info:
+  title: Servidor de datos en tiempo real
+  description: Un servidor para enviar datos desde los equipos de los vehículos de transporte público.
+  version: '1.0'
+  contact:
+    email: tropicalizacion@ucr.ac.cr
+  x-logo:
+    url: https://fabianabarca.github.io/senaletica/assets/logos/b_azul_fondo_blanco.png
+    altText: Logo bUCR
+  license:
+    name: MIT
+    url: 'https://opensource.org/license/mit/'
+servers:
+  - url: https://realtime.bucr.digital/api
+paths:
+  /equipment:
+    get:
+      tags:
+        - Vehicle
+      responses:
+        '200':
+          description: OK
+  /alarms:
+    get:
+      tags:
+        - Alarms
+      responses:
+        '200':
+          description: OK
+  /authorizations:
+    get:
+      tags:
+        - Authorizations
+      responses:
+        '200':
+          description: OK
+  /fares:
+    get:
+      tags:
+        - Users
+      responses:
+        '200':
+          description: OK
+  /transfers:
+    get:
+      tags:
+        - Users
+      responses:
+        '200':
+          description: OK
+  /travelers:
+    get:
+      tags:
+        - Users
+      responses:
+        '200':
+          description: OK
+  /users:
+    get:
+      tags:
+        - Users
+      responses:
+        '200':
+          description: OK
+  /conditions:
+    get:
+      tags:
+        - Vehicle
+      responses:
+        '200':
+          description: OK
+  /emissions:
+    get:
+      tags:
+        - Vehicle
+      responses:
+        '200':
+          description: OK
+  /loading:
+    get:
+      tags:
+        - Trip
+      responses:
+        '200':
+          description: OK
+  /location:
+    post:
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Location'
+      responses:
+        '200':
+          description: OK
+  /schedule:  
+    get:
+      tags:
+        - Trip
+      responses:
+        '200':
+          description: OK
+  /operator:
+    get:
+      tags:
+        - Trip 
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Location:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: float
+        longitude:
+          type: number
+          format: float
+        altitude:
+          type: number
+          format: float
