@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.http import FileResponse
 from django.contrib.auth.models import Group, User
 from feed.models import OnBoardEquipment
 from rest_framework import permissions, viewsets
@@ -33,3 +35,10 @@ class OnBoardEquipmentViewSet(viewsets.ModelViewSet):
     queryset = OnBoardEquipment.objects.all().order_by("created_at")
     serializer_class = OnBoardEquipmentSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+def get_schema(request):
+    file_path = settings.BASE_DIR / "api" / "realtime.yml"
+    return FileResponse(
+        open(file_path, "rb"), as_attachment=True, filename="realtime.yml"
+    )
