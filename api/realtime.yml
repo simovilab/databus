@@ -14,6 +14,30 @@ info:
 servers:
   - url: https://realtime.bucr.digital/api
 paths:
+  /vehicle-positions:
+    get:
+      description: GTFS Realtime VehiclePositions
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+  /trip-updates:
+    get:
+      description: GTFS Realtime TripUpdates
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+  /service-alerts:
+    get:
+      description: GTFS Realtime Alerts
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
   /equipment:
     get:
       tags:
