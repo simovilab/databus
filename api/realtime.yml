@@ -16,7 +16,8 @@ servers:
 paths:
   /vehicle-positions:
     get:
-      description: GTFS Realtime VehiclePositions
+      summary: GTFS Realtime VehiclePositions
+      description: Obtiene la entidad GTFS Realtime VehiclePositions en formato JSON
       tags:
         - GTFS
       responses:
@@ -24,7 +25,8 @@ paths:
           description: OK
   /trip-updates:
     get:
-      description: GTFS Realtime TripUpdates
+      summary: GTFS Realtime TripUpdates
+      description: Obtiene la entidad GTFS Realtime TripUpdates en formato JSON
       tags:
         - GTFS
       responses:
@@ -32,14 +34,23 @@ paths:
           description: OK
   /service-alerts:
     get:
-      description: GTFS Realtime Alerts
+      summary: GTFS Realtime ServiceAlerts
+      description: Obtiene la entidad GTFS Realtime ServiceAlerts en formato JSON
       tags:
         - GTFS
       responses:
         '200':
           description: OK
   /equipment:
-    get:
+    post:
+      summary: Datos del equipo del vehículo
+      description: Registra un nuevo equipo de a bordo (On-Board Equipment) en el sistema.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Equipment'
       tags:
         - Vehicle
       responses:
@@ -55,7 +66,7 @@ paths:
   /authorizations:
     get:
       tags:
-        - Authorizations
+        - Users
       responses:
         '200':
           description: OK
@@ -73,7 +84,7 @@ paths:
       responses:
         '200':
           description: OK
-  /travelers:
+  /traveler:
     get:
       tags:
         - Users
@@ -87,10 +98,33 @@ paths:
       responses:
         '200':
           description: OK
-  /conditions:
-    get:
+  /vehicle:
+    post:
+      summary: Datos del vehículo
+      description: Publica datos del vehículo, como la etiqueta, placa y accesibilidad.
       tags:
         - Vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vehicle'
+      responses:
+        '200':
+          description: OK
+  /conditions:
+    post:
+      summary: Condiciones del vehículo
+      description: Publica datos de las condiciones del vehículo, como el nivel de combustible, estado del motor, puertas, luces, aire acondicionado, temperatura, humedad, presión, batería y consumo de combustible.
+      tags:
+        - Vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Conditions'
       responses:
         '200':
           description: OK
@@ -102,14 +136,9 @@ paths:
         '200':
           description: OK
   /loading:
-    get:
-      tags:
-        - Trip
-      responses:
-        '200':
-          description: OK
-  /location:
     post:
+      summary: Ocupación del vehículo
+      description: Publica datos de la ocupación del vehículo, como el porcentaje de ocupación del vehículo según la capacidad de carga.
       tags:
         - Trip
       requestBody:
@@ -117,11 +146,56 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Location'
+              $ref: '#/components/schemas/Loading'
+      responses:
+        '200':
+          description: OK
+  /position:
+    post:
+      summary: Posición del vehículo
+      description: Publica datos de la posición del vehículo, como la latitud, longitud, altitud, velocidad, dirección y odómetro.
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Position'
+      responses:
+        '200':
+          description: OK
+  /trip:
+    post:
+      summary: Datos del viaje actual
+      description: Publica datos del viaje actual del vehículo, como el identificador del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación con el horario.
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Trip'
       responses:
         '200':
           description: OK
   /schedule:  
+    post:
+      summary: Datos del avance del viaje
+      description: Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Schedule'
+      responses:
+        '200':
+          description: OK
+  /stops:
     get:
       tags:
         - Trip
@@ -137,15 +211,203 @@ paths:
           description: OK
 components:
   schemas:
-    Location:
+    Position:
       type: object
       properties:
         latitude:
+          description: Latitud WGS-84 del vehículo
           type: number
           format: float
+          example: 9.937044983645931
         longitude:
+          description: Longitud WGS-84 del vehículo
           type: number
           format: float
+          example: -84.04392677465846
         altitude:
+          description: Altitud del vehículo (msnm)
           type: number
           format: float
+          example: 1234.5
+        speed:
+          description: Velocidad del vehículo (m/s)
+          type: number
+          format: float
+          example: 12.5
+        bearing:
+          description: Dirección del vehículo, donde el norte es 0 grados
+          type: number
+          format: float
+          example: 135
+        odometer:
+          description: Odómetro del vehículo (m)
+          type: number
+          format: float
+          example: 12345.6
+    Trip:
+      type: object
+      properties:
+        trip_id:
+          description: Identificador del viaje según GTFS Schedule
+          type: string
+          example: 'JFH367'
+        route_id:
+          description: Identificador de la ruta según GTFS Schedule
+          type: string
+          example: 'bUCR-L1'
+        direction_id:
+          description: Identificador de la dirección del viaje según GTFS Schedule
+          type: integer
+          example: 0
+        start_time:
+          description: Hora de inicio del viaje
+          type: string
+          example: '07:15:00'
+        start_date:
+          description: Fecha de inicio del viaje
+          type: string
+          example: '2024-05-03'
+        schedule_relationship:
+          description: Relación con el horario
+          type: string
+          enum: ['SCHEDULED', 'ADDED', 'UNSCHEDULED', 'CANCELED', 'DUPLICATED', 'DELETED']
+    Vehicle:
+      type: object
+      properties:
+        id:
+          description: Identificador del vehículo
+          type: string
+          example: 'MEYS-8236'
+        label:
+          description: Etiqueta del vehículo
+          type: string
+          example: 'MEYS-8236'
+        license_plate:
+          description: Placa del vehículo
+          type: string
+          example: 'SJB 9876'
+        wheelchair_accessible:
+          description: Accesibilidad para sillas de ruedas
+          type: string
+          enum: ['NO_VALUE', 'UNKNOWN', 'WHEELCHAIR_ACCESSIBLE', 'WHEELCHAIR_INACCESSIBLE']
+    Conditions:
+      type: object
+      properties:
+        fuel:
+          description: Nivel de combustible del vehículo
+          type: number
+          format: float
+          example: 0.75
+        engine:
+          description: Estado del motor del vehículo
+          type: string
+          enum: ['ON', 'OFF']
+        doors:
+          description: Estado de las puertas del vehículo
+          type: string
+          enum: ['OPEN', 'CLOSED']
+        lights:
+          description: Estado de las luces del vehículo
+          type: string
+          enum: ['ON', 'OFF']
+        air_conditioning:
+          description: Estado del aire acondicionado del vehículo
+          type: string
+          enum: ['ON', 'OFF']
+        temperature:
+          description: Temperatura del vehículo
+          type: number
+          format: float
+          example: 25.5
+        humidity:
+          description: Humedad del vehículo
+          type: number
+          format: float
+          example: 0.75
+        pressure:
+          description: Presión del vehículo
+          type: number
+          format: float
+          example: 1013.25
+        battery:
+          description: Nivel de batería del vehículo
+          type: number
+          format: float
+          example: 0.75
+        fuel_consumption:
+          description: Consumo de combustible del vehículo
+          type: number
+          format: float
+          example: 0.75
+    Schedule:
+      type: object
+      properties:
+        current_stop_sequence:
+          description: Secuencia de la parada
+          type: integer
+          example: 15
+        stop_id:
+          description: Identificador de la parada
+          type: string
+          example: 'bUCR-0-03'
+        current_status:
+          description: Estado actual del vehículo
+          type: string
+          enum: ['INCOMING_AT', 'STOPPED_AT', 'IN_TRANSIT_TO']
+          example: 'STOPPED_AT'
+        congestion_level:
+          description: Nivel de congestión vehicular en la vía
+          type: string
+          enum: ['UNKNOWN_CONGESTION_LEVEL', 'RUNNING_SMOOTHLY', 'STOP_AND_GO', 'CONGESTION', 'SEVERE_CONGESTION']
+          example: 'SEVERE_CONGESTION'
+    Loading:
+      type: object
+      properties:
+        occupancy_status:
+          description: Estado de la ocupación de la parada
+          type: string
+          enum: ['EMPTY', 'MANY_SEATS_AVAILABLE', 'FEW_SEATS_AVAILABLE', 'STANDING_ROOM_ONLY', 'CRUSHED_STANDING_ROOM_ONLY', 'FULL', 'NOT_ACCEPTING_PASSENGERS', 'NO_DATA_AVAILABLE', 'NOT_BOARDABLE']
+          example: 'CRUSHED_STANDING_ROOM_ONLY'
+        occupancy_percentage:
+          description: Porcentaje de ocupación del vehículo según capacidad de carga
+          type: integer
+          example: 95
+    Equipment:
+      type: object
+      properties:
+        serial_number:
+          description: Número de serie del equipo
+          type: string
+          example: 'MEYS-8236'
+        brand:
+          description: Marca del equipo
+          type: string
+          example: 'MEYS'
+        model:
+          description: Modelo del equipo
+          type: string
+          example: 'MEYS-8236'
+        software_version:
+          description: Versión del software del equipo
+          type: string
+          example: '1.0.0'
+        owner:
+          description: Propietario del equipo
+          type: string
+          example: 'bUCR'
+          
+tags:
+  - name: GTFS
+    description: General Transit Feed Specification
+  - name: Vehicle
+    x-displayName: Sobre el vehículo
+    description: Datos del vehículo y su estado
+  - name: Alarms
+    x-displayName: Alarmas
+    description: Alarmas
+  - name: Users
+    x-displayName: Pasajeros
+    description: Información sobre las personas usuarias del sistema
+  - name: Trip
+    x-displayName: Sobre el viaje
+    description: Datos sobre el viaje actual del vehículo.
