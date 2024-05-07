@@ -13,34 +13,8 @@ info:
     url: 'https://opensource.org/license/mit/'
 servers:
   - url: https://realtime.bucr.digital/api
+
 paths:
-  /vehicle-positions:
-    get:
-      summary: GTFS Realtime VehiclePositions
-      description: Obtiene la entidad GTFS Realtime VehiclePositions en formato JSON
-      tags:
-        - GTFS
-      responses:
-        '200':
-          description: OK
-  /trip-updates:
-    get:
-      summary: GTFS Realtime TripUpdates
-      description: Obtiene la entidad GTFS Realtime TripUpdates en formato JSON
-      tags:
-        - GTFS
-      responses:
-        '200':
-          description: OK
-  /service-alerts:
-    get:
-      summary: GTFS Realtime ServiceAlerts
-      description: Obtiene la entidad GTFS Realtime ServiceAlerts en formato JSON
-      tags:
-        - GTFS
-      responses:
-        '200':
-          description: OK
   /equipment:
     post:
       summary: Datos del equipo del vehículo
@@ -56,10 +30,138 @@ paths:
       responses:
         '200':
           description: OK
-  /alarms:
-    get:
+  /vehicle:
+    post:
+      summary: Datos del vehículo
+      description: Publica datos del vehículo, como la etiqueta, placa y accesibilidad.
       tags:
-        - Alarms
+        - Vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vehicle'
+      responses:
+        '200':
+          description: OK
+  /operator:
+    post:
+      summary: Datos del operador del vehículo
+      description: Publica datos del operador del vehículo, como el nombre y otros datos personales.
+      tags:
+        - Vehicle 
+      responses:
+        '200':
+          description: OK
+  /conditions:
+    post:
+      summary: Condiciones del vehículo
+      description: Publica datos de las condiciones del vehículo, como el nivel de combustible, estado del motor, puertas, luces, aire acondicionado, temperatura, humedad, presión, batería y consumo de combustible.
+      tags:
+        - Vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Conditions'
+      responses:
+        '200':
+          description: OK
+  /emissions:
+    post:
+      summary: Emisiones del vehículo
+      description: Publica datos de las emisiones del vehículo, como el nivel de emisiones de gases de escape.
+      tags:
+        - Vehicle
+      responses:
+        '200':
+          description: OK
+  /trip:
+    post:
+      summary: Datos del viaje actual
+      description: Publica datos del viaje actual del vehículo, como el identificador del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación con el horario.
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Trip'
+      responses:
+        '200':
+          description: OK
+  /position:
+    post:
+      summary: Posición del vehículo
+      description: Publica datos de la posición del vehículo, como la latitud, longitud, altitud, velocidad, dirección y odómetro.
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Position'
+      responses:
+        '200':
+          description: OK
+  /schedule:  
+    post:
+      summary: Datos del avance del viaje
+      description: Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Schedule'
+      responses:
+        '200':
+          description: OK
+  /stops:
+    get:
+      summary: Paradas del viaje
+      description: Obtiene la lista con la secuencia de paradas del viaje actual del vehículo.
+      tags:
+        - Trip
+      responses:
+        '200':
+          description: OK
+  /loading:
+    post:
+      summary: Ocupación del vehículo
+      description: Publica datos de la ocupación del vehículo, como el porcentaje de ocupación del vehículo según la capacidad de carga.
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Loading'
+      responses:
+        '200':
+          description: OK
+  /users:
+    get:
+      summary: Datos de las personas usuarias
+      description: Obtiene la lista de personas usuarias del sistema, incluyendo aquellos que no están en un viaje en un vehículo actualmente.
+      tags:
+        - Users
+      responses:
+        '200':
+          description: OK
+  /travelers:
+    get:
+      summary: Datos de las personas usuarias en viaje
+      description: Obtiene la lista de personas usuarias que están en un viaje en un vehículo actualmente.
+      tags:
+        - Users
       responses:
         '200':
           description: OK
@@ -84,131 +186,77 @@ paths:
       responses:
         '200':
           description: OK
-  /traveler:
+  /vehicle-alerts:
     get:
+      summary: Alertas del vehículo
+      description: Obtiene notificaciones de alerta sobre las condiciones del vehículo.
       tags:
-        - Users
+        - Alerts
       responses:
         '200':
           description: OK
-  /users:
+    post:
+      summary: Alertas del vehículo
+      description: Publica información sobre alguna incidencia o estado en el vehículo que puede afectar la prestación del servicio.
+      tags:
+        - Alerts
+      responses:
+        '200':
+          description: OK
+  /service-alerts:
     get:
+      summary: Alertas del servicio
+      description: Obtiene la lista de alertas del servicio, como incidencias que pueden afectar la prestación del servicio.
       tags:
-        - Users
+        - Alerts
       responses:
         '200':
           description: OK
-  /vehicle:
     post:
-      summary: Datos del vehículo
-      description: Publica datos del vehículo, como la etiqueta, placa y accesibilidad.
+      summary: Alertas del servicio
+      description: Publica información sobre alguna incidencia que puede afectar la prestación del servicio.
       tags:
-        - Vehicle
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Vehicle'
+        - Alerts
       responses:
         '200':
           description: OK
-  /conditions:
-    post:
-      summary: Condiciones del vehículo
-      description: Publica datos de las condiciones del vehículo, como el nivel de combustible, estado del motor, puertas, luces, aire acondicionado, temperatura, humedad, presión, batería y consumo de combustible.
-      tags:
-        - Vehicle
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Conditions'
-      responses:
-        '200':
-          description: OK
-  /emissions:
+  /gtfs/schedule:
     get:
+      summary: GTFS Schedule
+      description: Obtiene la entidad GTFS Schedule en formato JSON
       tags:
-        - Vehicle
+        - GTFS
       responses:
         '200':
           description: OK
-  /loading:
-    post:
-      summary: Ocupación del vehículo
-      description: Publica datos de la ocupación del vehículo, como el porcentaje de ocupación del vehículo según la capacidad de carga.
-      tags:
-        - Trip
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Loading'
-      responses:
-        '200':
-          description: OK
-  /position:
-    post:
-      summary: Posición del vehículo
-      description: Publica datos de la posición del vehículo, como la latitud, longitud, altitud, velocidad, dirección y odómetro.
-      tags:
-        - Trip
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Position'
-      responses:
-        '200':
-          description: OK
-  /trip:
-    post:
-      summary: Datos del viaje actual
-      description: Publica datos del viaje actual del vehículo, como el identificador del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación con el horario.
-      tags:
-        - Trip
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Trip'
-      responses:
-        '200':
-          description: OK
-  /schedule:  
-    post:
-      summary: Datos del avance del viaje
-      description: Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.
-      tags:
-        - Trip
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Schedule'
-      responses:
-        '200':
-          description: OK
-  /stops:
+  /gtfs/realtime/vehicle-positions:
     get:
+      summary: GTFS Realtime VehiclePositions
+      description: Obtiene la entidad GTFS Realtime VehiclePositions en formato JSON
       tags:
-        - Trip
+        - GTFS
       responses:
         '200':
           description: OK
-  /operator:
+  /gtfs/realtime/trip-updates:
     get:
+      summary: GTFS Realtime TripUpdates
+      description: Obtiene la entidad GTFS Realtime TripUpdates en formato JSON
       tags:
-        - Trip 
+        - GTFS
       responses:
         '200':
           description: OK
+  /gtfs/realtime/service-alerts:
+    get:
+      summary: GTFS Realtime ServiceAlerts
+      description: Obtiene la entidad GTFS Realtime ServiceAlerts en formato JSON
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+
 components:
   schemas:
     Position:
@@ -397,17 +445,18 @@ components:
           example: 'bUCR'
           
 tags:
-  - name: GTFS
-    description: General Transit Feed Specification
   - name: Vehicle
     x-displayName: Sobre el vehículo
-    description: Datos del vehículo y su estado
-  - name: Alarms
-    x-displayName: Alarmas
-    description: Alarmas
-  - name: Users
-    x-displayName: Pasajeros
-    description: Información sobre las personas usuarias del sistema
+    description: Datos del vehículo, su estado y su operador
   - name: Trip
     x-displayName: Sobre el viaje
     description: Datos sobre el viaje actual del vehículo.
+  - name: Users
+    x-displayName: Sobre los usuarios
+    description: Información sobre las personas usuarias del sistema
+  - name: Alerts
+    x-displayName: Alertas
+    description: Alertas sobre incidencias en el vehículo o en la vía que pueden afectar la prestación del servicio
+  - name: GTFS
+    x-displayName: GTFS Realtime
+    description: Suministro de datos GTFS (General Transit Feed Specification) Realtime en formato JSON
