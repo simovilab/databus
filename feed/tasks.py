@@ -5,7 +5,7 @@ import datetime
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
 
-from .models import Trip, Vehicle, Position, Path, Occupancy
+from .models import Trip, Position, Path, Occupancy
 
 
 @shared_task
@@ -26,7 +26,7 @@ def build_vehicle_position():
         position = Position.objects.filter(trip=trip).latest("timestamp")
         path = Path.objects.filter(trip=trip).latest("timestamp")
         occupancy = Occupancy.objects.filter(trip=trip).latest("timestamp")
-        # Entity    
+        # Entity
         vehicle_entity = {}
         vehicle_entity["id"] = f"bus-{vehicle.id}"
         vehicle_entity["vehicle"] = {}
@@ -38,8 +38,12 @@ def build_vehicle_position():
         vehicle_entity["vehicle"]["trip"]["route_id"] = trip.route_id
         vehicle_entity["vehicle"]["trip"]["direction_id"] = trip.direction_id
         vehicle_entity["vehicle"]["trip"]["start_time"] = str(trip.start_time)
-        vehicle_entity["vehicle"]["trip"]["start_date"] = trip.start_date.strftime('%Y%m%d')
-        vehicle_entity["vehicle"]["trip"]["schedule_relationship"] = trip.schedule_relationship
+        vehicle_entity["vehicle"]["trip"]["start_date"] = trip.start_date.strftime(
+            "%Y%m%d"
+        )
+        vehicle_entity["vehicle"]["trip"][
+            "schedule_relationship"
+        ] = trip.schedule_relationship
         # Vehicle
         vehicle_entity["vehicle"]["vehicle"] = {}
         vehicle_entity["vehicle"]["vehicle"]["id"] = vehicle.id
@@ -59,22 +63,22 @@ def build_vehicle_position():
         vehicle_entity["vehicle"]["congestion_level"] = path.congestion_level
         # Occupancy
         vehicle_entity["vehicle"]["occupancy_status"] = occupancy.occupancy_status
-        vehicle_entity["vehicle"]["occupancy_percentage"] = occupancy.occupancy_percentage
+        vehicle_entity["vehicle"][
+            "occupancy_percentage"
+        ] = occupancy.occupancy_percentage
         # Append entity to feed message
         feed_message["entity"].append(vehicle_entity)
 
     # Create and save JSON
-    feed_message_json = json.dumps(feed_message, indent=4)
+    feed_message_json = json.dumps(feed_message, indent=2)
     with open("feed/files/vehicle_positions.json", "w") as f:
         f.write(feed_message_json)
-    
+
     # Create and save Protobuf
     feed_message_json = json.loads(feed_message_json)
     feed_message_pb = json_format.ParseDict(feed_message_json, gtfs_rt.FeedMessage())
     with open("feed/files/vehicle_positions.pb", "wb") as f:
         f.write(feed_message_pb.SerializeToString())
-    
-    print(feed_message_json)
 
     return "Feed VehiclePosition built"
 
