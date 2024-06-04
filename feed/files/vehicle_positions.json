@@ -1,0 +1,41 @@
+{
+  "header": {
+    "gtfs_realtime_version": "2.0",
+    "incrementality": "FULL_DATASET",
+    "timestamp": 1717532292
+  },
+  "entity": [
+    {
+      "id": "bus-SJB1234",
+      "vehicle": {
+        "timestamp": 1717527476,
+        "trip": {
+          "trip_id": "desde_educacion_entresemana_6:20",
+          "route_id": "L1",
+          "direction_id": 1,
+          "start_time": "6:21:00",
+          "start_date": "20240604",
+          "schedule_relationship": "SCHEDULED"
+        },
+        "vehicle": {
+          "id": "SJB1234",
+          "label": "U1234",
+          "license_plate": "SJB1234"
+        },
+        "position": {
+          "latitude": 9.935576295831297,
+          "longitude": -84.0507704551861,
+          "bearing": 101.0,
+          "odometer": 19.0,
+          "speed": 12.0
+        },
+        "current_stop_sequence": 2,
+        "stop_id": "bUCR_0_02",
+        "current_status": "IN_TRANSIT_TO",
+        "congestion_level": "RUNNING_SMOOTHLY",
+        "occupancy_status": "FEW_SEATS_AVAILABLE",
+        "occupancy_percentage": 85
+      }
+    }
+  ]
+}

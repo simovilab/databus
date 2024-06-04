@@ -135,7 +135,7 @@ paths:
       responses:
         '201':
           description: Registro creado
-  /schedule:  
+  /path:  
     post:
       summary: Avance del viaje
       description: "Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 10 segundos"
@@ -146,7 +146,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Schedule'
+              $ref: '#/components/schemas/Path'
       responses:
         '201':
           description: Registro creado
@@ -171,7 +171,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/StopsResponse'
-  /loading:
+  /occupancy:
     post:
       summary: Ocupación del vehículo
       description: "Publica datos de la ocupación del vehículo, como el porcentaje de ocupación del vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: cambio en la ocupación"
@@ -182,7 +182,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Loading'
+              $ref: '#/components/schemas/Occupancy'
       responses:
         '201':
           description: Registro creado
@@ -484,18 +484,10 @@ components:
           description: Identificador de la ruta según GTFS Schedule
           type: string
           example: 'bUCR-L1'
-        service_id:
-          description: Identificador del servicio según GTFS Schedule
-          type: string
-          example: 'entresemana'
         direction_id:
           description: Identificador de la dirección del viaje según GTFS Schedule
           type: integer
           example: 0
-        shape_id:
-          description: Identificador de la trayectoria de la ruta según GTFS Schedule
-          type: string
-          example: 'desde_educacion'
         start_time:
           description: Hora de inicio del viaje
           type: string
@@ -508,9 +500,18 @@ components:
           description: Relación con el horario
           type: string
           enum: ['SCHEDULED', 'ADDED', 'UNSCHEDULED', 'CANCELED', 'DUPLICATED', 'DELETED']
+        shape_id:
+          description: Identificador de la trayectoria de la ruta según GTFS Schedule
+          type: string
+          example: 'desde_educacion'
     Position:
       type: object
       properties:
+        timestamp:
+          description: Fecha y hora de la medición de la posición del vehículo, en tiempo POSIX
+          type: number
+          format: integer
+          example: 1710067980
         latitude:
           description: Latitud WGS-84 del vehículo
           type: number
@@ -541,7 +542,7 @@ components:
           type: number
           format: float
           example: 12345.6
-    Schedule:
+    Path:
       type: object
       properties:
         current_stop_sequence:
@@ -589,7 +590,7 @@ components:
           type: number
           format: float
           example: 1234.5
-    Loading:
+    Occupancy:
       type: object
       properties:
         occupancy_status:
@@ -601,6 +602,10 @@ components:
           description: Porcentaje de ocupación del vehículo según capacidad de carga
           type: integer
           example: 95
+        occupancy_count:
+          description: Cantidad de personas usuarias en el vehículo
+          type: integer
+          example: 38
     Traveler:
       type: object
       properties:

@@ -2,15 +2,21 @@ from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 
 
-class Company(models.Model):
+class Provider(models.Model):
     """A company provides transportation services GTFS data.
 
     It might or might not be the same as the agency in the GTFS feed. A company can have multiple agencies.
     """
 
-    company_id = models.BigAutoField(primary_key=True)
+    provider_id = models.BigAutoField(primary_key=True)
+    code = models.CharField(
+        max_length=31,
+        help_text="Código (típicamente el acrónimo) de la empresa. No debe tener espacios ni símbolos especiales.",
+    )
     name = models.CharField(max_length=255, help_text="Nombre de la empresa.")
-    description = models.TextField(blank=True, null=True, help_text="Descripción de la institución o empresa.")
+    description = models.TextField(
+        blank=True, null=True, help_text="Descripción de la institución o empresa."
+    )
     website = models.URLField(
         blank=True, null=True, help_text="Sitio web de la empresa."
     )
@@ -32,9 +38,12 @@ class Company(models.Model):
         null=True,
         help_text="URL del suministro (FeedMessage) Protobuf (.pb) de GTFS Realtime ServiceAlerts.",
     )
+    is_active = models.BooleanField(
+        default=False, help_text="¿Está activo el proveedor?"
+    )
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.code})"
 
 
 # -------------
@@ -44,7 +53,9 @@ class Company(models.Model):
 
 class Feed(models.Model):
     feed_id = models.CharField(max_length=100, primary_key=True)
-    company = models.ForeignKey(Company, on_delete=models.SET_NULL, blank=True, null=True)
+    provider = models.ForeignKey(
+        Provider, on_delete=models.SET_NULL, blank=True, null=True
+    )
     http_etag = models.CharField(max_length=1023, blank=True, null=True)
     is_current = models.BooleanField(blank=True, null=True)
     last_modified = models.DateTimeField(blank=True, null=True)
@@ -499,7 +510,9 @@ class FeedMessage(models.Model):
     """
 
     feed_message_id = models.BigAutoField(primary_key=True)
-    company = models.ForeignKey(Company, on_delete=models.SET_NULL, blank=True, null=True)
+    provider = models.ForeignKey(
+        Provider, on_delete=models.SET_NULL, blank=True, null=True
+    )
     timestamp = models.DateTimeField(auto_now=True)
     entity_type = models.CharField(max_length=63)
     incrementality = models.CharField(max_length=15)

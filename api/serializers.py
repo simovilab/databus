@@ -1,5 +1,5 @@
 from django.contrib.auth.models import Group, User
-from feed.models import OnBoardEquipment
+from feed.models import Equipment
 from rest_framework import serializers
 
 
@@ -17,5 +17,5 @@ class GroupSerializer(serializers.HyperlinkedModelSerializer):
 
 class OnBoardEquipmentSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
-        model = OnBoardEquipment
+        model = Equipment
         fields = ["url", "serial_number", "brand", "model", "owner", "created_at", "updated_at"]

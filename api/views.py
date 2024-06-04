@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.http import FileResponse
 from django.contrib.auth.models import Group, User
-from feed.models import OnBoardEquipment
+from feed.models import Equipment
 from rest_framework import permissions, viewsets
 
 from .serializers import GroupSerializer, UserSerializer, OnBoardEquipmentSerializer
@@ -32,7 +32,7 @@ class OnBoardEquipmentViewSet(viewsets.ModelViewSet):
     API endpoint that allows on board equipment to be viewed or edited.
     """
 
-    queryset = OnBoardEquipment.objects.all().order_by("created_at")
+    queryset = Equipment.objects.all().order_by("created_at")
     serializer_class = OnBoardEquipmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
