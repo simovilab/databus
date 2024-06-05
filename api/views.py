@@ -1,40 +1,10 @@
 from django.conf import settings
 from django.http import FileResponse
-from django.contrib.auth.models import Group, User
-from feed.models import Equipment
-from rest_framework import permissions, viewsets
+from rest_framework import viewsets
+from rest_framework.authentication import TokenAuthentication
 
-from .serializers import GroupSerializer, UserSerializer, OnBoardEquipmentSerializer
-
-
-class UserViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint that allows users to be viewed or edited.
-    """
-
-    queryset = User.objects.all().order_by("-date_joined")
-    serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-
-class GroupViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint that allows groups to be viewed or edited.
-    """
-
-    queryset = Group.objects.all().order_by("name")
-    serializer_class = GroupSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-
-class OnBoardEquipmentViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint that allows on board equipment to be viewed or edited.
-    """
-
-    queryset = Equipment.objects.all().order_by("created_at")
-    serializer_class = OnBoardEquipmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+from feed.models import *
+from .serializers import *
 
 
 def get_schema(request):
@@ -42,3 +12,39 @@ def get_schema(request):
     return FileResponse(
         open(file_path, "rb"), as_attachment=True, filename="realtime.yml"
     )
+
+
+class VehicleViewSet(viewsets.ModelViewSet):
+    queryset = Vehicle.objects.all()
+    serializer_class = VehicleSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class EquipmentViewSet(viewsets.ModelViewSet):
+    queryset = Equipment.objects.all()
+    serializer_class = EquipmentSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class TripViewSet(viewsets.ModelViewSet):
+    queryset = Trip.objects.all()
+    serializer_class = TripSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class PositionViewSet(viewsets.ModelViewSet):
+    queryset = Position.objects.all()
+    serializer_class = PositionSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class PathViewSet(viewsets.ModelViewSet):
+    queryset = Path.objects.all()
+    serializer_class = PathSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class OccupancyViewSet(viewsets.ModelViewSet):
+    queryset = Occupancy.objects.all()
+    serializer_class = OccupancySerializer
+    authentication_classes = [TokenAuthentication]

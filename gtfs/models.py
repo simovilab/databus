@@ -8,10 +8,9 @@ class Provider(models.Model):
     It might or might not be the same as the agency in the GTFS feed. A company can have multiple agencies.
     """
 
-    provider_id = models.BigAutoField(primary_key=True)
-    code = models.CharField(
-        max_length=31,
-        help_text="Código (típicamente el acrónimo) de la empresa. No debe tener espacios ni símbolos especiales.",
+    id = models.CharField(
+        max_length=31, primary_key=True,
+        help_text="Código (típicamente el acrónimo) de la empresa. No debe tener espacios ni símbolos especiales. Ejemplo: bUCR",
     )
     name = models.CharField(max_length=255, help_text="Nombre de la empresa.")
     description = models.TextField(
@@ -43,7 +42,7 @@ class Provider(models.Model):
     )
 
     def __str__(self):
-        return f"{self.name} ({self.code})"
+        return f"{self.name} ({self.id})"
 
 
 # -------------

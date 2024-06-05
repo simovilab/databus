@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "website.apps.WebsiteConfig",
     "api.apps.ApiConfig",
     "rest_framework",
+    "rest_framework.authtoken",
     "drf_spectacular",
     "django_celery_results",
     "django_celery_beat",
