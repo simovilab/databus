@@ -4,5 +4,7 @@ celery[redis]
 django-celery-results
 django-celery-beat
 python-decouple
+djangorestframework
+drf-spectacular
 psycopg2-binary
 gunicorn

@@ -1,0 +1,799 @@
+openapi: '3.0.2'
+info:
+  title: Databús API
+  description: "Un servidor para enviar datos desde los equipos de los vehículos de transporte público a un servidor en tiempo real para la creación del suministro de datos GTFS Realtime y otros.\n\n**Autores**\n\n Fabián Abarca Calderón, Adrián Cordero Méndez, Edson Murillo Mamani \n\n *Escuela de Ingeniería Eléctrica, Universidad de Costa Rica*"
+  version: '1.0'
+  contact:
+    email: tropicalizacion@ucr.ac.cr
+  x-logo:
+    url: https://fabianabarca.github.io/senaletica/assets/logos/b_azul_fondo_blanco.png
+    altText: Logo bUCR
+  license:
+    name: Creative Commons CC BY 4.0
+    url: 'https://creativecommons.org/licenses/by/4.0/legalcode'
+servers:
+  - url: https://realtime.bucr.digital/api
+
+paths:
+  /provider:
+    post:
+      summary: Proveedor de datos
+      description: Publica información del proveedor de datos del servicio de transporte público, que puede o no ser la misma agencia operadora del servicio.
+      tags:
+        - Feed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Provider'
+      responses:
+        '201':
+          description: Registro creado
+  /equipment:
+    post:
+      summary: Equipo de telemetría y rastreo
+      description: "Registra un nuevo equipo de a bordo (On-Board Equipment) en el sistema.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo equipo en el sistema"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Equipment'
+      tags:
+        - Vehicle
+      responses:
+        '201':
+          description: Registro creado
+  /vehicle:
+    post:
+      summary: Vehículo
+      description: "Publica datos del vehículo en el que está el equipo, como la etiqueta, placa y accesibilidad, entre otros servicios.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo equipo en un vehículo"
+      tags:
+        - Vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vehicle'
+      responses:
+        '201':
+          description: Registro creado
+  /operator:
+    post:
+      summary: Conductor del vehículo
+      description: Publica datos del operador del vehículo, como el nombre y otros datos personales.
+      tags:
+        - Vehicle 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Operator'
+      responses:
+        '201':
+          description: Registro creado
+  /conditions:
+    post:
+      summary: Condiciones del vehículo
+      description: "Publica datos de las condiciones del vehículo, como el nivel de combustible, estado de las puertas, las luces, el aire acondicionado y otros.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
+      tags:
+        - Vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Conditions'
+      responses:
+        '201':
+          description: Registro creado
+  /emissions:
+    post:
+      summary: Emisiones del vehículo
+      description: "Publica datos de las emisiones del vehículo, como el nivel de emisiones de gases de escape.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
+      tags:
+        - Vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Emissions'
+      responses:
+        '201':
+          description: Registro creado
+  /trip:
+    post:
+      summary: Datos del viaje actual
+      description: "Publica datos del viaje actual del vehículo, como el identificador del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación con el horario.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio de un nuevo viaje"
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Trip'
+      responses:
+        '201':
+          description: Registro creado
+  /position:
+    post:
+      summary: Posición del vehículo
+      description: "Publica datos de la posición del vehículo, como la latitud, longitud, altitud, velocidad, dirección y odómetro.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 10 segundos"
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Position'
+      responses:
+        '201':
+          description: Registro creado
+  /path:  
+    post:
+      summary: Avance del viaje
+      description: "Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 10 segundos"
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Path'
+      responses:
+        '201':
+          description: Registro creado
+  /stops:
+    get:
+      summary: Paradas del viaje
+      description: "Obtiene la lista con la secuencia de paradas del viaje actual del vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio del viaje"
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Stops'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StopsResponse'
+  /occupancy:
+    post:
+      summary: Ocupación del vehículo
+      description: "Publica datos de la ocupación del vehículo, como el porcentaje de ocupación del vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: cambio en la ocupación"
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Occupancy'
+      responses:
+        '201':
+          description: Registro creado
+  /travelers:
+    post:
+      summary: Personas usuarias en viaje
+      description: "Publica datos de los usuarios que abordan o abandonan el vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: abordaje o desembarque de una persona usuaria"
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Traveler'
+      responses:
+        '201':
+          description: Registro creado
+  /authorizations:
+    get:
+      summary: Autorización de usuario
+      description: "Obtiene la información sobre la autorización de un pasajero para abordar el vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: abordaje o desembarque de una persona usuaria"
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Authorization'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizationResponse'
+  /fares:
+    post:
+      summary: Información de pago
+      description: "Publica datos de la forma de pago de cada pasajero.\n\n**Tipo de actualización**: por evento\n\n**Evento**: pago al abordaje o desembarque de una persona usuaria"
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Fare'
+      responses:
+        '201':
+          description: Registro creado
+  /transfers:
+    get:
+      summary: Autorización de transbordo
+      description: "Obtiene la información sobre la autorización de un pasajero para abordar un nuevo vehículo en una transferencia con un mismo pago.\n\n**Tipo de actualización**: por evento\n\n**Evento**: abordaje o desembarque de una persona usuaria"
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transfer'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+  /alerts:
+    get:
+      summary: Alertas del servicio
+      description: "Obtiene la lista de alertas del servicio, como incidencias que pueden afectar la prestación del servicio.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
+      tags:
+        - Alerts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+    post:
+      summary: Alertas del servicio
+      description: "Publica información sobre alguna incidencia que puede afectar la prestación del servicio.\n\n**Tipo de actualización**: por evento\n\n**Evento**: incidencia en la vía o en el vehículo"
+      tags:
+        - Alerts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Alert'
+      responses:
+        '201':
+          description: Registro creado
+  /gtfs/schedule:
+    get:
+      summary: GTFS Schedule
+      description: Obtiene la entidad GTFS Schedule en formato JSON
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+  /gtfs/realtime/vehicle-positions:
+    get:
+      summary: GTFS Realtime VehiclePositions
+      description: Obtiene la entidad GTFS Realtime VehiclePositions en formato JSON
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+  /gtfs/realtime/trip-updates:
+    get:
+      summary: GTFS Realtime TripUpdates
+      description: Obtiene la entidad GTFS Realtime TripUpdates en formato JSON
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+  /gtfs/realtime/service-alerts:
+    get:
+      summary: GTFS Realtime ServiceAlerts
+      description: Obtiene la entidad GTFS Realtime ServiceAlerts en formato JSON
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+
+components:
+  schemas:
+    Provider:
+      type: object
+      properties:
+        provider_id:
+          description: Identificador del proveedor de datos
+          type: string
+          example: 'Oficina de Servicios Generales'
+    Equipment:
+      type: object
+      properties:
+        serial_number:
+          description: Número de serie del equipo
+          type: string
+          example: 'SJ3249TISER94N'
+        brand:
+          description: Marca del equipo
+          type: string
+          example: 'Blackberry'
+        model:
+          description: Modelo del equipo
+          type: string
+          example: 'Solar System 12'
+        software_version:
+          description: Versión del software del equipo
+          type: string
+          example: '1.3.5'
+        provider:
+          description: Propietario del equipo proveedor de datos
+          type: string
+          example: 'bUCR'
+    Vehicle:
+      type: object
+      properties:
+        id:
+          description: Identificador del vehículo
+          type: string
+          example: '98E4TNSG'
+        label:
+          description: Etiqueta del vehículo
+          type: string
+          example: 'SJB 9876'
+        license_plate:
+          description: Placa del vehículo
+          type: string
+          example: 'SJB 9876'
+        wheelchair_accessible:
+          description: Accesibilidad para sillas de ruedas
+          type: string
+          enum: ['NO_VALUE', 'UNKNOWN', 'WHEELCHAIR_ACCESSIBLE', 'WHEELCHAIR_INACCESSIBLE']
+          example: 'WHEELCHAIR_ACCESSIBLE'
+        wifi:
+          description: Disponibilidad de Wi-Fi en el vehículo
+          type: string
+          enum: ['NO_VALUE', 'UNKNOWN', 'AVAILABLE', 'UNAVAILABLE']
+          example: 'AVAILABLE'
+        air_conditioning:
+          description: Disponibilidad de aire acondicionado en el vehículo
+          type: string
+          enum: ['NO_VALUE', 'UNKNOWN', 'AVAILABLE', 'UNAVAILABLE']
+          example: 'UNAVAILABLE'
+        mobile_charging:
+          description: Disponibilidad de cargadores para móviles en el vehículo
+          type: string
+          enum: ['NO_VALUE', 'UNKNOWN', 'AVAILABLE', 'UNAVAILABLE']
+          example: 'UNKNOWN'
+        bike_rack:
+          description: Disponibilidad de portabicicletas en el vehículo
+          type: string
+          enum: ['NO_VALUE', 'UNKNOWN', 'AVAILABLE', 'UNAVAILABLE']
+          example: 'NO_VALUE'
+    Operator: 
+      type: object
+      properties:
+        id:
+          description: Identificador del operador
+          type: string
+          example: '1-1234-5678'
+        name:
+          description: Nombre del operador
+          type: string
+          example: 'María Rodríguez'
+        phone:
+          description: Teléfono del operador
+          type: string
+          example: '8888-8888'
+        email:
+          description: Correo electrónico del operador
+          type: string
+          example: 'nombre.apellido@ejemplo.com'
+    Conditions:
+      type: object
+      properties:
+        fuel:
+          description: Nivel de combustible del vehículo
+          type: number
+          format: float
+          example: 0.75
+        engine:
+          description: Estado del motor del vehículo
+          type: string
+          enum: ['ON', 'OFF']
+        doors:
+          description: Estado de las puertas del vehículo
+          type: string
+          enum: ['OPEN', 'CLOSED']
+        lights:
+          description: Estado de las luces del vehículo
+          type: string
+          enum: ['ON', 'OFF']
+        air_conditioning:
+          description: Estado del aire acondicionado del vehículo
+          type: string
+          enum: ['ON', 'OFF']
+        temperature:
+          description: Temperatura del vehículo
+          type: number
+          format: float
+          example: 25.5
+        humidity:
+          description: Humedad del vehículo
+          type: number
+          format: float
+          example: 0.75
+        battery:
+          description: Nivel de batería del vehículo
+          type: number
+          format: float
+          example: 0.75
+    Emissions:
+      type: object
+      properties:
+        co2:
+          description: Nivel de emisiones de CO2 del vehículo (g/km)
+          type: number
+          format: float
+          example: 258
+        co:
+          description: Nivel de emisiones de CO del vehículo (g/km)
+          type: number
+          format: float
+          example: 13.06
+        nox:
+          description: Nivel de emisiones de NOx del vehículo (g/km)
+          type: number
+          format: float
+          example: 0.87
+        hc:
+          description: Nivel de emisiones de hidrocarburos del vehículo (g/km)
+          type: number
+          format: float
+          example: 1.75
+    Trip:
+      type: object
+      properties:
+        trip_id:
+          description: Identificador del viaje según GTFS Schedule
+          type: string
+          example: 'JFH367'
+        route_id:
+          description: Identificador de la ruta según GTFS Schedule
+          type: string
+          example: 'bUCR-L1'
+        direction_id:
+          description: Identificador de la dirección del viaje según GTFS Schedule
+          type: integer
+          example: 0
+        start_time:
+          description: Hora de inicio del viaje
+          type: string
+          example: '07:15:00'
+        start_date:
+          description: Fecha de inicio del viaje
+          type: string
+          example: '2024-05-03'
+        schedule_relationship:
+          description: Relación con el horario
+          type: string
+          enum: ['SCHEDULED', 'ADDED', 'UNSCHEDULED', 'CANCELED', 'DUPLICATED', 'DELETED']
+        shape_id:
+          description: Identificador de la trayectoria de la ruta según GTFS Schedule
+          type: string
+          example: 'desde_educacion'
+    Position:
+      type: object
+      properties:
+        timestamp:
+          description: Fecha y hora de la medición de la posición del vehículo, en tiempo POSIX
+          type: number
+          format: integer
+          example: 1710067980
+        latitude:
+          description: Latitud WGS-84 del vehículo
+          type: number
+          format: float
+          example: 9.937044983645931
+        longitude:
+          description: Longitud WGS-84 del vehículo
+          type: number
+          format: float
+          example: -84.04392677465846
+        altitude:
+          description: Altitud del vehículo (msnm)
+          type: number
+          format: float
+          example: 1234.5
+        speed:
+          description: Velocidad del vehículo (m/s)
+          type: number
+          format: float
+          example: 12.5
+        bearing:
+          description: Dirección del vehículo, donde el norte es 0 grados
+          type: number
+          format: float
+          example: 135
+        odometer:
+          description: Odómetro del vehículo (m)
+          type: number
+          format: float
+          example: 12345.6
+    Path:
+      type: object
+      properties:
+        current_stop_sequence:
+          description: Secuencia de la parada
+          type: integer
+          example: 15
+        stop_id:
+          description: Identificador de la parada
+          type: string
+          example: 'bUCR-0-03'
+        current_status:
+          description: Estado actual del vehículo
+          type: string
+          enum: ['INCOMING_AT', 'STOPPED_AT', 'IN_TRANSIT_TO']
+          example: 'STOPPED_AT'
+        congestion_level:
+          description: Nivel de congestión vehicular en la vía
+          type: string
+          enum: ['UNKNOWN_CONGESTION_LEVEL', 'RUNNING_SMOOTHLY', 'STOP_AND_GO', 'CONGESTION', 'SEVERE_CONGESTION']
+          example: 'SEVERE_CONGESTION'
+    Stops: 
+      type: object
+      properties:
+        route_id:
+          description: Identificador de la ruta
+          type: string
+          example: 'bUCR-L1'
+        shape_id:
+          description: Identificador de la trayectoria de la ruta
+          type: string
+          example: 'desde_educacion'
+    StopsResponse:
+      type: object
+      properties:
+        stop_id:
+          description: Identificador de la parada
+          type: string
+          example: 'bUCR-0-03'
+        stop_sequence:
+          description: Secuencia de la parada
+          type: integer
+          example: 15
+        shape_dist_traveled:
+          description: Distancia recorrida en la trayectoria de la ruta (m)
+          type: number
+          format: float
+          example: 1234.5
+    Occupancy:
+      type: object
+      properties:
+        occupancy_status:
+          description: Estado de la ocupación de la parada
+          type: string
+          enum: ['EMPTY', 'MANY_SEATS_AVAILABLE', 'FEW_SEATS_AVAILABLE', 'STANDING_ROOM_ONLY', 'CRUSHED_STANDING_ROOM_ONLY', 'FULL', 'NOT_ACCEPTING_PASSENGERS', 'NO_DATA_AVAILABLE', 'NOT_BOARDABLE']
+          example: 'CRUSHED_STANDING_ROOM_ONLY'
+        occupancy_percentage:
+          description: Porcentaje de ocupación del vehículo según capacidad de carga
+          type: integer
+          example: 95
+        occupancy_count:
+          description: Cantidad de personas usuarias en el vehículo
+          type: integer
+          example: 38
+    Traveler:
+      type: object
+      properties:
+        user_id:
+          description: Identificador anonimizado del usuario
+          type: string
+          example: 'IUHG9483NE9'
+        stop_id:
+          description: Identificador de la parada
+          type: string
+          example: 'bUCR-0-03'
+        boarding:
+          description: Indica si el usuario aborda o desembarca del vehículo
+          type: string
+          enum: ['BOARDING', 'ALIGHTING']
+          example: 'BOARDING'
+    Authorization:
+      type: object
+      properties:
+        user_id:
+          description: Identificador anonimizado del usuario
+          type: string
+          example: 'IUHG9483NE9'
+    AuthorizationResponse:
+      type: object
+      properties:
+        user_id:
+          description: Identificador anonimizado del usuario
+          type: string
+          example: 'IUHG9483NE9'
+        authorized:
+          description: Indica si el usuario está autorizado para abordar el vehículo
+          type: boolean
+          example: true
+    Fare:
+      type: object
+      properties:
+        user_id:
+          description: Identificador anonimizado del usuario
+          type: string
+          example: 'IUHG9483NE9'
+        fare_media:
+          description: Método de pago del usuario
+          type: string
+          enum: ['CASH', 'TICKET', 'CARD', 'CEMV', 'MOBILE']
+          example: 'CARD'
+        fare_product:
+          description: Producto de pago del usuario
+          type: string
+          example: 'Estudiante'
+        amount:
+          description: Monto pagado por el usuario
+          type: number
+          format: float
+          example: 500
+        currency:
+          description: Moneda del monto pagado
+          type: string
+          example: 'CRC'
+    Transfer:
+      type: object
+      properties:
+        user_id:
+          description: Identificador anonimizado del usuario
+          type: string
+          example: 'IUHG9483NE9'
+    TransferResponse:
+      type: object
+      properties:
+        user_id:
+          description: Identificador anonimizado del usuario
+          type: string
+          example: 'IUHG9483NE9'
+        authorized:
+          description: Indica si el usuario está autorizado para abordar el vehículo en transferencia
+          type: boolean
+          example: true
+    Alert:
+      type: object
+      properties:
+        active_period:
+          description: Vigencia de la alerta
+          type: array
+          items:
+            type: object
+            properties:
+              start:
+                description: Fecha y hora de inicio de la alerta, en tiempo POSIX
+                type: string
+                example: '1715733943'
+              end:
+                description: Fecha y hora de finalización de la alerta, en tiempo POSIX
+                type: string
+                example: '1715735978'
+        informed_entity:
+          description: Tipo de alerta
+          type: array
+          items:
+            type: object
+            properties:
+              agency_id:
+                description: Identificador de la agencia
+                type: string
+                example: 'bUCR'
+              route_id:
+                description: Identificador de la ruta
+                type: string
+                example: 'bUCR-L1'
+              route_type:
+                description: Tipo de ruta
+                type: integer
+                example: 3
+              direction_id:
+                description: Identificador de la dirección del viaje
+                type: integer
+                example: 0
+              trip:
+                description: Identificador del viaje
+                type: string
+                items:
+                  type: object
+                  properties:
+                    trip_id:
+                      description: Identificador del viaje
+                      type: string
+                      example: 'JFH367'
+                    route_id:
+                      description: Identificador de la ruta
+                      type: string
+                      example: 'bUCR-L1'
+                    direction_id:
+                      description: Identificador de la dirección del viaje
+                      type: integer
+                      example: 0
+                    start_time:
+                      description: Hora de inicio del viaje
+                      type: string
+                      example: '07:15:00'
+                    start_date:
+                      description: Fecha de inicio del viaje
+                      type: string
+                      example: '2024-05-03'
+                    schedule_relationship:
+                      description: Relación con el horario
+                      type: string
+                      enum: ['SCHEDULED', 'ADDED', 'UNSCHEDULED', 'CANCELED', 'DUPLICATED', 'DELETED']
+                      example: 'SCHEDULED'
+              stop_id:
+                description: Identificador de la parada
+                type: string
+                example: 'bUCR-0-03'
+        cause:
+          description: Causa de la alerta
+          type: string
+          enum: ['UNKNOWN_CAUSE', 'OTHER_CAUSE','TECHNICAL_PROBLEM', 'STRIKE', 'DEMONSTRATION', 'ACCIDENT', 'HOLIDAY', 'WEATHER', 'MAINTENANCE', 'CONSTRUCTION', 'POLICE_ACTIVITY', 'MEDICAL_EMERGENCY']
+        cause_detail:
+          description: Detalle de la causa de la alerta
+          type: string
+          example: 'Cierre de vía por manifestación'
+        effect:
+          description: Efecto de la alerta
+          type: string
+          enum: ['NO_SERVICE', 'REDUCED_SERVICE', 'SIGNIFICANT_DELAYS', 'DETOUR', 'ADDITIONAL_SERVICE', 'MODIFIED_SERVICE', 'OTHER_EFFECT', 'UNKNOWN_EFFECT', 'STOP_MOVED', 'NO_EFFECT', 'ACCESSIBILITY_ISSUE']
+        effect_detail:
+          description: Detalle del efecto de la alerta
+          type: string
+          example: 'Desvío por cierre de vía'
+        description_text:
+          description: Descripción de la alerta
+          type: string
+          example: 'Cierre de vía por manifestación y desvío de la ruta'      
+
+tags:
+  - name: Feed
+    x-displayName: Sobre el proveedor de datos
+    description: Información sobre el proveedor de datos del servicio de transporte público
+  - name: Vehicle
+    x-displayName: Sobre el vehículo
+    description: Datos del vehículo, su estado y su operador
+  - name: Trip
+    x-displayName: Sobre el viaje
+    description: Datos sobre el viaje actual del vehículo.
+  - name: Users
+    x-displayName: Sobre los usuarios
+    description: Información sobre las personas usuarias del sistema
+  - name: Alerts
+    x-displayName: Alertas
+    description: Alertas sobre incidencias en el vehículo o en la vía que pueden afectar la prestación del servicio
+  - name: GTFS
+    x-displayName: GTFS
+    description: Suministro de datos GTFS (General Transit Feed Specification) Schedule y Realtime en formato JSON

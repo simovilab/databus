@@ -1,0 +1,36 @@
+{% load static %}
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>bUCR | Servidor en tiempo real</title>
+    <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+
+<body class="d-flex align-items-center justify-content-center text-center" style="height: 100vh;">
+
+    <main class="w-100 m-auto">
+        <div class="container">
+            <img src="{% static 'img/b_azul_fondo_blanco.png' %}" width="150px" alt="Símbolo servidor en tiempo real">
+            <h1 class="display-3">Servidor en tiempo real</h1>
+            <p class="lead">Servidor para la recolección de datos desde vehículos de transporte público y la creación del suministro (<em>feed</em>) GTFS Realtime y otros.</p>
+            <span class="badge rounded-pill text-bg-warning">En desarrollo</span>
+            <h3 class="mt-5">Suministro GTFS <em>Realtime</em></h3>
+            <dl>
+                <dt>VehiclePosition</dt>
+                <dd>Posición de los vehículos en tiempo real: <a href="{% url 'vehicle_json' %}" target="_blank"><i class="bi bi-filetype-json"></i> JSON</a> <a href="{% url 'vehicle_pb' %}" target="_blank"><i class="bi bi-file-binary"></i> Probotuf</a></dd>
+                <!--<dt>TripUpdates</dt>
+                <dd>Actualización de los viajes en tiempo real: <a href="{% url 'vehicle_json' %}" target="_blank"><i class="bi bi-filetype-json"></i> JSON</a> <a href="{% url 'vehicle_pb' %}" target="_blank"><i class="bi bi-file-binary"></i> Probotuf</a></dd>-->
+            </dl>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+
+</html>

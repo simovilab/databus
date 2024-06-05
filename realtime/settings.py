@@ -37,6 +37,10 @@ INSTALLED_APPS = [
     "gtfs.apps.GtfsConfig",
     "feed.apps.FeedConfig",
     "website.apps.WebsiteConfig",
+    "api.apps.ApiConfig",
+    "rest_framework",
+    "rest_framework.authtoken",
+    "drf_spectacular",
     "django_celery_results",
     "django_celery_beat",
     "django.contrib.admin",
@@ -45,6 +49,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.gis",
 ]
 
 MIDDLEWARE = [
@@ -84,14 +89,14 @@ WSGI_APPLICATION = "realtime.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "NAME": config('DB_NAME'),
-        "USER": config('DB_USER'),
+        "NAME": config("DB_NAME"),
+        "USER": config("DB_USER"),
     },
 }
 
 if not (platform.platform() == "Linux" or platform.machine() == "x86_64"):
-    GDAL_LIBRARY_PATH = config('GDAL_LIBRARY_PATH')
-    GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH')
+    GDAL_LIBRARY_PATH = config("GDAL_LIBRARY_PATH")
+    GEOS_LIBRARY_PATH = config("GEOS_LIBRARY_PATH")
 
 
 # Password validation
@@ -124,6 +129,18 @@ CELERY_RESULT_BACKEND = "django-db"
 CELERY_CACHE_BACKEND = "django-cache"
 CELERY_RESULTS_EXTENDED = True
 
+# REST Framework settings
+
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Databús API",
+}
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
@@ -140,7 +157,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 
 # Default primary key field type
