@@ -6,5 +6,9 @@ django-celery-beat
 python-decouple
 djangorestframework
 drf-spectacular
+requests
+pandas
+geopandas
+gtfs-realtime-bindings
 psycopg2-binary
 gunicorn
