@@ -5,6 +5,9 @@ import datetime
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
 
+# For the fake_stop_times function (temporary!)
+import pandas as pd
+
 from .models import Trip, Position, Path, Occupancy
 
 
@@ -27,47 +30,41 @@ def build_vehicle_position():
         path = Path.objects.filter(trip=trip).latest("timestamp")
         occupancy = Occupancy.objects.filter(trip=trip).latest("timestamp")
         # Entity
-        vehicle_entity = {}
-        vehicle_entity["id"] = f"bus-{vehicle.id}"
-        vehicle_entity["vehicle"] = {}
+        entity = {}
+        entity["id"] = f"bus-{vehicle.id}"
+        entity["vehicle"] = {}
         # Timestamp
-        vehicle_entity["vehicle"]["timestamp"] = int(position.timestamp.timestamp())
+        entity["vehicle"]["timestamp"] = int(position.timestamp.timestamp())
         # Trip
-        vehicle_entity["vehicle"]["trip"] = {}
-        vehicle_entity["vehicle"]["trip"]["trip_id"] = trip.trip_id
-        vehicle_entity["vehicle"]["trip"]["route_id"] = trip.route_id
-        vehicle_entity["vehicle"]["trip"]["direction_id"] = trip.direction_id
-        vehicle_entity["vehicle"]["trip"]["start_time"] = str(trip.start_time)
-        vehicle_entity["vehicle"]["trip"]["start_date"] = trip.start_date.strftime(
-            "%Y%m%d"
-        )
-        vehicle_entity["vehicle"]["trip"][
-            "schedule_relationship"
-        ] = trip.schedule_relationship
+        entity["vehicle"]["trip"] = {}
+        entity["vehicle"]["trip"]["trip_id"] = trip.trip_id
+        entity["vehicle"]["trip"]["route_id"] = trip.route_id
+        entity["vehicle"]["trip"]["direction_id"] = trip.direction_id
+        entity["vehicle"]["trip"]["start_time"] = str(trip.start_time)
+        entity["vehicle"]["trip"]["start_date"] = trip.start_date.strftime("%Y%m%d")
+        entity["vehicle"]["trip"]["schedule_relationship"] = trip.schedule_relationship
         # Vehicle
-        vehicle_entity["vehicle"]["vehicle"] = {}
-        vehicle_entity["vehicle"]["vehicle"]["id"] = vehicle.id
-        vehicle_entity["vehicle"]["vehicle"]["label"] = vehicle.label
-        vehicle_entity["vehicle"]["vehicle"]["license_plate"] = vehicle.license_plate
+        entity["vehicle"]["vehicle"] = {}
+        entity["vehicle"]["vehicle"]["id"] = vehicle.id
+        entity["vehicle"]["vehicle"]["label"] = vehicle.label
+        entity["vehicle"]["vehicle"]["license_plate"] = vehicle.license_plate
         # Position
-        vehicle_entity["vehicle"]["position"] = {}
-        vehicle_entity["vehicle"]["position"]["latitude"] = position.point.y
-        vehicle_entity["vehicle"]["position"]["longitude"] = position.point.x
-        vehicle_entity["vehicle"]["position"]["bearing"] = position.bearing
-        vehicle_entity["vehicle"]["position"]["odometer"] = position.odometer
-        vehicle_entity["vehicle"]["position"]["speed"] = position.speed
+        entity["vehicle"]["position"] = {}
+        entity["vehicle"]["position"]["latitude"] = position.point.y
+        entity["vehicle"]["position"]["longitude"] = position.point.x
+        entity["vehicle"]["position"]["bearing"] = position.bearing
+        entity["vehicle"]["position"]["odometer"] = position.odometer
+        entity["vehicle"]["position"]["speed"] = position.speed
         # Path
-        vehicle_entity["vehicle"]["current_stop_sequence"] = path.current_stop_sequence
-        vehicle_entity["vehicle"]["stop_id"] = path.stop_id
-        vehicle_entity["vehicle"]["current_status"] = path.current_status
-        vehicle_entity["vehicle"]["congestion_level"] = path.congestion_level
+        entity["vehicle"]["current_stop_sequence"] = path.current_stop_sequence
+        entity["vehicle"]["stop_id"] = path.stop_id
+        entity["vehicle"]["current_status"] = path.current_status
+        entity["vehicle"]["congestion_level"] = path.congestion_level
         # Occupancy
-        vehicle_entity["vehicle"]["occupancy_status"] = occupancy.occupancy_status
-        vehicle_entity["vehicle"][
-            "occupancy_percentage"
-        ] = occupancy.occupancy_percentage
+        entity["vehicle"]["occupancy_status"] = occupancy.occupancy_status
+        entity["vehicle"]["occupancy_percentage"] = occupancy.occupancy_percentage
         # Append entity to feed message
-        feed_message["entity"].append(vehicle_entity)
+        feed_message["entity"].append(entity)
 
     # Create and save JSON
     feed_message_json = json.dumps(feed_message, indent=2)
@@ -93,3 +90,17 @@ def build_trip_update():
 def build_alert():
     print("Building feed Alert...")
     return "Feed ServiceAlert built"
+
+
+def fake_stop_times():
+    """
+    Revisar en Path por cuál parada está el viaje, y devolver los tiempos de llegada a las siguientes paradas, con la siguiente aproximación: 3 minutos de intervalo entre cada parada.
+
+    Ejemplos:
+    - current_stop_sequence = 5, current_status = "IN_TRANSIT_TO": Devolver los tiempos de llegada a las paradas 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 (última).
+    - current_stop_sequence = 5, current_status = "INCOMING_AT": Devolver los tiempos de llegada a las paradas 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 (última).
+    - current_stop_sequence = 5, current_status = "STOPPED_AT": Devolver los tiempos de llegada a las paradas 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 (última).
+    """
+    route_stops = pd.read_csv("aux/route_stops.csv")
+    stop_times = []
+    return stop_times
