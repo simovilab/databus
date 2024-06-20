@@ -81,8 +81,56 @@ def build_vehicle_position():
 
 
 @shared_task
-def build_trip_update():
-    print("Building feed TripUpdate...")
+def build_trip_update() -> str:
+
+    # Feed message dictionary
+    feed_message = {}
+    feed_message["header"] = {}
+    feed_message["header"]["gtfs_realtime_version"] = "2.0"
+    feed_message["header"]["incrementality"] = "FULL_DATASET"
+    feed_message["header"]["timestamp"] = int(datetime.datetime.now().timestamp())
+    feed_message["entity"] = []
+
+    trips = Trip.objects.filter(ongoing=True)
+
+    for trip in trips:
+        vehicle = trip.equipment.vehicle
+        position = Position.objects.filter(trip=trip).latest("timestamp")
+        # Entity
+        entity = {}
+        entity["id"] = f"bus-{vehicle.id}"
+        entity["trip_update"] = {}
+        # Timestamp
+        entity["trip_update"]["timestamp"] = int(position.timestamp.timestamp())
+        # Trip
+        entity["trip_update"]["trip"] = {}
+        entity["trip_update"]["trip"]["trip_id"] = trip.trip_id
+        entity["trip_update"]["trip"]["route_id"] = trip.route_id
+        entity["trip_update"]["trip"]["direction_id"] = trip.direction_id
+        entity["trip_update"]["trip"]["start_time"] = str(trip.start_time)
+        entity["trip_update"]["trip"]["start_date"] = trip.start_date.strftime("%Y%m%d")
+        entity["trip_update"]["trip"]["schedule_relationship"] = trip.schedule_relationship
+        # Vehicle
+        entity["trip_update"]["vehicle"] = {}
+        entity["trip_update"]["vehicle"]["id"] = vehicle.id
+        entity["trip_update"]["vehicle"]["label"] = vehicle.label
+        entity["trip_update"]["vehicle"]["license_plate"] = vehicle.license_plate
+        # Stop time update
+        entity["trip_update"]["stop_time_update"] = []
+        # Append entity to feed message
+        feed_message["entity"].append(entity)
+
+    # Create and save JSON
+    feed_message_json = json.dumps(feed_message, indent=2)
+    with open("feed/files/trip_updates.json", "w") as f:
+        f.write(feed_message_json)
+
+    # Create and save Protobuf
+    feed_message_json = json.loads(feed_message_json)
+    feed_message_pb = json_format.ParseDict(feed_message_json, gtfs_rt.FeedMessage())
+    with open("feed/files/trip_updates.pb", "wb") as f:
+        f.write(feed_message_pb.SerializeToString())
+
     return "Feed TripUpdate built"
 
 
