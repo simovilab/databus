@@ -392,6 +392,18 @@ components:
           type: string
           enum: ['NO_VALUE', 'UNKNOWN', 'AVAILABLE', 'UNAVAILABLE']
           example: 'NO_VALUE'
+        has_screen:
+          description: Disponibilidad de pantalla informativa dentro del vehículo
+          type: boolean
+          example: true
+        has_headsign_screen:
+          description: Disponibilidad de pantalla informativa fuera del vehículo, por ejemplo, en la parte frontal
+          type: boolean
+          example: true
+        has_audio:
+          description: Disponibilidad de audio informativo dentro del vehículo
+          type: boolean
+          example: true
     Operator: 
       type: object
       properties:

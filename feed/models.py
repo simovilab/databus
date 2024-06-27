@@ -41,6 +41,9 @@ class Vehicle(models.Model):
     bike_rack = models.CharField(
         max_length=100, blank=True, null=True, choices=AMENITIES_CHOICES
     )
+    has_screen = models.BooleanField(default=False)
+    has_headsign_screen = models.BooleanField(default=False)
+    has_audio = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.label} ({self.license_plate})"
