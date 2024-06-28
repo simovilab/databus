@@ -5,10 +5,21 @@ import datetime
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
 
-# For the fake_stop_times function (temporary!)
-import pandas as pd
-
 from .models import Trip, Position, Path, Occupancy
+
+# For the _fake_stop_times method (temporary!)
+import pandas as pd
+import numpy as np
+import time
+import random
+from typing import Any
+
+_CSV_FILE_PATH = "./aux/route_stops.csv"
+# Time in seconds
+_UNCERTAINTY = 120
+_TIME_OFFSET_MIN = 150
+_TIME_OFFSET_MAX = 300
+_DEPARTURE_OFFSET_MAX = 120
 
 
 @shared_task
@@ -81,7 +92,7 @@ def build_vehicle_position():
 
 
 @shared_task
-def build_trip_update() -> str:
+def build_trip_update():
 
     # Feed message dictionary
     feed_message = {}
@@ -96,6 +107,7 @@ def build_trip_update() -> str:
     for trip in trips:
         vehicle = trip.equipment.vehicle
         position = Position.objects.filter(trip=trip).latest("timestamp")
+        path = Path.objects.filter(trip=trip).latest("timestamp")
         # Entity
         entity = {}
         entity["id"] = f"bus-{vehicle.id}"
@@ -116,7 +128,7 @@ def build_trip_update() -> str:
         entity["trip_update"]["vehicle"]["label"] = vehicle.label
         entity["trip_update"]["vehicle"]["license_plate"] = vehicle.license_plate
         # Stop time update
-        entity["trip_update"]["stop_time_update"] = []
+        entity["trip_update"]["stop_time_update"] = _fake_stop_times(path=path)
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
@@ -140,8 +152,59 @@ def build_alert():
     return "Feed ServiceAlert built"
 
 
-def fake_stop_times():
+def _load_route_stops(csv_file_path) -> pd.DataFrame:
+    """Load route stops from a CSV file.
+
+    Parameters:
+        csv_file_path: Name of CSV file with route stops.
+
+    Returns:
+        pd.DataFrame: Information of CSV file as a Pandas DataFrame.
     """
+    return pd.read_csv(csv_file_path, dtype={'stop_sequence': np.uint32})
+
+
+def _generate_stop_entry(
+        arrival_time,
+        stop_sequence,
+        stop_id,
+        uncertainty
+    ) -> dict[str, Any]:
+    """Generate a stop entry with given parameters.
+
+    Parameters:
+        arrival_time: Estimated time of arrival to stop as absolute time. In POSIX time.
+        stop_sequence: Order of stops in route.
+        stop_id: ID of stop.
+        uncertainty: Margin of error in the estimated time of arrival.
+
+    Returns:
+        dict[str, Any]: A dictionary entry with stop time updates.
+    """
+    departure_time = arrival_time + random.randint(0, _DEPARTURE_OFFSET_MAX)
+    return {
+        "arrival": {
+            "time": arrival_time,
+            "uncertainty": uncertainty
+        },
+        "departure": {
+            "time": departure_time,
+            "uncertainty": uncertainty
+        },
+        "stop_id": stop_id,
+        "stop_sequence": stop_sequence
+    }
+
+
+def _fake_stop_times(path) -> list[dict[str, Any]]:
+    """Generate fake stop times for the given path.
+
+    Parameters:
+        path: An object containing current stop sequence and status.
+
+    Returns:
+        list[dict[str, Any]]: A list of dictionaries with stop time updates.
+
     Revisar en Path por cuál parada está el viaje, y devolver los tiempos de llegada a las siguientes paradas, con la siguiente aproximación: 3 minutos de intervalo entre cada parada.
 
     Ejemplos:
@@ -149,6 +212,36 @@ def fake_stop_times():
     - current_stop_sequence = 5, current_status = "INCOMING_AT": Devolver los tiempos de llegada a las paradas 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 (última).
     - current_stop_sequence = 5, current_status = "STOPPED_AT": Devolver los tiempos de llegada a las paradas 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 (última).
     """
-    route_stops = pd.read_csv("aux/route_stops.csv")
-    stop_times = []
-    return stop_times
+    stop_time_update: list[dict[str, Any]] = []
+    route_stops = _load_route_stops(csv_file_path=_CSV_FILE_PATH)
+
+    # Start with an invalid value to ensure the first comparison is always true
+    previous_stop_sequence = -1
+    arrival_time = int(time.time())
+
+    for _, row in route_stops.iterrows():
+        stop_sequence = row['stop_sequence']
+
+        if stop_sequence < path.current_stop_sequence:
+            continue
+
+        if stop_sequence < previous_stop_sequence:
+            # Modify the last entry to remove "departure"
+            if stop_time_update:
+                stop_time_update[-1].pop("departure", None)
+            break
+
+        if (path.current_status == "STOPPED_AT" and stop_sequence == path.current_stop_sequence):
+            continue
+
+        stop_entry = _generate_stop_entry(
+            arrival_time=arrival_time,
+            stop_sequence=stop_sequence,
+            stop_id=row['stop_id'],
+            uncertainty=_UNCERTAINTY
+        )
+        stop_time_update.append(stop_entry)
+        previous_stop_sequence = stop_sequence
+        arrival_time += random.randint(_TIME_OFFSET_MIN, _TIME_OFFSET_MAX)
+
+    return stop_time_update
