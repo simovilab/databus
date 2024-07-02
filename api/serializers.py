@@ -1,5 +1,5 @@
 from gtfs.models import Provider
-from feed.models import Vehicle, Equipment, Trip, Position, Path, Occupancy
+from feed.models import Vehicle, Equipment, Trip, Position, Journey, Occupancy
 from rest_framework import serializers
 from django.contrib.gis.geos import Point
 
@@ -61,7 +61,9 @@ class TripSerializer(serializers.HyperlinkedModelSerializer):
 
 class PositionSerializer(serializers.HyperlinkedModelSerializer):
 
-    trip = serializers.PrimaryKeyRelatedField(queryset=Trip.objects.all())
+    trip = serializers.PrimaryKeyRelatedField(
+        queryset=Trip.objects.filter(in_progress=True)
+    )
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
 
@@ -97,12 +99,14 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
         return Position.objects.create(point=point, **validated_data)
 
 
-class PathSerializer(serializers.HyperlinkedModelSerializer):
+class JourneySerializer(serializers.HyperlinkedModelSerializer):
 
-    trip = serializers.PrimaryKeyRelatedField(queryset=Trip.objects.all())
+    trip = serializers.PrimaryKeyRelatedField(
+        queryset=Trip.objects.filter(in_progress=True)
+    )
 
     class Meta:
-        model = Path
+        model = Journey
         fields = [
             "url",
             "trip",
@@ -116,9 +120,11 @@ class PathSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class OccupancySerializer(serializers.HyperlinkedModelSerializer):
-    
-    trip = serializers.PrimaryKeyRelatedField(queryset=Trip.objects.all())
-    
+
+    trip = serializers.PrimaryKeyRelatedField(
+        queryset=Trip.objects.filter(in_progress=True)
+    )
+
     class Meta:
         model = Occupancy
         fields = [

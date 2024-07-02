@@ -38,9 +38,9 @@ class PositionViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
-class PathViewSet(viewsets.ModelViewSet):
-    queryset = Path.objects.all()
-    serializer_class = PathSerializer
+class JourneyViewSet(viewsets.ModelViewSet):
+    queryset = Journey.objects.all()
+    serializer_class = JourneySerializer
     authentication_classes = [TokenAuthentication]
 
 

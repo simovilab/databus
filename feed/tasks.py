@@ -8,7 +8,7 @@ from google.protobuf import json_format
 # For the fake_stop_times function (temporary!)
 import pandas as pd
 
-from .models import Trip, Position, Path, Occupancy
+from .models import Trip, Position, Journey, Occupancy
 
 
 @shared_task
@@ -27,7 +27,7 @@ def build_vehicle_position():
     for trip in trips:
         vehicle = trip.equipment.vehicle
         position = Position.objects.filter(trip=trip).latest("timestamp")
-        path = Path.objects.filter(trip=trip).latest("timestamp")
+        path = Journey.objects.filter(trip=trip).latest("timestamp")
         occupancy = Occupancy.objects.filter(trip=trip).latest("timestamp")
         # Entity
         entity = {}

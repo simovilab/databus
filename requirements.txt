@@ -6,6 +6,7 @@ django-celery-beat
 python-decouple
 djangorestframework
 drf-spectacular
+mkdocs-material
 requests
 pandas
 geopandas
