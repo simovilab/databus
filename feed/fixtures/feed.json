@@ -1,0 +1,118 @@
+[
+    {
+        "model": "feed.vehicle",
+        "pk": "1234",
+        "fields": {
+            "label": "U1234",
+            "license_plate": "SJB1234",
+            "wheelchair_accessible": "WHEELCHAIR_ACCESIBLE",
+            "wifi": "UNAVAILABLE",
+            "air_conditioning": "AVAILABLE",
+            "mobile_charging": "UNKNOWN",
+            "bike_rack": "NO_VALUE",
+            "has_screen": false,
+            "has_headsign_screen": false,
+            "has_audio": false
+        }
+    },
+    {
+        "model": "feed.equipment",
+        "pk": "7523dd0c-b372-463c-94f9-7162cb395af1",
+        "fields": {
+            "provider": "bUCR",
+            "vehicle": "bus1234",
+            "brand": "Motorola",
+            "model": "Razr",
+            "serial_number": "JFRU3854RHJDF",
+            "software_version": "1.12.3",
+            "created_at": "2024-06-04T23:19:47.573Z",
+            "updated_at": "2024-06-04T23:19:47.574Z"
+        }
+    },
+    {
+        "model": "feed.trip",
+        "pk": 1,
+        "fields": {
+            "equipment": "7523dd0c-b372-463c-94f9-7162cb395af1",
+            "trip_id": "aqui_para_alla",
+            "route_id": "L1",
+            "direction_id": 1,
+            "start_time": "06:21:00",
+            "start_date": "2024-06-04",
+            "schedule_relationship": "SCHEDULED",
+            "shape_id": "desde_aqui",
+            "in_progress": true
+        }
+    },
+    {
+        "model": "feed.position",
+        "pk": 1,
+        "fields": {
+            "trip": 1,
+            "timestamp": "2024-06-05T00:05:31Z",
+            "point": "SRID=4326;POINT (-84.05079923095519 9.935573508177965)",
+            "bearing": 102.0,
+            "odometer": 6584.0,
+            "speed": 12.4
+        }
+    },
+    {
+        "model": "feed.journey",
+        "pk": 1,
+        "fields": {
+            "trip": 1,
+            "timestamp": "2024-06-05T00:08:24.740Z",
+            "current_stop_sequence": 2,
+            "stop_id": "bUCR_0_02",
+            "current_status": "IN_TRANSIT_TO",
+            "congestion_level": "RUNNING_SMOOTHLY"
+        }
+    },
+    {
+        "model": "feed.journey",
+        "pk": 7,
+        "fields": {
+            "trip": 1,
+            "timestamp": "2024-06-05T01:01:13.846Z",
+            "current_stop_sequence": 3,
+            "stop_id": "3",
+            "current_status": "INCOMING_AT",
+            "congestion_level": "RUNNING_SMOOTHLY"
+        }
+    },
+    {
+        "model": "feed.journey",
+        "pk": 8,
+        "fields": {
+            "trip": 1,
+            "timestamp": "2024-06-05T01:03:11.455Z",
+            "current_stop_sequence": 4,
+            "stop_id": "4",
+            "current_status": "INCOMING_AT",
+            "congestion_level": "STOP_AND_GO"
+        }
+    },
+    {
+        "model": "feed.journey",
+        "pk": 9,
+        "fields": {
+            "trip": 1,
+            "timestamp": "2024-06-05T01:06:06.830Z",
+            "current_stop_sequence": 5,
+            "stop_id": "5",
+            "current_status": "INCOMING_AT",
+            "congestion_level": "STOP_AND_GO"
+        }
+    },
+    {
+        "model": "feed.occupancy",
+        "pk": 1,
+        "fields": {
+            "trip": 1,
+            "timestamp": "2024-06-05T00:08:42.098Z",
+            "occupancy_status": "FEW_SEATS_AVAILABLE",
+            "occupancy_percentage": 88,
+            "occupancy_count": 32
+        }
+    }
+]
