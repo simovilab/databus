@@ -45,6 +45,10 @@ paths:
       responses:
         '201':
           description: Registro creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentResponse'
   /vehicle:
     post:
       summary: Vehículo
@@ -135,7 +139,7 @@ paths:
       responses:
         '201':
           description: Registro creado
-  /path:  
+  /journey:  
     post:
       summary: Avance del viaje
       description: "Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 10 segundos"
@@ -146,7 +150,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Path'
+              $ref: '#/components/schemas/Journey'
       responses:
         '201':
           description: Registro creado
@@ -352,6 +356,17 @@ components:
           description: Propietario del equipo proveedor de datos
           type: string
           example: 'bUCR'
+    EquipmentResponse:
+      type: object
+      properties:
+        id:
+          description: Identificador UUID del equipo generado automáticamente
+          type: string
+          example: '123e4567-e89b-12d3-a456-426614174000'
+        serial_number:
+          description: Número de serie del equipo
+          type: string
+          example: 'SJ3249TISER94N'
     Vehicle:
       type: object
       properties:
@@ -488,6 +503,10 @@ components:
     Trip:
       type: object
       properties:
+        equipment:
+          description: Identificador del equipo en el vehículo
+          type: string
+          example: 'SJ3249TISER94N'
         trip_id:
           description: Identificador del viaje según GTFS Schedule
           type: string
@@ -554,7 +573,11 @@ components:
           type: number
           format: float
           example: 12345.6
-    Path:
+      required:
+        - timestamp
+        - latitude
+        - longitude
+    Journey:
       type: object
       properties:
         current_stop_sequence:
