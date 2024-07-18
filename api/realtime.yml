@@ -20,7 +20,7 @@ paths:
       summary: Proveedor de datos
       description: Publica información del proveedor de datos del servicio de transporte público, que puede o no ser la misma agencia operadora del servicio.
       tags:
-        - Feed
+        - Provider
       requestBody:
         required: true
         content:
@@ -41,7 +41,7 @@ paths:
             schema:
               $ref: '#/components/schemas/Equipment'
       tags:
-        - Vehicle
+        - Provider
       responses:
         '201':
           description: Registro creado
@@ -79,36 +79,6 @@ paths:
       responses:
         '201':
           description: Registro creado
-  /conditions:
-    post:
-      summary: Condiciones del vehículo
-      description: "Publica datos de las condiciones del vehículo, como el nivel de combustible, estado de las puertas, las luces, el aire acondicionado y otros.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
-      tags:
-        - Vehicle
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Conditions'
-      responses:
-        '201':
-          description: Registro creado
-  /emissions:
-    post:
-      summary: Emisiones del vehículo
-      description: "Publica datos de las emisiones del vehículo, como el nivel de emisiones de gases de escape.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
-      tags:
-        - Vehicle
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Emissions'
-      responses:
-        '201':
-          description: Registro creado
   /trip:
     post:
       summary: Datos del viaje actual
@@ -124,6 +94,33 @@ paths:
       responses:
         '201':
           description: Registro creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripResponse'
+  /trip/{journey_id}:
+    parameters:
+      - in: path
+        name: journey_id
+        required: true
+        description: Identificador único de un viaje particular
+        schema:
+          type: string
+        example: 'JFH367'
+    patch:
+      summary: Actualización de datos del viaje
+      description: "Actualiza los datos del viaje actual del vehículo, como el estado del viaje y la trayectoria.\n\n**Tipo de actualización**: por evento\n\n**Evento**: cambio en el estado del viaje o corrección de algún dato"
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Trip'
+      responses:
+        '200':
+          description: OK
   /position:
     post:
       summary: Posición del vehículo
@@ -154,27 +151,6 @@ paths:
       responses:
         '201':
           description: Registro creado
-  /stops:
-    get:
-      summary: Paradas del viaje
-      description: "Obtiene la lista con la secuencia de paradas del viaje actual del vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio del viaje"
-      tags:
-        - Trip
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Stops'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/StopsResponse'
   /occupancy:
     post:
       summary: Ocupación del vehículo
@@ -187,6 +163,36 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Occupancy'
+      responses:
+        '201':
+          description: Registro creado
+  /conditions:
+    post:
+      summary: Condiciones del vehículo
+      description: "Publica datos de las condiciones del vehículo, como el nivel de combustible, estado de las puertas, las luces, el aire acondicionado y otros.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Conditions'
+      responses:
+        '201':
+          description: Registro creado
+  /emissions:
+    post:
+      summary: Emisiones del vehículo
+      description: "Publica datos de las emisiones del vehículo, como el nivel de emisiones de gases de escape.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
+      tags:
+        - Trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Emissions'
       responses:
         '201':
           description: Registro creado
@@ -287,6 +293,27 @@ paths:
       responses:
         '201':
           description: Registro creado
+  /stops:
+    get:
+      summary: Paradas del viaje
+      description: "Obtiene la lista con la secuencia de paradas del viaje actual del vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio del viaje"
+      tags:
+        - GTFS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Stops'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StopsResponse'
   /gtfs/schedule:
     get:
       summary: GTFS Schedule
@@ -336,6 +363,10 @@ components:
     Equipment:
       type: object
       properties:
+        provider:
+          description: Propietario del equipo proveedor de datos
+          type: string
+          example: 'bUCR'
         serial_number:
           description: Número de serie del equipo
           type: string
@@ -352,15 +383,80 @@ components:
           description: Versión del software del equipo
           type: string
           example: '1.3.5'
-        provider:
-          description: Propietario del equipo proveedor de datos
-          type: string
-          example: 'bUCR'
+        provides:
+          type: object
+          description: Datos (servicios) que proporciona el equipo de telemetría y rastreo. Solamente un equipo para cada tipo de dato es permitido por vehículo, y en caso de duplicidad, el último equipo registrado será el válido. Cada servicio corresponde a un endpoint de la API.
+          properties:
+            vehicle:
+              description: Proporciona datos del vehículo
+              type: boolean
+              example: true
+              default: false
+            operator:
+              description: Proporciona datos del operador del vehículo
+              type: boolean
+              example: true
+              default: false
+            trip:
+              description: Proporciona datos del viaje
+              type: boolean
+              example: true
+              default: false
+            position:
+              description: Proporciona datos de la posición del vehículo
+              type: boolean
+              example: true
+              default: false
+            journey:
+              description: Proporciona datos del avance del viaje
+              type: boolean
+              example: true
+              default: false
+            occupancy:
+              description: Proporciona datos de la ocupación del vehículo
+              type: boolean
+              example: true
+              default: false
+            conditions:
+              description: Proporciona datos de las condiciones del vehículo
+              type: boolean
+              example: false
+              default: false
+            emissions:
+              description: Proporciona datos de las emisiones del vehículo
+              type: boolean
+              example: false
+              default: false
+            travelers:
+              description: Proporciona datos de las personas usuarias en viaje
+              type: boolean
+              example: false
+              default: false
+            authorizations:
+              description: Proporciona datos de la autorización de usuario
+              type: boolean
+              example: false
+              default: false
+            fares:
+              description: Proporciona datos de la información de pago
+              type: boolean
+              example: false
+              default: false
+            transfers:
+              description: Proporciona datos de la autorización de transbordo
+              type: boolean
+              example: false
+              default: false
+            alerts:
+              description: Proporciona datos de las alertas del servicio
+              type: boolean
+              example: true
+              default: false
     EquipmentResponse:
       type: object
       properties:
-        id:
-          description: Identificador UUID del equipo generado automáticamente
+        equipment_id:
+          description: Identificador UUID del equipo, generado automáticamente en el servidor
           type: string
           example: '123e4567-e89b-12d3-a456-426614174000'
         serial_number:
@@ -438,68 +534,6 @@ components:
           description: Correo electrónico del operador
           type: string
           example: 'nombre.apellido@ejemplo.com'
-    Conditions:
-      type: object
-      properties:
-        fuel:
-          description: Nivel de combustible del vehículo
-          type: number
-          format: float
-          example: 0.75
-        engine:
-          description: Estado del motor del vehículo
-          type: string
-          enum: ['ON', 'OFF']
-        doors:
-          description: Estado de las puertas del vehículo
-          type: string
-          enum: ['OPEN', 'CLOSED']
-        lights:
-          description: Estado de las luces del vehículo
-          type: string
-          enum: ['ON', 'OFF']
-        air_conditioning:
-          description: Estado del aire acondicionado del vehículo
-          type: string
-          enum: ['ON', 'OFF']
-        temperature:
-          description: Temperatura del vehículo
-          type: number
-          format: float
-          example: 25.5
-        humidity:
-          description: Humedad del vehículo
-          type: number
-          format: float
-          example: 0.75
-        battery:
-          description: Nivel de batería del vehículo
-          type: number
-          format: float
-          example: 0.75
-    Emissions:
-      type: object
-      properties:
-        co2:
-          description: Nivel de emisiones de CO2 del vehículo (g/km)
-          type: number
-          format: float
-          example: 258
-        co:
-          description: Nivel de emisiones de CO del vehículo (g/km)
-          type: number
-          format: float
-          example: 13.06
-        nox:
-          description: Nivel de emisiones de NOx del vehículo (g/km)
-          type: number
-          format: float
-          example: 0.87
-        hc:
-          description: Nivel de emisiones de hidrocarburos del vehículo (g/km)
-          type: number
-          format: float
-          example: 1.75
     Trip:
       type: object
       properties:
@@ -535,6 +569,19 @@ components:
           description: Identificador de la trayectoria de la ruta según GTFS Schedule
           type: string
           example: 'desde_educacion'
+        journey_status:
+          description: Estado del viaje
+          type: string
+          enum: ['IN_PROGRESS', 'COMPLETED', 'TRUNCATED']
+          default: 'IN_PROGRESS'
+          example: 'IN_PROGRESS'
+    TripResponse:
+      type: object
+      properties:
+        journey_id:
+          description: Identificador UUID del viaje particular, generado automáticamente en el servidor
+          type: string
+          example: '123e4567-e89b-12d3-a456-426614174000'
     Position:
       type: object
       properties:
@@ -598,33 +645,6 @@ components:
           type: string
           enum: ['UNKNOWN_CONGESTION_LEVEL', 'RUNNING_SMOOTHLY', 'STOP_AND_GO', 'CONGESTION', 'SEVERE_CONGESTION']
           example: 'SEVERE_CONGESTION'
-    Stops: 
-      type: object
-      properties:
-        route_id:
-          description: Identificador de la ruta
-          type: string
-          example: 'bUCR-L1'
-        shape_id:
-          description: Identificador de la trayectoria de la ruta
-          type: string
-          example: 'desde_educacion'
-    StopsResponse:
-      type: object
-      properties:
-        stop_id:
-          description: Identificador de la parada
-          type: string
-          example: 'bUCR-0-03'
-        stop_sequence:
-          description: Secuencia de la parada
-          type: integer
-          example: 15
-        shape_dist_traveled:
-          description: Distancia recorrida en la trayectoria de la ruta (m)
-          type: number
-          format: float
-          example: 1234.5
     Occupancy:
       type: object
       properties:
@@ -641,6 +661,68 @@ components:
           description: Cantidad de personas usuarias en el vehículo
           type: integer
           example: 38
+    Conditions:
+      type: object
+      properties:
+        fuel:
+          description: Nivel de combustible del vehículo
+          type: number
+          format: float
+          example: 0.75
+        engine:
+          description: Estado del motor del vehículo
+          type: string
+          enum: ['ON', 'OFF']
+        doors:
+          description: Estado de las puertas del vehículo
+          type: string
+          enum: ['OPEN', 'CLOSED']
+        lights:
+          description: Estado de las luces del vehículo
+          type: string
+          enum: ['ON', 'OFF']
+        air_conditioning:
+          description: Estado del aire acondicionado del vehículo
+          type: string
+          enum: ['ON', 'OFF']
+        temperature:
+          description: Temperatura del vehículo
+          type: number
+          format: float
+          example: 25.5
+        humidity:
+          description: Humedad del vehículo
+          type: number
+          format: float
+          example: 0.75
+        battery:
+          description: Nivel de batería del vehículo
+          type: number
+          format: float
+          example: 0.75
+    Emissions:
+      type: object
+      properties:
+        co2:
+          description: Nivel de emisiones de CO2 del vehículo (g/km)
+          type: number
+          format: float
+          example: 258
+        co:
+          description: Nivel de emisiones de CO del vehículo (g/km)
+          type: number
+          format: float
+          example: 13.06
+        nox:
+          description: Nivel de emisiones de NOx del vehículo (g/km)
+          type: number
+          format: float
+          example: 0.87
+        hc:
+          description: Nivel de emisiones de hidrocarburos del vehículo (g/km)
+          type: number
+          format: float
+          example: 1.75
     Traveler:
       type: object
       properties:
@@ -812,9 +894,36 @@ components:
           description: Descripción de la alerta
           type: string
           example: 'Cierre de vía por manifestación y desvío de la ruta'      
+    Stops: 
+      type: object
+      properties:
+        route_id:
+          description: Identificador de la ruta
+          type: string
+          example: 'bUCR-L1'
+        shape_id:
+          description: Identificador de la trayectoria de la ruta
+          type: string
+          example: 'desde_educacion'
+    StopsResponse:
+      type: object
+      properties:
+        stop_id:
+          description: Identificador de la parada
+          type: string
+          example: 'bUCR-0-03'
+        stop_sequence:
+          description: Secuencia de la parada
+          type: integer
+          example: 15
+        shape_dist_traveled:
+          description: Distancia recorrida en la trayectoria de la ruta (m)
+          type: number
+          format: float
+          example: 1234.5
 
 tags:
-  - name: Feed
+  - name: Provider
     x-displayName: Sobre el proveedor de datos
     description: Información sobre el proveedor de datos del servicio de transporte público
   - name: Vehicle
@@ -822,7 +931,7 @@ tags:
     description: Datos del vehículo, su estado y su operador
   - name: Trip
     x-displayName: Sobre el viaje
-    description: Datos sobre el viaje actual del vehículo.
+    description: Datos en tiempo real sobre el viaje actual del vehículo.
   - name: Users
     x-displayName: Sobre los usuarios
     description: Información sobre las personas usuarias del sistema
