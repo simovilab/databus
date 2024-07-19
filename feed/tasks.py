@@ -51,7 +51,7 @@ def build_vehicle_position():
         entity["vehicle"]["trip"]["trip_id"] = trip.trip_id
         entity["vehicle"]["trip"]["route_id"] = trip.route_id
         entity["vehicle"]["trip"]["direction_id"] = trip.direction_id
-        entity["vehicle"]["trip"]["start_time"] = str(trip.start_time)
+        entity["vehicle"]["trip"]["start_time"] = _format_start_time(trip.start_time)
         entity["vehicle"]["trip"]["start_date"] = trip.start_date.strftime("%Y%m%d")
         entity["vehicle"]["trip"]["schedule_relationship"] = trip.schedule_relationship
         # Vehicle
@@ -119,7 +119,7 @@ def build_trip_update():
         entity["trip_update"]["trip"]["trip_id"] = trip.trip_id
         entity["trip_update"]["trip"]["route_id"] = trip.route_id
         entity["trip_update"]["trip"]["direction_id"] = trip.direction_id
-        entity["trip_update"]["trip"]["start_time"] = str(trip.start_time)
+        entity["trip_update"]["trip"]["start_time"] = _format_start_time(trip.start_time)
         entity["trip_update"]["trip"]["start_date"] = trip.start_date.strftime("%Y%m%d")
         entity["trip_update"]["trip"]["schedule_relationship"] = trip.schedule_relationship
         # Vehicle
@@ -250,3 +250,17 @@ def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
         current_time += timedelta(seconds=random.randint(_TIME_OFFSET_MIN_S, _TIME_OFFSET_MAX_S))
 
     return stop_time_update
+
+def _format_start_time(duration) -> str:
+    """Format start time into a string in HH:MM:SS format.
+
+    Args:
+        duration: The start time.
+
+    Returns:
+        str: The formatted start time as a string.
+    """
+    total_seconds = int(duration.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
