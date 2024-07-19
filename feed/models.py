@@ -69,6 +69,13 @@ class Equipment(models.Model):
 
 
 class Trip(models.Model):
+
+    TRIP_STATUS_OPTIONS = [
+        ("IN_PROGRESS", "En progreso"),
+        ("COMPLETED", "Completado"),
+        ("TERMINATED", "Interrumpido"),
+    ]
+
     id = models.AutoField(primary_key=True)
     equipment = models.ForeignKey(
         Equipment, on_delete=models.SET_NULL, blank=True, null=True
@@ -93,7 +100,9 @@ class Trip(models.Model):
         ],
     )
     shape_id = models.CharField(max_length=100, blank=True, null=True)
-    in_progress = models.BooleanField(default=True)
+    trip_status = models.CharField(
+        max_length=40, blank=True, null=True, choices=TRIP_STATUS_OPTIONS
+    )
 
     def __str__(self):
         return f"{self.route_id} / {self.trip_id} ({self.start_date})"

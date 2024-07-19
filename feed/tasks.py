@@ -22,7 +22,7 @@ def build_vehicle_position():
     feed_message["header"]["timestamp"] = int(datetime.datetime.now().timestamp())
     feed_message["entity"] = []
 
-    trips = Trip.objects.filter(ongoing=True)
+    trips = Trip.objects.filter(trip_status="IN_PROGRESS")
 
     for trip in trips:
         vehicle = trip.equipment.vehicle

@@ -54,7 +54,7 @@ class TripSerializer(serializers.HyperlinkedModelSerializer):
             "start_date",
             "schedule_relationship",
             "shape_id",
-            "ongoing",
+            "trip_status",
         ]
         ordering = ["id"]
 
@@ -62,7 +62,7 @@ class TripSerializer(serializers.HyperlinkedModelSerializer):
 class PositionSerializer(serializers.HyperlinkedModelSerializer):
 
     trip = serializers.PrimaryKeyRelatedField(
-        queryset=Trip.objects.filter(in_progress=True)
+        queryset=Trip.objects.filter(trip_status="IN_PROGRESS")
     )
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
@@ -102,7 +102,7 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
 class JourneySerializer(serializers.HyperlinkedModelSerializer):
 
     trip = serializers.PrimaryKeyRelatedField(
-        queryset=Trip.objects.filter(in_progress=True)
+        queryset=Trip.objects.filter(trip_status="IN_PROGRESS")
     )
 
     class Meta:
@@ -122,7 +122,7 @@ class JourneySerializer(serializers.HyperlinkedModelSerializer):
 class OccupancySerializer(serializers.HyperlinkedModelSerializer):
 
     trip = serializers.PrimaryKeyRelatedField(
-        queryset=Trip.objects.filter(in_progress=True)
+        queryset=Trip.objects.filter(trip_status="IN_PROGRESS")
     )
 
     class Meta:

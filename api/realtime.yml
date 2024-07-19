@@ -49,6 +49,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EquipmentResponse'
+        '406':
+          description: Al menos un servicio debe ser proporcionado
   /vehicle:
     post:
       summary: Vehículo
@@ -98,10 +100,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TripResponse'
-  /trip/{journey_id}:
+  /trip/{id}:
     parameters:
       - in: path
-        name: journey_id
+        name: id
         required: true
         description: Identificador único de un viaje particular
         schema:
@@ -569,19 +571,20 @@ components:
           description: Identificador de la trayectoria de la ruta según GTFS Schedule
           type: string
           example: 'desde_educacion'
-        journey_status:
+        trip_status:
           description: Estado del viaje
           type: string
-          enum: ['IN_PROGRESS', 'COMPLETED', 'TRUNCATED']
+          enum: ['IN_PROGRESS', 'COMPLETED', 'TERMINATED']
           default: 'IN_PROGRESS'
           example: 'IN_PROGRESS'
     TripResponse:
       type: object
       properties:
-        journey_id:
-          description: Identificador UUID del viaje particular, generado automáticamente en el servidor
-          type: string
-          example: '123e4567-e89b-12d3-a456-426614174000'
+        id:
+          description: Identificador único del viaje particular, generado automáticamente en el servidor
+          type: number
+          format: integer
+          example: 698453
     Position:
       type: object
       properties:

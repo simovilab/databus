@@ -45,6 +45,16 @@ class TripViewSet(viewsets.ModelViewSet):
     serializer_class = TripSerializer
     authentication_classes = [TokenAuthentication]
 
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(
+            {
+                "id": serializer.instance.id,
+            }
+        )
+
 
 class PositionViewSet(viewsets.ModelViewSet):
     queryset = Position.objects.all()
