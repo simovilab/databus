@@ -119,16 +119,22 @@ def build_trip_update():
         entity["trip_update"]["trip"]["trip_id"] = trip.trip_id
         entity["trip_update"]["trip"]["route_id"] = trip.route_id
         entity["trip_update"]["trip"]["direction_id"] = trip.direction_id
-        entity["trip_update"]["trip"]["start_time"] = _format_start_time(trip.start_time)
+        entity["trip_update"]["trip"]["start_time"] = _format_start_time(
+            trip.start_time
+        )
         entity["trip_update"]["trip"]["start_date"] = trip.start_date.strftime("%Y%m%d")
-        entity["trip_update"]["trip"]["schedule_relationship"] = trip.schedule_relationship
+        entity["trip_update"]["trip"][
+            "schedule_relationship"
+        ] = trip.schedule_relationship
         # Vehicle
         entity["trip_update"]["vehicle"] = {}
         entity["trip_update"]["vehicle"]["id"] = vehicle.id
         entity["trip_update"]["vehicle"]["label"] = vehicle.label
         entity["trip_update"]["vehicle"]["license_plate"] = vehicle.license_plate
         # Stop time update
-        entity["trip_update"]["stop_time_update"] = _fake_stop_times(trip=trip, path=path)
+        entity["trip_update"]["stop_time_update"] = _fake_stop_times(
+            trip=trip, path=path
+        )
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
@@ -161,15 +167,12 @@ def _load_route_stops(csv_file_path) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Information of CSV file as a Pandas DataFrame.
     """
-    return pd.read_csv(csv_file_path, dtype={'stop_sequence': np.uint32})
+    return pd.read_csv(csv_file_path, dtype={"stop_sequence": np.uint32})
 
 
 def _generate_stop_entry(
-        arrival_time,
-        stop_sequence,
-        stop_id,
-        uncertainty
-    ) -> dict[str, Any]:
+    arrival_time, stop_sequence, stop_id, uncertainty
+) -> dict[str, Any]:
     """Generate a stop entry with given parameters.
 
     Parameters:
@@ -181,18 +184,17 @@ def _generate_stop_entry(
     Returns:
         dict[str, Any]: A dictionary entry with stop time updates.
     """
-    departure_time = arrival_time + timedelta(seconds=random.randint(0, _DEPARTURE_OFFSET_MAX_S))
+    departure_time = arrival_time + timedelta(
+        seconds=random.randint(0, _DEPARTURE_OFFSET_MAX_S)
+    )
     return {
-        "arrival": {
-            "time": int(arrival_time.timestamp()),
-            "uncertainty": uncertainty
-        },
+        "arrival": {"time": int(arrival_time.timestamp()), "uncertainty": uncertainty},
         "departure": {
             "time": int(departure_time.timestamp()),
-            "uncertainty": uncertainty
+            "uncertainty": uncertainty,
         },
         "stop_id": stop_id,
-        "stop_sequence": stop_sequence
+        "stop_sequence": stop_sequence,
     }
 
 
@@ -200,6 +202,7 @@ def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
     """Generate fake stop times for the given path.
 
     Parameters:
+        trip:
         path: An object containing current stop sequence and status.
 
     Returns:
@@ -215,17 +218,22 @@ def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
     stop_time_update: list[dict[str, Any]] = []
     route_stops = _load_route_stops(csv_file_path=_CSV_FILE_PATH)
 
-    filtered_stops = route_stops[(route_stops['route_id'] == trip.route_id) & (route_stops['shape_id'] == trip.shape_id)]
+    filtered_stops = route_stops[
+        (route_stops["route_id"] == trip.route_id)
+        & (route_stops["shape_id"] == trip.shape_id)
+    ]
 
     if filtered_stops.empty:
         return stop_time_update
 
     # Start with an invalid value to ensure the first comparison is always true
     previous_stop_sequence = -1
-    arrival_time = datetime.now() + timedelta(minutes=random.randint(0, _ARRIVAL_MAX_MIN))
+    arrival_time = datetime.now() + timedelta(
+        minutes=random.randint(0, _ARRIVAL_MAX_MIN)
+    )
 
     for _, row in filtered_stops.iterrows():
-        stop_sequence = row['stop_sequence']
+        stop_sequence = row["stop_sequence"]
 
         if stop_sequence < path.current_stop_sequence:
             continue
@@ -236,31 +244,37 @@ def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
                 stop_time_update[-1].pop("departure", None)
             break
 
-        if (path.current_status == "STOPPED_AT" and stop_sequence == path.current_stop_sequence):
+        if (
+            path.current_status == "STOPPED_AT"
+            and stop_sequence == path.current_stop_sequence
+        ):
             continue
 
         stop_entry = _generate_stop_entry(
             arrival_time=arrival_time,
             stop_sequence=stop_sequence,
-            stop_id=row['stop_id'],
-            uncertainty=_UNCERTAINTY_S
+            stop_id=row["stop_id"],
+            uncertainty=_UNCERTAINTY_S,
         )
         stop_time_update.append(stop_entry)
         previous_stop_sequence = stop_sequence
-        current_time += timedelta(seconds=random.randint(_TIME_OFFSET_MIN_S, _TIME_OFFSET_MAX_S))
+        arrival_time += timedelta(
+            seconds=random.randint(_TIME_OFFSET_MIN_S, _TIME_OFFSET_MAX_S)
+        )
 
     return stop_time_update
 
-def _format_start_time(duration) -> str:
+
+def _format_start_time(start_time) -> str:
     """Format start time into a string in HH:MM:SS format.
 
     Args:
-        duration: The start time.
+        start_time: The start time.
 
     Returns:
         str: The formatted start time as a string.
     """
-    total_seconds = int(duration.total_seconds())
+    total_seconds = int(start_time.total_seconds())
     hours, remainder = divmod(total_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
