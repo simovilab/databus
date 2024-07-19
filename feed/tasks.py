@@ -1,7 +1,7 @@
 from celery import shared_task
 
 import json
-import datetime
+from datetime import datetime, timedelta
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
 
@@ -10,16 +10,16 @@ from .models import Trip, Position, Path, Occupancy
 # For the _fake_stop_times method (temporary!)
 import pandas as pd
 import numpy as np
-import time
 import random
 from typing import Any
 
 _CSV_FILE_PATH = "./aux/route_stops.csv"
 # Time in seconds
-_UNCERTAINTY = 120
-_TIME_OFFSET_MIN = 150
-_TIME_OFFSET_MAX = 300
-_DEPARTURE_OFFSET_MAX = 120
+_UNCERTAINTY_S = 120
+_TIME_OFFSET_MIN_S = 150
+_TIME_OFFSET_MAX_S = 300
+_DEPARTURE_OFFSET_MAX_S = 120
+_ARRIVAL_MAX_MIN = 5
 
 
 @shared_task
@@ -128,7 +128,7 @@ def build_trip_update():
         entity["trip_update"]["vehicle"]["label"] = vehicle.label
         entity["trip_update"]["vehicle"]["license_plate"] = vehicle.license_plate
         # Stop time update
-        entity["trip_update"]["stop_time_update"] = _fake_stop_times(path=path)
+        entity["trip_update"]["stop_time_update"] = _fake_stop_times(trip=trip, path=path)
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
@@ -181,14 +181,14 @@ def _generate_stop_entry(
     Returns:
         dict[str, Any]: A dictionary entry with stop time updates.
     """
-    departure_time = arrival_time + random.randint(0, _DEPARTURE_OFFSET_MAX)
+    departure_time = arrival_time + timedelta(seconds=random.randint(0, _DEPARTURE_OFFSET_MAX_S))
     return {
         "arrival": {
-            "time": arrival_time,
+            "time": int(arrival_time.timestamp()),
             "uncertainty": uncertainty
         },
         "departure": {
-            "time": departure_time,
+            "time": int(departure_time.timestamp()),
             "uncertainty": uncertainty
         },
         "stop_id": stop_id,
@@ -196,7 +196,7 @@ def _generate_stop_entry(
     }
 
 
-def _fake_stop_times(path) -> list[dict[str, Any]]:
+def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
     """Generate fake stop times for the given path.
 
     Parameters:
@@ -215,11 +215,16 @@ def _fake_stop_times(path) -> list[dict[str, Any]]:
     stop_time_update: list[dict[str, Any]] = []
     route_stops = _load_route_stops(csv_file_path=_CSV_FILE_PATH)
 
+    filtered_stops = route_stops[(route_stops['route_id'] == trip.route_id) & (route_stops['shape_id'] == trip.shape_id)]
+
+    if filtered_stops.empty:
+        return stop_time_update
+
     # Start with an invalid value to ensure the first comparison is always true
     previous_stop_sequence = -1
-    arrival_time = int(time.time())
+    arrival_time = datetime.now() + timedelta(minutes=random.randint(0, _ARRIVAL_MAX_MIN))
 
-    for _, row in route_stops.iterrows():
+    for _, row in filtered_stops.iterrows():
         stop_sequence = row['stop_sequence']
 
         if stop_sequence < path.current_stop_sequence:
@@ -238,10 +243,10 @@ def _fake_stop_times(path) -> list[dict[str, Any]]:
             arrival_time=arrival_time,
             stop_sequence=stop_sequence,
             stop_id=row['stop_id'],
-            uncertainty=_UNCERTAINTY
+            uncertainty=_UNCERTAINTY_S
         )
         stop_time_update.append(stop_entry)
         previous_stop_sequence = stop_sequence
-        arrival_time += random.randint(_TIME_OFFSET_MIN, _TIME_OFFSET_MAX)
+        current_time += timedelta(seconds=random.randint(_TIME_OFFSET_MIN_S, _TIME_OFFSET_MAX_S))
 
     return stop_time_update
