@@ -113,10 +113,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OperatorResponse'
-  /trip:
+  /journey:
     post:
       summary: Datos del viaje actual
-      description: "Publica datos del viaje actual del vehículo, como el identificador del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación con el horario.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio de un nuevo viaje"
+      description: "Publica datos del viaje actual del vehículo, como el identificador del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación con el horario. Un `journey` es una instancia de un `trip`.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio de un nuevo viaje"
       tags:
         - Trip
       requestBody:
@@ -124,15 +124,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Trip'
+              $ref: '#/components/schemas/Journey'
       responses:
         '201':
           description: Registro creado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TripResponse'
-  /trip/{id}:
+                $ref: '#/components/schemas/JourneyResponse'
+  /journey/{id}:
     parameters:
       - in: path
         name: id
@@ -151,7 +151,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Trip'
+              $ref: '#/components/schemas/Journey'
       responses:
         '200':
           description: OK
@@ -170,7 +170,7 @@ paths:
       responses:
         '201':
           description: Registro creado
-  /journey:  
+  /progression:  
     post:
       summary: Avance del viaje
       description: "Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 10 segundos"
@@ -181,7 +181,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Journey'
+              $ref: '#/components/schemas/Progression'
       responses:
         '201':
           description: Registro creado
@@ -602,13 +602,13 @@ components:
           description: Nombre del operador
           type: string
           example: 'María Rodríguez'
-    Trip:
+    Journey:
       type: object
       properties:
         equipment_id:
-          description: Identificador del equipo en el vehículo
+          description: Identificador UUID del equipo en el vehículo
           type: string
-          example: 'SJ3249TISER94N'
+          example: '123e4567-e89b-12d3-a456-426614174000'
         operator_id:
           description: Identificador del operador (conductor) del vehículo
           type: string
@@ -644,13 +644,13 @@ components:
         trip_status:
           description: Estado del viaje
           type: string
-          enum: ['IN_PROGRESS', 'COMPLETED', 'TERMINATED']
+          enum: ['IN_PROGRESS', 'COMPLETED', 'INTERRUPTED']
           default: 'IN_PROGRESS'
           example: 'IN_PROGRESS'
-    TripResponse:
+    JourneyResponse:
       type: object
       properties:
-        id:
+        journey_id:
           description: Identificador único del viaje particular, generado automáticamente en el servidor
           type: number
           format: integer
@@ -697,7 +697,7 @@ components:
         - timestamp
         - latitude
         - longitude
-    Journey:
+    Progression:
       type: object
       properties:
         current_stop_sequence:
