@@ -66,6 +66,24 @@ paths:
       responses:
         '201':
           description: Registro creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleResponse'
+    get:
+      summary: Vehículo
+      description: "Obtiene la información de todos los vehículos vinculados con la agencia.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo equipo en un vehículo"
+      tags:
+        - Vehicle
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VehicleResponse'
   /operator:
     post:
       summary: Conductor del vehículo
@@ -81,6 +99,20 @@ paths:
       responses:
         '201':
           description: Registro creado
+    get:
+      summary: Conductores inscritos en la agencia
+      description: "Obtiene la información de los operadores del vehículo de la agencia.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo operador en el vehículo"
+      tags:
+        - Vehicle
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OperatorResponse'
   /trip:
     post:
       summary: Datos del viaje actual
@@ -361,14 +393,22 @@ components:
         provider_id:
           description: Identificador del proveedor de datos
           type: string
-          example: 'Oficina de Servicios Generales'
+          example: 'bUCR'
     Equipment:
       type: object
       properties:
-        provider:
+        provider_id:
           description: Propietario del equipo proveedor de datos
           type: string
           example: 'bUCR'
+        agency_id:
+          description: Agencia a la que pertenece el equipo
+          type: string
+          example: 'bUCR'
+        vehicle_id:
+          description: Identificador del vehículo en el que está el equipo
+          type: string
+          example: '98E4TNSG'
         serial_number:
           description: Número de serie del equipo
           type: string
@@ -468,10 +508,10 @@ components:
     Vehicle:
       type: object
       properties:
-        id:
-          description: Identificador del vehículo
+        agency:
+          description: Identificador de la agencia a la que pertenece el vehículo
           type: string
-          example: '98E4TNSG'
+          example: 'bUCR'
         label:
           description: Etiqueta del vehículo
           type: string
@@ -517,11 +557,26 @@ components:
           description: Disponibilidad de audio informativo dentro del vehículo
           type: boolean
           example: true
+    VehicleResponse:
+      type: object
+      properties:
+        vehicle_id:
+          description: Identificador único del vehículo, generado automáticamente en el servidor
+          type: string
+          example: '98E4TNSG'
+        label:
+          description: Etiqueta del vehículo
+          type: string
+          example: 'SJB 9876'
+        license_plate:
+          description: Placa del vehículo
+          type: string
+          example: 'SJB 9876'
     Operator: 
       type: object
       properties:
-        id:
-          description: Identificador del operador
+        operator_id:
+          description: Identificador del operador (conductor) del vehículo
           type: string
           example: '1-1234-5678'
         name:
@@ -536,13 +591,28 @@ components:
           description: Correo electrónico del operador
           type: string
           example: 'nombre.apellido@ejemplo.com'
+    OperatorResponse:
+      type: object
+      properties:
+        operator_id:
+          description: Identificador único del operador, generado automáticamente en el servidor
+          type: string
+          example: '1-1234-5678'
+        name:
+          description: Nombre del operador
+          type: string
+          example: 'María Rodríguez'
     Trip:
       type: object
       properties:
-        equipment:
+        equipment_id:
           description: Identificador del equipo en el vehículo
           type: string
           example: 'SJ3249TISER94N'
+        operator_id:
+          description: Identificador del operador (conductor) del vehículo
+          type: string
+          example: '1-1234-5678'
         trip_id:
           description: Identificador del viaje según GTFS Schedule
           type: string
@@ -664,6 +734,10 @@ components:
           description: Cantidad de personas usuarias en el vehículo
           type: integer
           example: 38
+        is_wheelchair_available:
+          description: Indica si hay espacio disponible para sillas de ruedas
+          type: boolean
+          example: true
     Conditions:
       type: object
       properties:

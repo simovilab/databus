@@ -73,7 +73,7 @@ class Trip(models.Model):
     TRIP_STATUS_OPTIONS = [
         ("IN_PROGRESS", "En progreso"),
         ("COMPLETED", "Completado"),
-        ("TERMINATED", "Interrumpido"),
+        ("INTERRUPTED", "Interrumpido"),
     ]
 
     id = models.AutoField(primary_key=True)
