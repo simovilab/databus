@@ -132,15 +132,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JourneyResponse'
-  /journey/{id}:
+  /journey/{journey_id}:
     parameters:
       - in: path
-        name: id
+        name: journey_id
         required: true
         description: Identificador único de un viaje particular
         schema:
-          type: string
-        example: 'JFH367'
+          type: number
+          format: integer
+        example: 698453
     patch:
       summary: Actualización de datos del viaje
       description: "Actualiza los datos del viaje actual del vehículo, como el estado del viaje y la trayectoria.\n\n**Tipo de actualización**: por evento\n\n**Evento**: cambio en el estado del viaje o corrección de algún dato"
@@ -613,35 +614,35 @@ components:
           description: Identificador del operador (conductor) del vehículo
           type: string
           example: '1-1234-5678'
-        trip_id:
-          description: Identificador del viaje según GTFS Schedule
-          type: string
-          example: 'JFH367'
         route_id:
           description: Identificador de la ruta según GTFS Schedule
           type: string
           example: 'bUCR-L1'
+        trip_id:
+          description: Identificador del viaje según GTFS Schedule
+          type: string
+          example: 'JFH367'
         direction_id:
           description: Identificador de la dirección del viaje según GTFS Schedule
           type: integer
           example: 0
-        start_time:
-          description: Hora de inicio del viaje
-          type: string
-          example: '07:15:00'
-        start_date:
-          description: Fecha de inicio del viaje
-          type: string
-          example: '2024-05-03'
-        schedule_relationship:
-          description: Relación con el horario
-          type: string
-          enum: ['SCHEDULED', 'ADDED', 'UNSCHEDULED', 'CANCELED', 'DUPLICATED', 'DELETED']
         shape_id:
           description: Identificador de la trayectoria de la ruta según GTFS Schedule
           type: string
           example: 'desde_educacion'
-        trip_status:
+        start_date:
+          description: Fecha de inicio del viaje
+          type: string
+          example: '2024-05-03'
+        start_time:
+          description: Hora de inicio del viaje
+          type: string
+          example: '07:15:00'
+        schedule_relationship:
+          description: Relación con el horario
+          type: string
+          enum: ['SCHEDULED', 'ADDED', 'UNSCHEDULED', 'CANCELED', 'DUPLICATED', 'DELETED']
+        journey_status:
           description: Estado del viaje
           type: string
           enum: ['IN_PROGRESS', 'COMPLETED', 'INTERRUPTED']
@@ -658,6 +659,11 @@ components:
     Position:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         timestamp:
           description: Fecha y hora de la medición de la posición del vehículo, en tiempo POSIX
           type: number
@@ -694,12 +700,18 @@ components:
           format: float
           example: 12345.6
       required:
+        - journey_id
         - timestamp
         - latitude
         - longitude
     Progression:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         current_stop_sequence:
           description: Secuencia de la parada
           type: integer
@@ -721,6 +733,11 @@ components:
     Occupancy:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         occupancy_status:
           description: Estado de la ocupación de la parada
           type: string
@@ -741,6 +758,11 @@ components:
     Conditions:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         fuel:
           description: Nivel de combustible del vehículo
           type: number
@@ -780,6 +802,11 @@ components:
     Emissions:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         co2:
           description: Nivel de emisiones de CO2 del vehículo (g/km)
           type: number
@@ -803,6 +830,11 @@ components:
     Traveler:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         user_id:
           description: Identificador anonimizado del usuario
           type: string
@@ -819,6 +851,11 @@ components:
     Authorization:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         user_id:
           description: Identificador anonimizado del usuario
           type: string
@@ -826,6 +863,11 @@ components:
     AuthorizationResponse:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         user_id:
           description: Identificador anonimizado del usuario
           type: string
@@ -837,6 +879,11 @@ components:
     Fare:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         user_id:
           description: Identificador anonimizado del usuario
           type: string
@@ -862,6 +909,11 @@ components:
     Transfer:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         user_id:
           description: Identificador anonimizado del usuario
           type: string
@@ -869,6 +921,11 @@ components:
     TransferResponse:
       type: object
       properties:
+        journey_id:
+          description: Identificador del viaje actual
+          type: number
+          format: integer
+          example: 698453
         user_id:
           description: Identificador anonimizado del usuario
           type: string
