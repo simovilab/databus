@@ -6,10 +6,12 @@ from . import views
 
 router = routers.DefaultRouter()
 router.register(r"vehicle", views.VehicleViewSet)
+router.register(r"operator", views.OperatorViewSet)
+router.register(r"provider", views.DataProviderViewSet)
 router.register(r"equipment", views.EquipmentViewSet)
-router.register(r"trip", views.TripViewSet)
+router.register(r"journey", views.JourneyViewSet)
 router.register(r"position", views.PositionViewSet)
-router.register(r"path", views.JourneyViewSet)
+router.register(r"progression", views.ProgressionViewSet)
 router.register(r"occupancy", views.OccupancyViewSet)
 
 # Wire up our API using automatic URL routing.

@@ -1,5 +1,13 @@
-from gtfs.models import Provider
-from feed.models import Vehicle, Equipment, Trip, Position, Journey, Occupancy
+from feed.models import (
+    Vehicle,
+    Operator,
+    DataProvider,
+    Equipment,
+    Journey,
+    Position,
+    Progression,
+    Occupancy,
+)
 from rest_framework import serializers
 from django.contrib.gis.geos import Point
 
@@ -19,9 +27,23 @@ class VehicleSerializer(serializers.HyperlinkedModelSerializer):
         ordering = ["id"]
 
 
+class OperatorSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Operator
+        fields = "__all__"
+        ordering = ["operator_id"]
+
+
+class DataProviderSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = DataProvider
+        fields = "__all__"
+        ordering = ["id"]
+
+
 class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
 
-    provider = serializers.PrimaryKeyRelatedField(queryset=Provider.objects.all())
+    provider = serializers.PrimaryKeyRelatedField(queryset=DataProvider.objects.all())
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
     class Meta:
@@ -38,12 +60,13 @@ class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
         ordering = ["id"]
 
 
-class TripSerializer(serializers.HyperlinkedModelSerializer):
+class JourneySerializer(serializers.HyperlinkedModelSerializer):
 
     equipment = serializers.PrimaryKeyRelatedField(read_only=True)
+    operator = serializers.PrimaryKeyRelatedField(queryset=Operator.objects.all())
 
     class Meta:
-        model = Trip
+        model = Journey
         fields = [
             "url",
             "equipment",
@@ -54,15 +77,15 @@ class TripSerializer(serializers.HyperlinkedModelSerializer):
             "start_date",
             "schedule_relationship",
             "shape_id",
-            "trip_status",
+            "journey_status",
         ]
         ordering = ["id"]
 
 
 class PositionSerializer(serializers.HyperlinkedModelSerializer):
 
-    trip = serializers.PrimaryKeyRelatedField(
-        queryset=Trip.objects.filter(trip_status="IN_PROGRESS")
+    journey = serializers.PrimaryKeyRelatedField(
+        queryset=Journey.objects.filter(journey_status="IN_PROGRESS")
     )
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
@@ -99,14 +122,14 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
         return Position.objects.create(point=point, **validated_data)
 
 
-class JourneySerializer(serializers.HyperlinkedModelSerializer):
+class ProgressionSerializer(serializers.HyperlinkedModelSerializer):
 
-    trip = serializers.PrimaryKeyRelatedField(
-        queryset=Trip.objects.filter(trip_status="IN_PROGRESS")
+    journey = serializers.PrimaryKeyRelatedField(
+        queryset=Journey.objects.filter(journey_status="IN_PROGRESS")
     )
 
     class Meta:
-        model = Journey
+        model = Progression
         fields = [
             "url",
             "trip",
@@ -121,8 +144,8 @@ class JourneySerializer(serializers.HyperlinkedModelSerializer):
 
 class OccupancySerializer(serializers.HyperlinkedModelSerializer):
 
-    trip = serializers.PrimaryKeyRelatedField(
-        queryset=Trip.objects.filter(trip_status="IN_PROGRESS")
+    journey = serializers.PrimaryKeyRelatedField(
+        queryset=Journey.objects.filter(journey_status="IN_PROGRESS")
     )
 
     class Meta:

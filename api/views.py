@@ -21,6 +21,18 @@ class VehicleViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
+class OperatorViewSet(viewsets.ModelViewSet):
+    queryset = Operator.objects.all()
+    serializer_class = OperatorSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class DataProviderViewSet(viewsets.ModelViewSet):
+    queryset = DataProvider.objects.all()
+    serializer_class = DataProviderSerializer
+    authentication_classes = [TokenAuthentication]
+
+
 class EquipmentViewSet(viewsets.ModelViewSet):
     queryset = Equipment.objects.all()
     serializer_class = EquipmentSerializer
@@ -40,9 +52,9 @@ class EquipmentViewSet(viewsets.ModelViewSet):
         )
 
 
-class TripViewSet(viewsets.ModelViewSet):
-    queryset = Trip.objects.all()
-    serializer_class = TripSerializer
+class JourneyViewSet(viewsets.ModelViewSet):
+    queryset = Journey.objects.all()
+    serializer_class = JourneySerializer
     authentication_classes = [TokenAuthentication]
 
     def create(self, request):
@@ -62,9 +74,9 @@ class PositionViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
-class JourneyViewSet(viewsets.ModelViewSet):
-    queryset = Journey.objects.all()
-    serializer_class = JourneySerializer
+class ProgressionViewSet(viewsets.ModelViewSet):
+    queryset = Progression.objects.all()
+    serializer_class = ProgressionSerializer
     authentication_classes = [TokenAuthentication]
 
 
