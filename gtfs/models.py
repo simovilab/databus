@@ -2,14 +2,15 @@ from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 
 
-class Provider(models.Model):
-    """A company provides transportation services GTFS data.
+class GTFSProvider(models.Model):
+    """A company that provides transportation services GTFS data.
 
     It might or might not be the same as the agency in the GTFS feed. A company can have multiple agencies.
     """
 
     id = models.CharField(
-        max_length=31, primary_key=True,
+        max_length=31,
+        primary_key=True,
         help_text="Código (típicamente el acrónimo) de la empresa. No debe tener espacios ni símbolos especiales. Ejemplo: bUCR",
     )
     name = models.CharField(max_length=255, help_text="Nombre de la empresa.")
@@ -53,7 +54,7 @@ class Provider(models.Model):
 class Feed(models.Model):
     feed_id = models.CharField(max_length=100, primary_key=True)
     provider = models.ForeignKey(
-        Provider, on_delete=models.SET_NULL, blank=True, null=True
+        GTFSProvider, on_delete=models.SET_NULL, blank=True, null=True
     )
     http_etag = models.CharField(max_length=1023, blank=True, null=True)
     is_current = models.BooleanField(blank=True, null=True)
@@ -510,7 +511,7 @@ class FeedMessage(models.Model):
 
     feed_message_id = models.BigAutoField(primary_key=True)
     provider = models.ForeignKey(
-        Provider, on_delete=models.SET_NULL, blank=True, null=True
+        GTFSProvider, on_delete=models.SET_NULL, blank=True, null=True
     )
     timestamp = models.DateTimeField(auto_now=True)
     entity_type = models.CharField(max_length=63)

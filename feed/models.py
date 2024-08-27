@@ -2,8 +2,6 @@ from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
 import uuid
 
-from gtfs.models import Provider
-
 # Create your models here.
 
 
@@ -16,6 +14,8 @@ class Vehicle(models.Model):
     ]
 
     id = models.CharField(max_length=100, primary_key=True)
+
+    agency = models.CharField(max_length=100, blank=True, null=True)
     label = models.CharField(max_length=100, blank=True, null=True)
     license_plate = models.CharField(max_length=100, blank=True, null=True)
     wheelchair_accessible = models.CharField(
@@ -49,18 +49,56 @@ class Vehicle(models.Model):
         return f"{self.label} ({self.license_plate})"
 
 
+class Operator(models.Model):
+    operator_id = models.CharField(max_length=100, primary_key=True)
+    name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=100, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class DataProvider(models.Model):
+    id = models.CharField(max_length=31, primary_key=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Equipment(models.Model):
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     provider = models.ForeignKey(
-        Provider, on_delete=models.SET_NULL, blank=True, null=True
+        DataProvider, on_delete=models.SET_NULL, blank=True, null=True
     )
+    agency = models.CharField(max_length=100, blank=True, null=True)
     vehicle = models.ForeignKey(
         Vehicle, on_delete=models.SET_NULL, blank=True, null=True
     )
+    # Equipment information
+    serial_number = models.CharField(max_length=100, blank=True, null=True)
     brand = models.CharField(max_length=100, blank=True, null=True)
     model = models.CharField(max_length=100, blank=True, null=True)
-    serial_number = models.CharField(max_length=100, blank=True, null=True)
     software_version = models.CharField(max_length=100, blank=True, null=True)
+    # Data provided
+    provides_vehicle = models.BooleanField(default=False)
+    provides_operator = models.BooleanField(default=False)
+    provides_journey = models.BooleanField(default=False)
+    provides_position = models.BooleanField(default=False)
+    provides_progression = models.BooleanField(default=False)
+    provides_occupancy = models.BooleanField(default=False)
+    provides_conditions = models.BooleanField(default=False)
+    provides_emissions = models.BooleanField(default=False)
+    provides_travelers = models.BooleanField(default=False)
+    provides_authorizations = models.BooleanField(default=False)
+    provides_fares = models.BooleanField(default=False)
+    provides_transfers = models.BooleanField(default=False)
+    provides_alerts = models.BooleanField(default=False)
+    # Registration
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -68,24 +106,23 @@ class Equipment(models.Model):
         return f"{self.provider}: {self.brand} {self.model}"
 
 
-class Trip(models.Model):
-
-    TRIP_STATUS_OPTIONS = [
-        ("IN_PROGRESS", "En progreso"),
-        ("COMPLETED", "Completado"),
-        ("INTERRUPTED", "Interrumpido"),
-    ]
+class Journey(models.Model):
+    """A journey is an instance of GTFS trip."""
 
     id = models.AutoField(primary_key=True)
     equipment = models.ForeignKey(
         Equipment, on_delete=models.SET_NULL, blank=True, null=True
     )
-
-    trip_id = models.CharField(max_length=100, blank=True, null=True)
+    operator = models.ForeignKey(
+        Operator, on_delete=models.SET_NULL, blank=True, null=True
+    )
+    # Journey information
     route_id = models.CharField(max_length=100, blank=True, null=True)
+    trip_id = models.CharField(max_length=100, blank=True, null=True)
     direction_id = models.PositiveSmallIntegerField(blank=True, null=True)
-    start_time = models.DurationField(blank=True, null=True)
+    shape_id = models.CharField(max_length=100, blank=True, null=True)
     start_date = models.DateField(blank=True, null=True)
+    start_time = models.DurationField(blank=True, null=True)
     schedule_relationship = models.CharField(
         max_length=100,
         blank=True,
@@ -99,9 +136,15 @@ class Trip(models.Model):
             ("DELETED", "Borrado"),
         ],
     )
-    shape_id = models.CharField(max_length=100, blank=True, null=True)
-    trip_status = models.CharField(
-        max_length=40, blank=True, null=True, choices=TRIP_STATUS_OPTIONS
+    journey_status = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        choices=[
+            ("IN_PROGRESS", "En progreso"),
+            ("COMPLETED", "Completado"),
+            ("INTERRUPTED", "Interrumpido"),
+        ],
     )
 
     def __str__(self):
@@ -110,20 +153,20 @@ class Trip(models.Model):
 
 class Position(models.Model):
     id = models.AutoField(primary_key=True)
-    trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
+    journey = models.ForeignKey(Journey, on_delete=models.CASCADE)
 
     timestamp = models.DateTimeField()
     point = models.PointField(blank=True, null=True)
+    altitude = models.FloatField(blank=True, null=True)
+    speed = models.FloatField(blank=True, null=True)
     bearing = models.FloatField(blank=True, null=True)
     odometer = models.FloatField(blank=True, null=True)
-    speed = models.FloatField(blank=True, null=True)
 
 
-class Journey(models.Model):
+class Progression(models.Model):
     id = models.AutoField(primary_key=True)
-    trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
+    journey = models.ForeignKey(Journey, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
-
     current_stop_sequence = models.PositiveIntegerField(blank=True, null=True)
     stop_id = models.CharField(max_length=100, blank=True, null=True)
     current_status = models.CharField(
@@ -152,9 +195,8 @@ class Journey(models.Model):
 
 class Occupancy(models.Model):
     id = models.AutoField(primary_key=True)
-    trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
+    journey = models.ForeignKey(Journey, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
-
     occupancy_status = models.CharField(
         max_length=100,
         blank=True,
@@ -173,3 +215,14 @@ class Occupancy(models.Model):
     )
     occupancy_percentage = models.IntegerField(blank=True, null=True)
     occupancy_count = models.PositiveIntegerField(blank=True, null=True)
+    is_wheelchair_accesible = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        choices=[
+            ("NO_VALUE", "No hay información"),
+            ("UNKNOWN", "Desconocido"),
+            ("WHEELCHAIR_ACCESIBLE", "Accesible para silla de ruedas"),
+            ("WHEELCHAIR_INACCESIBLE", "No accesible para silla de ruedas"),
+        ],
+    )
