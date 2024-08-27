@@ -113,6 +113,7 @@ class Journey(models.Model):
     equipment = models.ForeignKey(
         Equipment, on_delete=models.SET_NULL, blank=True, null=True
     )
+    vehicle = models.CharField(max_length=100, blank=True, null=True)
     operator = models.ForeignKey(
         Operator, on_delete=models.SET_NULL, blank=True, null=True
     )
@@ -146,6 +147,11 @@ class Journey(models.Model):
             ("INTERRUPTED", "Interrumpido"),
         ],
     )
+
+    def save(self, *args, **kwargs):
+        if self.equipment:
+            self.vehicle = self.equipment.vehicle.id
+        super(Journey, self).save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.route_id} / {self.trip_id} ({self.start_date})"

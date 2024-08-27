@@ -66,6 +66,7 @@
         "pk": 1,
         "fields": {
             "equipment": "2d01a00e-6287-4bfe-8a2b-7bc8a4e2aa5c",
+            "vehicle": "SJB1234",
             "operator": "1-1234-5678",
             "route_id": "L1",
             "trip_id": "L1-27",

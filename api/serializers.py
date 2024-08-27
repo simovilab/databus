@@ -69,7 +69,9 @@ class JourneySerializer(serializers.HyperlinkedModelSerializer):
         model = Journey
         fields = [
             "url",
+            "vehicle",
             "equipment",
+            "operator",
             "trip_id",
             "route_id",
             "direction_id",
@@ -94,7 +96,7 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
         model = Position
         fields = [
             "url",
-            "trip",
+            "journey",
             "timestamp",
             "point",
             "latitude",
@@ -132,7 +134,7 @@ class ProgressionSerializer(serializers.HyperlinkedModelSerializer):
         model = Progression
         fields = [
             "url",
-            "trip",
+            "journey",
             "timestamp",
             "current_stop_sequence",
             "stop_id",
@@ -152,7 +154,7 @@ class OccupancySerializer(serializers.HyperlinkedModelSerializer):
         model = Occupancy
         fields = [
             "url",
-            "trip",
+            "journey",
             "timestamp",
             "occupancy_status",
             "occupancy_percentage",
