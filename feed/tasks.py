@@ -102,10 +102,14 @@ def build_trip_update():
 
     # Feed message dictionary
     feed_message = {}
+    
+    # Feed message header
     feed_message["header"] = {}
     feed_message["header"]["gtfs_realtime_version"] = "2.0"
     feed_message["header"]["incrementality"] = "FULL_DATASET"
     feed_message["header"]["timestamp"] = int(datetime.now().timestamp())
+    
+    # Feed message entity
     feed_message["entity"] = []
 
     journeys = Journey.objects.filter(journey_status="IN_PROGRESS")
