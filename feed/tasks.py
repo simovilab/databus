@@ -27,13 +27,13 @@ def build_vehicle_position():
 
     # Feed message dictionary
     feed_message = {}
-    
+
     # Feed message header
     feed_message["header"] = {}
     feed_message["header"]["gtfs_realtime_version"] = "2.0"
     feed_message["header"]["incrementality"] = "FULL_DATASET"
-    feed_message["header"]["timestamp"] = int(datetime.datetime.now().timestamp())
-    
+    feed_message["header"]["timestamp"] = int(datetime.now().timestamp())
+
     # Feed message entity
     feed_message["entity"] = []
 
@@ -55,9 +55,11 @@ def build_vehicle_position():
         entity["vehicle"]["trip"]["trip_id"] = journey.trip_id
         entity["vehicle"]["trip"]["route_id"] = journey.route_id
         entity["vehicle"]["trip"]["direction_id"] = journey.direction_id
-        entity["vehicle"]["trip"]["start_time"] = str(journey.start_time)
+        entity["vehicle"]["trip"]["start_time"] = _format_time(journey.start_time)
         entity["vehicle"]["trip"]["start_date"] = journey.start_date.strftime("%Y%m%d")
-        entity["vehicle"]["trip"]["schedule_relationship"] = journey.schedule_relationship
+        entity["vehicle"]["trip"][
+            "schedule_relationship"
+        ] = journey.schedule_relationship
         # Vehicle
         entity["vehicle"]["vehicle"] = {}
         entity["vehicle"]["vehicle"]["id"] = vehicle.id
@@ -82,7 +84,7 @@ def build_vehicle_position():
         feed_message["entity"].append(entity)
 
     # Create and save JSON
-    feed_message_json = json.dumps(feed_message)
+    feed_message_json = json.dumps(feed_message)   
     with open("feed/files/vehicle_positions.json", "w") as f:
         f.write(feed_message_json)
 
@@ -103,15 +105,15 @@ def build_trip_update():
     feed_message["header"] = {}
     feed_message["header"]["gtfs_realtime_version"] = "2.0"
     feed_message["header"]["incrementality"] = "FULL_DATASET"
-    feed_message["header"]["timestamp"] = int(datetime.datetime.now().timestamp())
+    feed_message["header"]["timestamp"] = int(datetime.now().timestamp())
     feed_message["entity"] = []
 
-    trips = Trip.objects.filter(ongoing=True)
+    journeys = Journey.objects.filter(journey_status="IN_PROGRESS")
 
-    for trip in trips:
-        vehicle = trip.equipment.vehicle
-        position = Position.objects.filter(trip=trip).latest("timestamp")
-        path = Path.objects.filter(trip=trip).latest("timestamp")
+    for journey in journeys:
+        vehicle = journey.equipment.vehicle
+        position = Position.objects.filter(journey=journey).latest("timestamp")
+        progression = Progression.objects.filter(journey=journey).latest("timestamp")
         # Entity
         entity = {}
         entity["id"] = f"bus-{vehicle.id}"
@@ -120,16 +122,16 @@ def build_trip_update():
         entity["trip_update"]["timestamp"] = int(position.timestamp.timestamp())
         # Trip
         entity["trip_update"]["trip"] = {}
-        entity["trip_update"]["trip"]["trip_id"] = trip.trip_id
-        entity["trip_update"]["trip"]["route_id"] = trip.route_id
-        entity["trip_update"]["trip"]["direction_id"] = trip.direction_id
-        entity["trip_update"]["trip"]["start_time"] = _format_start_time(
-            trip.start_time
+        entity["trip_update"]["trip"]["trip_id"] = journey.trip_id
+        entity["trip_update"]["trip"]["route_id"] = journey.route_id
+        entity["trip_update"]["trip"]["direction_id"] = journey.direction_id
+        entity["trip_update"]["trip"]["start_time"] = _format_time(journey.start_time)
+        entity["trip_update"]["trip"]["start_date"] = journey.start_date.strftime(
+            "%Y%m%d"
         )
-        entity["trip_update"]["trip"]["start_date"] = trip.start_date.strftime("%Y%m%d")
         entity["trip_update"]["trip"][
             "schedule_relationship"
-        ] = trip.schedule_relationship
+        ] = journey.schedule_relationship
         # Vehicle
         entity["trip_update"]["vehicle"] = {}
         entity["trip_update"]["vehicle"]["id"] = vehicle.id
@@ -137,13 +139,13 @@ def build_trip_update():
         entity["trip_update"]["vehicle"]["license_plate"] = vehicle.license_plate
         # Stop time update
         entity["trip_update"]["stop_time_update"] = _fake_stop_times(
-            trip=trip, path=path
+            journey=journey, progression=progression
         )
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
     # Create and save JSON
-    feed_message_json = json.dumps(feed_message, indent=2)
+    feed_message_json = json.dumps(feed_message)
     with open("feed/files/trip_updates.json", "w") as f:
         f.write(feed_message_json)
 
@@ -202,17 +204,17 @@ def _generate_stop_entry(
     }
 
 
-def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
-    """Generate fake stop times for the given path.
+def _fake_stop_times(journey, progression) -> list[dict[str, Any]]:
+    """Generate fake stop times for the given journey.
 
     Parameters:
-        trip:
-        path: An object containing current stop sequence and status.
+        journey:
+        progression: An object containing current stop sequence and status.
 
     Returns:
         list[dict[str, Any]]: A list of dictionaries with stop time updates.
 
-    Revisar en Path por cuál parada está el viaje, y devolver los tiempos de llegada a las siguientes paradas, con la siguiente aproximación: 3 minutos de intervalo entre cada parada.
+    Revisar en Progression por cuál parada está el viaje, y devolver los tiempos de llegada a las siguientes paradas, con la siguiente aproximación: 3 minutos de intervalo entre cada parada.
 
     Ejemplos:
     - current_stop_sequence = 5, current_status = "IN_TRANSIT_TO": Devolver los tiempos de llegada a las paradas 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 (última).
@@ -223,8 +225,8 @@ def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
     route_stops = _load_route_stops(csv_file_path=_CSV_FILE_PATH)
 
     filtered_stops = route_stops[
-        (route_stops["route_id"] == trip.route_id)
-        & (route_stops["shape_id"] == trip.shape_id)
+        (route_stops["route_id"] == journey.route_id)
+        & (route_stops["shape_id"] == journey.shape_id)
     ]
 
     if filtered_stops.empty:
@@ -239,7 +241,7 @@ def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
     for _, row in filtered_stops.iterrows():
         stop_sequence = row["stop_sequence"]
 
-        if stop_sequence < path.current_stop_sequence:
+        if stop_sequence < progression.current_stop_sequence:
             continue
 
         if stop_sequence < previous_stop_sequence:
@@ -249,8 +251,8 @@ def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
             break
 
         if (
-            path.current_status == "STOPPED_AT"
-            and stop_sequence == path.current_stop_sequence
+            progression.current_status == "STOPPED_AT"
+            and stop_sequence == progression.current_stop_sequence
         ):
             continue
 
@@ -269,7 +271,7 @@ def _fake_stop_times(trip, path) -> list[dict[str, Any]]:
     return stop_time_update
 
 
-def _format_start_time(start_time) -> str:
+def _format_time(time) -> str:
     """Format start time into a string in HH:MM:SS format.
 
     Args:
@@ -278,7 +280,7 @@ def _format_start_time(start_time) -> str:
     Returns:
         str: The formatted start time as a string.
     """
-    total_seconds = int(start_time.total_seconds())
+    total_seconds = int(time.total_seconds())
     hours, remainder = divmod(total_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
