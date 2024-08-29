@@ -113,7 +113,7 @@ class Journey(models.Model):
     equipment = models.ForeignKey(
         Equipment, on_delete=models.SET_NULL, blank=True, null=True
     )
-    vehicle = models.CharField(max_length=100, blank=True, null=True)
+    vehicle = models.CharField(max_length=100, blank=True, null=True, help_text="Es agregado vía el equipo, que ya está asociado a un vehículo. No agregar manualmente.")
     operator = models.ForeignKey(
         Operator, on_delete=models.SET_NULL, blank=True, null=True
     )
