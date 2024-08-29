@@ -1,6 +1,6 @@
 from django.contrib import admin
-from .models import Provider
+from .models import GTFSProvider
 
 # Register your models here.
 
-admin.site.register(Provider)
+admin.site.register(GTFSProvider)

@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# GTFS Realtime
+feed/files
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

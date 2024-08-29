@@ -138,7 +138,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Databús API",
+    "TITLE": "Databús API | bUCR",
 }
 
 # Internationalization

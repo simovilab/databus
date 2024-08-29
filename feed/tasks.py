@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
 
-from .models import Trip, Position, Path, Occupancy
+from .models import Journey, Progression, Position, Progression, Occupancy
 
 # For the _fake_stop_times method (temporary!)
 import pandas as pd
@@ -27,19 +27,23 @@ def build_vehicle_position():
 
     # Feed message dictionary
     feed_message = {}
+    
+    # Feed message header
     feed_message["header"] = {}
     feed_message["header"]["gtfs_realtime_version"] = "2.0"
     feed_message["header"]["incrementality"] = "FULL_DATASET"
     feed_message["header"]["timestamp"] = int(datetime.datetime.now().timestamp())
+    
+    # Feed message entity
     feed_message["entity"] = []
 
-    trips = Trip.objects.filter(ongoing=True)
+    journeys = Journey.objects.filter(journey_status="IN_PROGRESS")
 
-    for trip in trips:
-        vehicle = trip.equipment.vehicle
-        position = Position.objects.filter(trip=trip).latest("timestamp")
-        path = Path.objects.filter(trip=trip).latest("timestamp")
-        occupancy = Occupancy.objects.filter(trip=trip).latest("timestamp")
+    for journey in journeys:
+        vehicle = journey.equipment.vehicle
+        position = Position.objects.filter(journey=journey).latest("timestamp")
+        progression = Progression.objects.filter(journey=journey).latest("timestamp")
+        occupancy = Occupancy.objects.filter(journey=journey).latest("timestamp")
         # Entity
         entity = {}
         entity["id"] = f"bus-{vehicle.id}"
@@ -48,12 +52,12 @@ def build_vehicle_position():
         entity["vehicle"]["timestamp"] = int(position.timestamp.timestamp())
         # Trip
         entity["vehicle"]["trip"] = {}
-        entity["vehicle"]["trip"]["trip_id"] = trip.trip_id
-        entity["vehicle"]["trip"]["route_id"] = trip.route_id
-        entity["vehicle"]["trip"]["direction_id"] = trip.direction_id
-        entity["vehicle"]["trip"]["start_time"] = _format_start_time(trip.start_time)
-        entity["vehicle"]["trip"]["start_date"] = trip.start_date.strftime("%Y%m%d")
-        entity["vehicle"]["trip"]["schedule_relationship"] = trip.schedule_relationship
+        entity["vehicle"]["trip"]["trip_id"] = journey.trip_id
+        entity["vehicle"]["trip"]["route_id"] = journey.route_id
+        entity["vehicle"]["trip"]["direction_id"] = journey.direction_id
+        entity["vehicle"]["trip"]["start_time"] = str(journey.start_time)
+        entity["vehicle"]["trip"]["start_date"] = journey.start_date.strftime("%Y%m%d")
+        entity["vehicle"]["trip"]["schedule_relationship"] = journey.schedule_relationship
         # Vehicle
         entity["vehicle"]["vehicle"] = {}
         entity["vehicle"]["vehicle"]["id"] = vehicle.id
@@ -66,11 +70,11 @@ def build_vehicle_position():
         entity["vehicle"]["position"]["bearing"] = position.bearing
         entity["vehicle"]["position"]["odometer"] = position.odometer
         entity["vehicle"]["position"]["speed"] = position.speed
-        # Path
-        entity["vehicle"]["current_stop_sequence"] = path.current_stop_sequence
-        entity["vehicle"]["stop_id"] = path.stop_id
-        entity["vehicle"]["current_status"] = path.current_status
-        entity["vehicle"]["congestion_level"] = path.congestion_level
+        # Progression
+        entity["vehicle"]["current_stop_sequence"] = progression.current_stop_sequence
+        entity["vehicle"]["stop_id"] = progression.stop_id
+        entity["vehicle"]["current_status"] = progression.current_status
+        entity["vehicle"]["congestion_level"] = progression.congestion_level
         # Occupancy
         entity["vehicle"]["occupancy_status"] = occupancy.occupancy_status
         entity["vehicle"]["occupancy_percentage"] = occupancy.occupancy_percentage
@@ -78,7 +82,7 @@ def build_vehicle_position():
         feed_message["entity"].append(entity)
 
     # Create and save JSON
-    feed_message_json = json.dumps(feed_message, indent=2)
+    feed_message_json = json.dumps(feed_message)
     with open("feed/files/vehicle_positions.json", "w") as f:
         f.write(feed_message_json)
 

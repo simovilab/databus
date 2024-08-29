@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.http import FileResponse
 from rest_framework import viewsets
+from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 
 from feed.models import *
@@ -20,16 +21,51 @@ class VehicleViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
+class OperatorViewSet(viewsets.ModelViewSet):
+    queryset = Operator.objects.all()
+    serializer_class = OperatorSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class DataProviderViewSet(viewsets.ModelViewSet):
+    queryset = DataProvider.objects.all()
+    serializer_class = DataProviderSerializer
+    authentication_classes = [TokenAuthentication]
+
+
 class EquipmentViewSet(viewsets.ModelViewSet):
     queryset = Equipment.objects.all()
     serializer_class = EquipmentSerializer
     authentication_classes = [TokenAuthentication]
 
+    # Using Response, return the id of the created object
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(
+            {
+                "id": serializer.instance.id,
+                "serial_number": serializer.instance.serial_number,
+                # TODO: verify that no repeated serial numbers are allowed
+            }
+        )
 
-class TripViewSet(viewsets.ModelViewSet):
-    queryset = Trip.objects.all()
-    serializer_class = TripSerializer
+
+class JourneyViewSet(viewsets.ModelViewSet):
+    queryset = Journey.objects.all()
+    serializer_class = JourneySerializer
     authentication_classes = [TokenAuthentication]
+
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(
+            {
+                "id": serializer.instance.id,
+            }
+        )
 
 
 class PositionViewSet(viewsets.ModelViewSet):
@@ -38,9 +74,9 @@ class PositionViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
-class PathViewSet(viewsets.ModelViewSet):
-    queryset = Path.objects.all()
-    serializer_class = PathSerializer
+class ProgressionViewSet(viewsets.ModelViewSet):
+    queryset = Progression.objects.all()
+    serializer_class = ProgressionSerializer
     authentication_classes = [TokenAuthentication]
 
 
