@@ -1,5 +1,8 @@
 from celery import shared_task
 
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 import json
 from datetime import datetime, timedelta
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
@@ -158,6 +161,16 @@ def build_trip_update():
     feed_message_pb = json_format.ParseDict(feed_message_json, gtfs_rt.FeedMessage())
     with open("feed/files/trip_updates.pb", "wb") as f:
         f.write(feed_message_pb.SerializeToString())
+
+    # Send status update to WebSocket
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        "status",
+        {
+            "type": "status_message",
+            "message": datetime.now().strftime("%H:%M:%S"),
+        },
+    )
 
     return "Feed TripUpdate built"
 

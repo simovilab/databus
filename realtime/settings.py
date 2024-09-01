@@ -34,6 +34,8 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "gtfs.apps.GtfsConfig",
     "feed.apps.FeedConfig",
     "website.apps.WebsiteConfig",
@@ -81,6 +83,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "realtime.wsgi.application"
+ASGI_APPLICATION = "realtime.asgi.application"
 
 
 # Database
@@ -139,6 +142,17 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Databús API | bUCR",
+}
+
+# Channels settings
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
+        },
+    },
 }
 
 # Internationalization

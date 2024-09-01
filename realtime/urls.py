@@ -22,4 +22,5 @@ urlpatterns = [
     path("", include("website.urls")),
     path("gtfs/", include("gtfs.urls")),
     path("api/", include("api.urls")),
+    path("status/", include("feed.urls")),
 ]
