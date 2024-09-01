@@ -4,6 +4,7 @@ nav:
   - Inicio: index.md
   - Desarrollo: development.md
   - Equipo de abordo: obe.md
+  - Celery: deployment.md
   - API: api.md
 
 extra_css:
