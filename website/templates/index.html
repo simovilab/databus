@@ -17,9 +17,13 @@
     <main class="w-100 m-auto">
         <div class="container">
             <img src="{% static 'img/b_azul_fondo_blanco.png' %}" width="150px" alt="Símbolo servidor en tiempo real">
-            <h1 class="display-3">Servidor en tiempo real</h1>
-            <p class="lead">Servidor para la recolección de datos desde vehículos de transporte público y la creación del suministro (<em>feed</em>) GTFS Realtime y otros.</p>
+            <h1 class="display-1 fw-bold">databús</h1>
+            <h1 class="display-4">Servidor en tiempo real</h1>
+            <div class="col-md-4 mx-auto">
+                <p class="lead">Recolección periódica de datos desde vehículos de transporte público para la creación del <em>feed</em> GTFS&nbsp;<em>Realtime</em> y otros suministros de datos.</p>
+            </div>
             <p><i class="bi bi-file-earmark-text-fill"></i> <a href="{% url 'api_docs' %}" class="text-decoration-none" target="_blank">Documentación <strong>Databús API v1.0</strong></a></p>
+            <p><i class="bi bi-clipboard2-pulse-fill"></i> <a href="{% url 'status' %}" class="text-decoration-none" target="_blank">Estado del sistema</a></p>
             <span class="badge rounded-pill text-bg-warning">En desarrollo</span>
         </div>
     </main>

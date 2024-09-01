@@ -17,9 +17,21 @@
     <main class="w-100 m-auto">
         <div class="container">
             <img src="{% static 'img/b_azul_fondo_blanco.png' %}" width="150px" alt="Símbolo servidor en tiempo real">
-            <h1 class="display-3">Monitor del sistema</h1>
-            <p class="lead">Vamos a ver cómo está la cosa.</p>
-            <p>Última actualización: <span id="update" class="fw-bold"></span></p>
+            <h1 class="display-1 fw-bold">databús</h1>
+            <h1 class="display-4">Monitor del sistema</h1>
+            <div class="col-md-4 mx-auto">
+                <p class="lead">Ejecución de tareas de creación de entidades <em>FeedMessage</em> de GTFS&nbsp;<em>Realtime</em>.</p>
+                <table class="table">
+                    <tr>
+                        <td class="text-end">Última actualización:</td>
+                        <td class="text-start"><span id="last_update" class="fw-bold"></span></td>
+                    </tr>
+                    <tr>
+                        <td class="text-end">Viajes en progreso:</td>
+                        <td class="text-start"><span id="active_stop_screens" class="fw-bold"></span></td>
+                    </tr>
+                </table>
+            </div>
             <span class="badge rounded-pill text-bg-warning">En desarrollo</span>
         </div>
     </main>
@@ -27,8 +39,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <script>
-        // Crear un WebSocket 
-        const wsUrl = 'ws://' + window.location.host + '/ws/status/';
+        // Crear un WebSocket según el protocolo de la página (producción o desarrollo)
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsUrl = wsProtocol + window.location.host + '/ws/status/';
         const statusSocket = new WebSocket(wsUrl);
 
         // Registrar la conexión abierta
@@ -41,7 +54,8 @@
             console.log('Mensaje recibido:', event.data);
             const json = JSON.parse(event.data);
             const data = json['message'];
-            document.getElementById('update').textContent = data;
+            document.getElementById('last_update').textContent = data['last_update'];
+            document.getElementById('active_stop_screens').textContent = data['active_stop_screens'];
         };
     </script>
 
