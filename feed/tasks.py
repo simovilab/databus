@@ -116,6 +116,7 @@ def build_trip_update():
     feed_message["entity"] = []
 
     journeys = Journey.objects.filter(journey_status="IN_PROGRESS")
+    print(f"Número de viajes: {len(journeys)}")
 
     for journey in journeys:
         vehicle = journey.equipment.vehicle
@@ -150,6 +151,7 @@ def build_trip_update():
         )
         # Append entity to feed message
         feed_message["entity"].append(entity)
+        print("Viaje agregado")
 
     # Create and save JSON
     feed_message_json = json.dumps(feed_message)
@@ -166,6 +168,7 @@ def build_trip_update():
     message = {}
     message["last_update"] = datetime.now().strftime("%H:%M:%S")
     message["journeys"] = len(journeys)
+    print(message)
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         "status",
@@ -174,6 +177,7 @@ def build_trip_update():
             "message": message,
         },
     )
+    print("Llegamos aquí")
 
     return "Feed TripUpdate built"
 
