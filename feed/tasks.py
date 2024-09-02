@@ -165,7 +165,7 @@ def build_trip_update():
 
     # Send status update to WebSocket
     message = {}
-    message["last_update"] = datetime.now().strftime("%H:%M:%S")
+    message["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     message["journeys"] = len(journeys)
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
@@ -176,7 +176,7 @@ def build_trip_update():
         },
     )
 
-    return f"Feed TripUpdate built. Last update: {message['last_update']}, journeys: {message['journeys']}. Channel layer: {channel_layer}"
+    return f"Feed TripUpdate built."
 
 
 @shared_task

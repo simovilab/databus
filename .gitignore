@@ -1,3 +1,10 @@
+# GTFS files
+feed/files/bUCR_GTFS.zip
+feed/files/trip_updates.pb
+feed/files/trip_updates.json
+feed/files/vehicle_positions.pb
+feed/files/vehicle_positions.json
+
 # macOS
 .DS_Store
 
