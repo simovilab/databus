@@ -4,9 +4,9 @@ On a Linux Ubuntu 22.04 LTS server, this is the configuration of Celery and Cele
 
 - **Note**: this assumes that Redis is installed (`sudo apt install redis-server`) and all the Python packages in `requirements.txt`. It is possible to check if Redis is running with `sudo systemctl is-enabled redis-server`.
 
-## Configuring Celery as a system service
+## Celery Deployment
 
-Preliminaries:
+Configuring Celery as a system service. Preliminaries:
 
 - The Django project is in `/home/bucr/realtime`
 - The virtual environment is in `/home/bucr/realtime/realtimeenv/bin`
@@ -146,6 +146,62 @@ Relevant `systemctl` commands:
 - To start: `sudo systemctl start celerybeat`
 - To stop: `sudo systemctl stop celerybeat`
 - To check status: `sudo systemctl status celerybeat`
-- To allow execution on reboot: `sudo systemctl enable celery`
+- To allow execution on reboot: `sudo systemctl enable celerybeat`
 - Others: `restart`/`reload`/`is-enabled`/`disable`
 
+## Daphne Deployment
+
+For using Channels and WebSockets, it is necessary to configure the Daphne server.
+
+```init title="/etc/systemd/system/daphne.service" hl_lines="9"
+[Unit]
+Description=WebSocket Daphne Service
+After=network.target
+
+[Service]
+User=bucr
+Group=www-data
+WorkingDirectory=/home/bucr/realtime
+ExecStart=/home/bucr/realtime/realtimeenv/bin/daphne -p 8001 realtime.asgi:application
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Relevant `systemctl` commands:
+
+- On every change to this file: `sudo systemctl daemon-reload`
+- To start: `sudo systemctl start daphne`
+- To stop: `sudo systemctl stop daphne`
+- To check status: `sudo systemctl status daphne`
+- To allow execution on reboot: `sudo systemctl enable daphne`
+- Others: `restart`/`reload`/`is-enabled`/`disable`
+
+
+Now, for Nginx to proxy pass to Daphne, the following is needed:
+
+```init title="/etc/nginx/sites-available/realtime" hl_lines="15-20"
+server {
+    listen 80;
+    server_name server_domain_or_IP;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location /static/ {
+        root /home/bucr/realtime;
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/run/gunicorn.sock;
+    }
+
+    location /ws/ {
+        proxy_pass http://localhost:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+}
+```

@@ -163,12 +163,15 @@ def build_trip_update():
         f.write(feed_message_pb.SerializeToString())
 
     # Send status update to WebSocket
+    message = {}
+    message["last_update"] = datetime.now().strftime("%H:%M:%S")
+    message["journeys"] = len(journeys)
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         "status",
         {
             "type": "status_message",
-            "message": datetime.now().strftime("%H:%M:%S"),
+            "message": message,
         },
     )
 

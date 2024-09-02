@@ -28,7 +28,7 @@
                     </tr>
                     <tr>
                         <td class="text-end">Viajes en progreso:</td>
-                        <td class="text-start"><span id="active_stop_screens" class="fw-bold"></span></td>
+                        <td class="text-start"><span id="journeys" class="fw-bold"></span></td>
                     </tr>
                 </table>
             </div>
@@ -55,7 +55,7 @@
             const json = JSON.parse(event.data);
             const data = json['message'];
             document.getElementById('last_update').textContent = data['last_update'];
-            document.getElementById('active_stop_screens').textContent = data['active_stop_screens'];
+            document.getElementById('journeys').textContent = data['journeys'];
         };
     </script>
 
