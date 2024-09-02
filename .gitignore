@@ -5,6 +5,9 @@ feed/files/trip_updates.json
 feed/files/vehicle_positions.pb
 feed/files/vehicle_positions.json
 
+# Ubuntu server
+restart_services.sh
+
 # macOS
 .DS_Store
 
