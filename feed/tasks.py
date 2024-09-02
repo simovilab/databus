@@ -3,7 +3,6 @@ from celery import shared_task
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
-import logging
 import json
 from datetime import datetime, timedelta
 
@@ -17,8 +16,6 @@ import pandas as pd
 import numpy as np
 import random
 from typing import Any
-
-logger = logging.getLogger(__name__)
 
 _CSV_FILE_PATH = "./aux/route_stops.csv"
 # Time in seconds
@@ -120,7 +117,6 @@ def build_trip_update():
     feed_message["entity"] = []
 
     journeys = Journey.objects.filter(journey_status="IN_PROGRESS")
-    logger.info(f"Número de viajes: {len(journeys)}")
 
     for journey in journeys:
         vehicle = journey.equipment.vehicle
@@ -155,7 +151,6 @@ def build_trip_update():
         )
         # Append entity to feed message
         feed_message["entity"].append(entity)
-        logger.info("Viaje agregado")
 
     # Create and save JSON
     feed_message_json = json.dumps(feed_message)
@@ -172,7 +167,6 @@ def build_trip_update():
     message = {}
     message["last_update"] = datetime.now().strftime("%H:%M:%S")
     message["journeys"] = len(journeys)
-    logger.info(message)
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         "status",
@@ -181,9 +175,8 @@ def build_trip_update():
             "message": message,
         },
     )
-    logger.info("Llegamos aquí")
 
-    return "Feed TripUpdate built"
+    return f"Feed TripUpdate built. Last update: {message['last_update']}, journeys: {message['journeys']}. Channel layer: {channel_layer}"
 
 
 @shared_task
