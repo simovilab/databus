@@ -174,7 +174,7 @@ paths:
   /progression:  
     post:
       summary: Avance del viaje
-      description: "Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 10 segundos"
+      description: "Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.\n\n**Tipo de actualización**: por evento\n\n**Evento**: cambio en el estado actual `current_status` o en el nivel de congestión `congestion_level`"
       tags:
         - Trip
       requestBody:
@@ -712,6 +712,11 @@ components:
           type: number
           format: integer
           example: 698453
+        timestamp:
+          description: Fecha y hora de la actualización del estado de avance del vehículo, en tiempo POSIX
+          type: number
+          format: integer
+          example: 1710067980
         current_stop_sequence:
           description: Secuencia de la parada
           type: integer

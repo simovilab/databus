@@ -117,11 +117,11 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
             return obj.point.x
         return None
 
-    def create(self, validated_data):
-        latitude = validated_data.pop("latitude")
-        longitude = validated_data.pop("longitude")
-        point = Point(longitude, latitude)
-        return Position.objects.create(point=point, **validated_data)
+    # def create(self, validated_data):
+    #     latitude = validated_data.pop("latitude")
+    #     longitude = validated_data.pop("longitude")
+    #     point = Point(longitude, latitude)
+    #     return Position.objects.create(point=point, **validated_data)
 
 
 class ProgressionSerializer(serializers.HyperlinkedModelSerializer):

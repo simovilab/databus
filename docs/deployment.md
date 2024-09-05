@@ -178,6 +178,7 @@ Relevant `systemctl` commands:
 - To allow execution on reboot: `sudo systemctl enable daphne`
 - Others: `restart`/`reload`/`is-enabled`/`disable`
 
+It is necessary to allow execution on reboot with `sudo systemctl enable daphne`.
 
 Now, for Nginx to proxy pass to Daphne, the following is needed:
 
@@ -204,4 +205,34 @@ server {
     }
 
 }
+```
+
+## Updating the repository
+
+```bash
+sudo nano restart_services.sh
+```
+
+where
+
+```bash
+#!/bin/bash
+
+sudo systemctl restart celery
+sudo systemctl restart celerybeat
+sudo systemctl restart daphne
+sudo systemctl restart gunicorn
+sudo systemctl restart nginx
+```
+
+and make executable with
+
+```bash
+sudo chmod +x restart_services.sh
+```
+
+and then execute
+
+```bash
+./restart_services.sh
 ```
