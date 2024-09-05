@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "feed.apps.FeedConfig",
     "website.apps.WebsiteConfig",
     "api.apps.ApiConfig",
+    "stats.apps.StatsConfig",
     "rest_framework",
     "rest_framework.authtoken",
     "drf_spectacular",
