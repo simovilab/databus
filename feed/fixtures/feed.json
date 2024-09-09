@@ -34,24 +34,6 @@
         }
     },
     {
-        "model": "feed.operator",
-        "pk": "1-1234-5678",
-        "fields": {
-            "name": "María Rodríguez",
-            "phone": "87654321",
-            "email": "maria.rodriguez@ucr.ac.cr"
-        }
-    },
-    {
-        "model": "feed.operator",
-        "pk": "2-1234-5678",
-        "fields": {
-            "name": "José Castro",
-            "phone": "87456321",
-            "email": "jose.castro@ucr.ac.cr"
-        }
-    },
-    {
         "model": "feed.dataprovider",
         "pk": "1964",
         "fields": {
@@ -113,6 +95,26 @@
             "provides_alerts": true,
             "created_at": "2024-08-27T17:52:29.271Z",
             "updated_at": "2024-08-27T17:52:29.271Z"
+        }
+    },
+    {
+        "model": "feed.operator",
+        "pk": "1-1234-5678",
+        "fields": {
+            "user": 2,
+            "phone": "87654321",
+            "vehicle": null,
+            "equipment": null
+        }
+    },
+    {
+        "model": "feed.operator",
+        "pk": "2-1234-5678",
+        "fields": {
+            "user": 3,
+            "phone": "87654321",
+            "vehicle": null,
+            "equipment": null
         }
     },
     {

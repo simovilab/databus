@@ -1,5 +1,6 @@
 from django.contrib.gis.db import models
 from django.contrib.gis.geos import Point
+from django.contrib.auth.models import User
 import uuid
 
 # Create your models here.
@@ -49,16 +50,6 @@ class Vehicle(models.Model):
         return f"{self.label} ({self.license_plate})"
 
 
-class Operator(models.Model):
-    operator_id = models.CharField(max_length=100, primary_key=True)
-    name = models.CharField(max_length=100)
-    phone = models.CharField(max_length=100, blank=True, null=True)
-    email = models.EmailField(blank=True, null=True)
-
-    def __str__(self):
-        return self.name
-
-
 class DataProvider(models.Model):
     id = models.CharField(max_length=31, primary_key=True)
     name = models.CharField(max_length=255)
@@ -106,6 +97,21 @@ class Equipment(models.Model):
         return f"{self.provider}: {self.brand} {self.model}"
 
 
+class Operator(models.Model):
+    operator_id = models.CharField(max_length=100, primary_key=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
+    phone = models.CharField(max_length=100, blank=True, null=True)
+    vehicle = models.ForeignKey(
+        Vehicle, on_delete=models.SET_NULL, blank=True, null=True
+    )
+    equipment = models.ForeignKey(
+        Equipment, on_delete=models.SET_NULL, blank=True, null=True
+    )
+
+    def __str__(self):
+        return f"{self.user.first_name} {self.user.last_name} ({self.operator_id})"
+
+
 class Journey(models.Model):
     """A journey is an instance of GTFS trip."""
 
@@ -113,7 +119,12 @@ class Journey(models.Model):
     equipment = models.ForeignKey(
         Equipment, on_delete=models.SET_NULL, blank=True, null=True
     )
-    vehicle = models.CharField(max_length=100, blank=True, null=True, help_text="Es agregado vía el equipo, que ya está asociado a un vehículo. No agregar manualmente.")
+    vehicle = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Es agregado vía el equipo, que ya está asociado a un vehículo. No agregar manualmente.",
+    )
     operator = models.ForeignKey(
         Operator, on_delete=models.SET_NULL, blank=True, null=True
     )
