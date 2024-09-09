@@ -8,6 +8,7 @@ from feed.models import (
     Progression,
     Occupancy,
 )
+from django.contrib.auth.models import User
 from rest_framework import serializers
 from django.contrib.gis.geos import Point
 
@@ -25,13 +26,6 @@ class VehicleSerializer(serializers.HyperlinkedModelSerializer):
             "bike_rack",
         ]
         ordering = ["id"]
-
-
-class OperatorSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = Operator
-        fields = "__all__"
-        ordering = ["operator_id"]
 
 
 class DataProviderSerializer(serializers.HyperlinkedModelSerializer):
@@ -58,6 +52,18 @@ class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
             "software_version",
         ]
         ordering = ["id"]
+
+
+class OperatorSerializer(serializers.HyperlinkedModelSerializer):
+
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+    equipment = serializers.PrimaryKeyRelatedField(queryset=Equipment.objects.all())
+
+    class Meta:
+        model = Operator
+        fields = "__all__"
+        ordering = ["operator_id"]
 
 
 class JourneySerializer(serializers.HyperlinkedModelSerializer):

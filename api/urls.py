@@ -1,5 +1,6 @@
 from django.urls import include, path
 from rest_framework import routers
+from rest_framework.authtoken.views import obtain_auth_token
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView
 
 from . import views
@@ -18,6 +19,7 @@ router.register(r"occupancy", views.OccupancyViewSet)
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     path("", include(router.urls)),
+    path("login/", obtain_auth_token, name="login"),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("docs/schema/", views.get_schema, name="schema"),
     path("docs/", SpectacularRedocView.as_view(url_name="schema"), name="api_docs"),
