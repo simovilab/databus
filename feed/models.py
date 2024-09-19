@@ -3,6 +3,8 @@ from django.contrib.gis.geos import Point
 from django.contrib.auth.models import User
 import uuid
 
+from gtfs.models import Agency
+
 # Create your models here.
 
 
@@ -101,6 +103,7 @@ class Operator(models.Model):
     operator_id = models.CharField(max_length=100, primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
     phone = models.CharField(max_length=100, blank=True, null=True)
+    agency = models.ForeignKey(Agency, on_delete=models.SET_NULL, blank=True, null=True)
     vehicle = models.ForeignKey(
         Vehicle, on_delete=models.SET_NULL, blank=True, null=True
     )
