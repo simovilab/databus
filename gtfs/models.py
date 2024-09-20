@@ -62,7 +62,7 @@ class Feed(models.Model):
     retrieved_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.retrieved_at
+        return self.feed_id
 
 
 class Agency(models.Model):
@@ -186,9 +186,7 @@ class Route(models.Model):
     route_id = models.CharField(
         max_length=255, help_text="Identificador único de la ruta."
     )
-    agency_id = models.ForeignKey(
-        Agency, blank=True, null=True, on_delete=models.SET_NULL
-    )
+    agency_id = models.CharField(max_length=255, blank=True, null=True)
     route_short_name = models.CharField(
         max_length=63, blank=True, null=True, help_text="Nombre corto de la ruta."
     )
@@ -333,8 +331,8 @@ class Trip(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     feed = models.ForeignKey(Feed, on_delete=models.CASCADE)
-    route_id = models.ForeignKey(Route, on_delete=models.CASCADE)
-    service_id = models.ForeignKey(Calendar, on_delete=models.CASCADE)
+    route_id = models.CharField(max_length=255, blank=True, null=True)
+    service_id = models.CharField(max_length=255, blank=True, null=True)
     trip_id = models.CharField(
         max_length=255, help_text="Identificador único del viaje."
     )
@@ -375,14 +373,14 @@ class StopTime(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     feed = models.ForeignKey(Feed, on_delete=models.CASCADE)
-    trip_id = models.ForeignKey(Trip, on_delete=models.CASCADE)
+    trip_id = models.CharField(max_length=255, blank=True, null=True)
     arrival_time = models.TimeField(
         help_text="Hora de llegada a la parada.", blank=True, null=True
     )
     departure_time = models.TimeField(
         help_text="Hora de salida de la parada.", blank=True, null=True
     )
-    stop_id = models.ForeignKey(Stop, on_delete=models.CASCADE)
+    stop_id = models.CharField(max_length=255, blank=True, null=True)
     stop_sequence = models.PositiveIntegerField(
         help_text="Secuencia de la parada en el viaje."
     )
@@ -487,8 +485,8 @@ class FareRule(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     feed = models.ForeignKey(Feed, on_delete=models.CASCADE)
-    fare_id = models.ForeignKey(FareAttribute, on_delete=models.CASCADE)
-    route_id = models.ForeignKey(Route, on_delete=models.CASCADE)
+    fare_id = models.CharField(max_length=255, blank=True, null=True)
+    route_id = models.CharField(max_length=255, blank=True, null=True)
     origin_id = models.CharField(max_length=255, blank=True, null=True)
     destination_id = models.CharField(max_length=255, blank=True, null=True)
     contains_id = models.CharField(max_length=255, blank=True, null=True)
@@ -533,7 +531,7 @@ class TripUpdate(models.Model):
     entity_id = models.CharField(max_length=127)
 
     # Foreign key to FeedMessage model
-    feed_message = models.ForeignKey("FeedMessage", on_delete=models.CASCADE)
+    feed_message = models.ForeignKey(FeedMessage, on_delete=models.CASCADE)
 
     # TripDescriptor (message)
     trip_trip_id = models.CharField(max_length=255, blank=True, null=True)
@@ -573,7 +571,7 @@ class StopTimeUpdate(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     # Foreign key to TripUpdate model
-    trip_update = models.ForeignKey("TripUpdate", on_delete=models.CASCADE)
+    trip_update = models.ForeignKey(TripUpdate, on_delete=models.CASCADE)
 
     # Stop ID (string)
     stop_sequence = models.IntegerField()
@@ -610,7 +608,7 @@ class VehiclePosition(models.Model):
     entity_id = models.CharField(max_length=127)
 
     # Foreign key to FeedMessage model
-    feed_message = models.ForeignKey("FeedMessage", on_delete=models.CASCADE)
+    feed_message = models.ForeignKey(FeedMessage, on_delete=models.CASCADE)
 
     # TripDescriptor (message)
     trip_trip_id = models.CharField(max_length=255)
