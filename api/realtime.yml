@@ -113,6 +113,50 @@ paths:
                 $ref: '#/components/schemas/EquipmentResponse'
         '406':
           description: Al menos un servicio debe ser proporcionado
+  /find-trips:
+    get:
+      summary: Búsqueda de viajes
+      description: "Obtiene la lista de viajes disponibles cercanos a la hora actual para la combinación de ruta, calendario, trayectoria y sentido.\n\n**Tipo de actualización**: por evento\n\n**Evento**: configuración del inicio de un nuevo viaje"
+      tags:
+        - Trip
+      parameters:
+        - in: query
+          name: route_id
+          description: Identificador de la ruta según GTFS Schedule
+          required: true
+          schema:
+            type: string
+          example: 'bUCR-L1'
+        - in: query
+          name: service_id
+          description: Identificador del calendario según GTFS Schedule
+          required: true
+          schema:
+            type: string
+          example: 'entresemana'
+        - in: query
+          name: shape_id
+          description: Identificador de la trayectoria de la ruta según GTFS Schedule
+          required: true
+          schema:
+            type: string
+          example: 'desde_educacion'
+        - in: query
+          name: direction_id
+          description: Identificador de la dirección (sentido) del viaje según GTFS Schedule
+          required: true
+          schema:
+            type: integer
+          example: 0
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FindTripsResponse'
   /journey:
     post:
       summary: Datos del viaje actual
@@ -603,6 +647,17 @@ components:
           description: Número de serie del equipo
           type: string
           example: 'SJ3249TISER94N'
+    FindTripsResponse:
+      type: object
+      properties:
+        trip_id:
+          description: Identificador del viaje según GTFS Schedule
+          type: string
+          example: 'JFH367'
+        trip_departure time:
+          description: Hora de salida del viaje
+          type: string
+          example: '07:15:00'
     Journey:
       type: object
       properties:

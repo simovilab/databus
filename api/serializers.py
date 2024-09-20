@@ -167,3 +167,8 @@ class OccupancySerializer(serializers.HyperlinkedModelSerializer):
             "occupancy_count",
         ]
         ordering = ["id"]
+
+
+class FindTripsSerializer(serializers.Serializer):
+    trip_id = serializers.CharField()
+    trip_departure_time = serializers.TimeField()

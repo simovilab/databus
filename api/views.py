@@ -9,7 +9,10 @@ from rest_framework.authtoken.models import Token
 from django.views.decorators.csrf import csrf_exempt
 
 from feed.models import *
+from gtfs.models import Feed, Trip, StopTime
 from .serializers import *
+
+from datetime import datetime, timedelta
 
 
 def get_schema(request):
@@ -88,3 +91,57 @@ class OccupancyViewSet(viewsets.ModelViewSet):
     queryset = Occupancy.objects.all()
     serializer_class = OccupancySerializer
     authentication_classes = [TokenAuthentication]
+
+
+class FindTripsView(APIView):
+    authentication_classes = [TokenAuthentication]
+
+    def get(self, request):
+        # Get the query parameters
+        route_id = request.query_params.get("route_id")
+        service_id = request.query_params.get("service_id")
+        shape_id = request.query_params.get("shape_id")
+        direction_id = request.query_params.get("direction_id")
+        if not route_id or not service_id or not shape_id or not direction_id:
+            return Response(
+                {"error": "Todos los parámetros route_id, service_id, shape_id, and direction_id son requeridos"},
+                status=400,
+            )
+
+        # Get the current feed
+        feed = Feed.objects.filter(is_current=True).first()
+        trips = Trip.objects.filter(
+            route_id=route_id,
+            service_id=service_id,
+            shape_id=shape_id,
+            direction_id=direction_id,
+            feed=feed,
+        )
+
+        selected_trips = []
+        tolerance = timedelta(minutes=30)
+        lower_bound = datetime.now() - tolerance
+        upper_bound = datetime.now() + tolerance
+
+        for trip in trips:
+            # Get the stop times for the trip
+            print(trip)
+            first_stop_time = (
+                StopTime.objects.filter(trip_id=trip.trip_id)
+                .order_by("stop_sequence")
+                .first()
+            )
+            departure_time = first_stop_time.departure_time
+            print(departure_time)
+            if departure_time > lower_bound.time() and departure_time < upper_bound.time():
+                selected_trips.append(
+                    {
+                        "trip_id": trip.trip_id,
+                        "trip_departure_time": departure_time,
+                    }
+                )
+
+        # Serialize the journeys
+        serializer = FindTripsSerializer(selected_trips, many=True)
+
+        return Response(serializer.data)
