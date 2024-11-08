@@ -56,6 +56,7 @@ class DataProvider(models.Model):
     id = models.CharField(max_length=31, primary_key=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    agency = models.ManyToManyField(Agency, blank=True)
 
     def __str__(self):
         return self.name
@@ -65,7 +66,7 @@ class Equipment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    provider = models.ForeignKey(
+    data_provider = models.ForeignKey(
         DataProvider, on_delete=models.SET_NULL, blank=True, null=True
     )
     agency = models.CharField(max_length=100, blank=True, null=True)
@@ -96,14 +97,15 @@ class Equipment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def _str_(self):
-        return f"{self.provider}: {self.brand} {self.model}"
+        return f"{self.data_provider}: {self.brand} {self.model}"
 
 
 class Operator(models.Model):
     operator_id = models.CharField(max_length=100, primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
     phone = models.CharField(max_length=100, blank=True, null=True)
-    agency = models.ForeignKey(Agency, on_delete=models.SET_NULL, blank=True, null=True)
+    agency = models.ManyToManyField(Agency, blank=True)
+    data_provider = models.ManyToManyField(DataProvider, blank=True)
     vehicle = models.ForeignKey(
         Vehicle, on_delete=models.SET_NULL, blank=True, null=True
     )
