@@ -8,27 +8,26 @@ from feed.models import (
     Progression,
     Occupancy,
 )
+from gtfs.models import Agency
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from django.contrib.gis.geos import Point
 
 
 class VehicleSerializer(serializers.HyperlinkedModelSerializer):
+    agency = serializers.PrimaryKeyRelatedField(queryset=Agency.objects.all())
+
     class Meta:
         model = Vehicle
-        fields = [
-            "url",
-            "label",
-            "license_plate",
-            "wifi",
-            "air_conditioning",
-            "mobile_charging",
-            "bike_rack",
-        ]
+        fields = "__all__"
         ordering = ["id"]
 
 
 class DataProviderSerializer(serializers.HyperlinkedModelSerializer):
+    agency = serializers.PrimaryKeyRelatedField(
+        queryset=Agency.objects.all(), many=True
+    )
+
     class Meta:
         model = DataProvider
         fields = "__all__"
@@ -37,26 +36,23 @@ class DataProviderSerializer(serializers.HyperlinkedModelSerializer):
 
 class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
 
-    provider = serializers.PrimaryKeyRelatedField(queryset=DataProvider.objects.all())
+    data_provider = serializers.PrimaryKeyRelatedField(
+        queryset=DataProvider.objects.all()
+    )
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
     class Meta:
         model = Equipment
-        fields = [
-            "url",
-            "provider",
-            "vehicle",
-            "brand",
-            "model",
-            "serial_number",
-            "software_version",
-        ]
+        fields = "__all__"
         ordering = ["id"]
 
 
 class OperatorSerializer(serializers.HyperlinkedModelSerializer):
 
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    agency = serializers.PrimaryKeyRelatedField(
+        queryset=Agency.objects.all(), many=True
+    )
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     equipment = serializers.PrimaryKeyRelatedField(queryset=Equipment.objects.all())
 
@@ -73,20 +69,7 @@ class JourneySerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Journey
-        fields = [
-            "url",
-            "vehicle",
-            "equipment",
-            "operator",
-            "trip_id",
-            "route_id",
-            "direction_id",
-            "start_time",
-            "start_date",
-            "schedule_relationship",
-            "shape_id",
-            "journey_status",
-        ]
+        fields = "__all__"
         ordering = ["id"]
 
 

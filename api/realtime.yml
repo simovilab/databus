@@ -15,6 +15,42 @@ servers:
   - url: https://realtime.bucr.digital/api
 
 paths:
+  /data-provider:
+    post:
+      summary: Proveedor de datos
+      description: Publica información del proveedor de datos del servicio de transporte público, que puede o no ser la misma agencia operadora del servicio. Es el propietario del equipo proveedor de datos.
+      tags:
+        - Provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Provider'
+      responses:
+        '201':
+          description: Registro creado
+  /equipment:
+    post:
+      summary: Equipo de telemetría y rastreo
+      description: "Registra un nuevo equipo de a bordo (On-Board Equipment) en el sistema.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo equipo en el sistema"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Equipment'
+      tags:
+        - Provider
+      responses:
+        '201':
+          description: Registro creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentResponse'
+        '406':
+          description: Al menos un servicio debe ser proporcionado
   /vehicle:
     post:
       summary: Vehículo
@@ -77,86 +113,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OperatorResponse'
-  /provider:
-    post:
-      summary: Proveedor de datos
-      description: Publica información del proveedor de datos del servicio de transporte público, que puede o no ser la misma agencia operadora del servicio. Es el propietario del equipo proveedor de datos.
-      tags:
-        - Provider
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Provider'
-      responses:
-        '201':
-          description: Registro creado
-  /equipment:
-    post:
-      summary: Equipo de telemetría y rastreo
-      description: "Registra un nuevo equipo de a bordo (On-Board Equipment) en el sistema.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo equipo en el sistema"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Equipment'
-      tags:
-        - Provider
-      responses:
-        '201':
-          description: Registro creado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EquipmentResponse'
-        '406':
-          description: Al menos un servicio debe ser proporcionado
-  /find-trips:
-    get:
-      summary: Búsqueda de viajes
-      description: "Obtiene la lista de viajes disponibles cercanos a la hora actual para la combinación de ruta, calendario, trayectoria y sentido.\n\n**Tipo de actualización**: por evento\n\n**Evento**: configuración del inicio de un nuevo viaje"
-      tags:
-        - Trip
-      parameters:
-        - in: query
-          name: route_id
-          description: Identificador de la ruta según GTFS Schedule
-          required: true
-          schema:
-            type: string
-          example: 'bUCR-L1'
-        - in: query
-          name: service_id
-          description: Identificador del calendario según GTFS Schedule
-          required: true
-          schema:
-            type: string
-          example: 'entresemana'
-        - in: query
-          name: shape_id
-          description: Identificador de la trayectoria de la ruta según GTFS Schedule
-          required: true
-          schema:
-            type: string
-          example: 'desde_educacion'
-        - in: query
-          name: direction_id
-          description: Identificador de la dirección (sentido) del viaje según GTFS Schedule
-          required: true
-          schema:
-            type: integer
-          example: 0
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/FindTripsResponse'
   /journey:
     post:
       summary: Datos del viaje actual
@@ -393,6 +349,50 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/StopsResponse'
+  /find-trips:
+    get:
+      summary: Búsqueda de viajes
+      description: "Obtiene la lista de viajes disponibles cercanos a la hora actual para la combinación de ruta, calendario, trayectoria y sentido.\n\n**Tipo de actualización**: por evento\n\n**Evento**: configuración del inicio de un nuevo viaje"
+      tags:
+        - Databús
+      parameters:
+        - in: query
+          name: route_id
+          description: Identificador de la ruta según GTFS Schedule
+          required: true
+          schema:
+            type: string
+          example: 'bUCR-L1'
+        - in: query
+          name: service_id
+          description: Identificador del calendario según GTFS Schedule
+          required: true
+          schema:
+            type: string
+          example: 'entresemana'
+        - in: query
+          name: shape_id
+          description: Identificador de la trayectoria de la ruta según GTFS Schedule
+          required: true
+          schema:
+            type: string
+          example: 'desde_educacion'
+        - in: query
+          name: direction_id
+          description: Identificador de la dirección (sentido) del viaje según GTFS Schedule
+          required: true
+          schema:
+            type: integer
+          example: 0
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FindTripsResponse'
   /gtfs/schedule:
     get:
       summary: GTFS Schedule
@@ -1118,12 +1118,12 @@ components:
           example: 1234.5
 
 tags:
-  - name: Vehicle
-    x-displayName: Sobre el vehículo
-    description: Datos del vehículo, su estado y su operador
   - name: Provider
     x-displayName: Sobre el proveedor de datos
     description: Información sobre el proveedor de datos del servicio de transporte público
+  - name: Vehicle
+    x-displayName: Sobre el vehículo
+    description: Datos del vehículo, su estado y su operador
   - name: Trip
     x-displayName: Sobre el viaje
     description: Datos en tiempo real sobre el viaje actual del vehículo.
@@ -1136,3 +1136,6 @@ tags:
   - name: GTFS
     x-displayName: GTFS
     description: Suministro de datos GTFS (General Transit Feed Specification) Schedule y Realtime en formato JSON
+  - name: Databús
+    x-displayName: Aplicación Databús
+    description: Información para la aplicación móvil operacional de telemetría y rastreo de vehículos

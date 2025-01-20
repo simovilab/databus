@@ -8,6 +8,16 @@ from gtfs.models import Agency
 # Create your models here.
 
 
+class DataProvider(models.Model):
+    id = models.CharField(max_length=31, primary_key=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    agency = models.ManyToManyField(Agency, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Vehicle(models.Model):
     AMENITIES_CHOICES = [
         ("NO_VALUE", "No hay información"),
@@ -18,7 +28,7 @@ class Vehicle(models.Model):
 
     id = models.CharField(max_length=100, primary_key=True)
 
-    agency = models.CharField(max_length=100, blank=True, null=True)
+    agency = models.ForeignKey(Agency, on_delete=models.SET_NULL, blank=True, null=True)
     label = models.CharField(max_length=100, blank=True, null=True)
     license_plate = models.CharField(max_length=100, blank=True, null=True)
     wheelchair_accessible = models.CharField(
@@ -49,17 +59,7 @@ class Vehicle(models.Model):
     has_audio = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.label} ({self.license_plate})"
-
-
-class DataProvider(models.Model):
-    id = models.CharField(max_length=31, primary_key=True)
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    agency = models.ManyToManyField(Agency, blank=True)
-
-    def __str__(self):
-        return self.name
+        return f"{self.agency}: {self.license_plate}"
 
 
 class Equipment(models.Model):
@@ -69,7 +69,6 @@ class Equipment(models.Model):
     data_provider = models.ForeignKey(
         DataProvider, on_delete=models.SET_NULL, blank=True, null=True
     )
-    agency = models.CharField(max_length=100, blank=True, null=True)
     vehicle = models.ForeignKey(
         Vehicle, on_delete=models.SET_NULL, blank=True, null=True
     )
@@ -103,7 +102,6 @@ class Equipment(models.Model):
 class Operator(models.Model):
     operator_id = models.CharField(max_length=100, primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
-    phone = models.CharField(max_length=100, blank=True, null=True)
     agency = models.ManyToManyField(Agency, blank=True)
     data_provider = models.ManyToManyField(DataProvider, blank=True)
     vehicle = models.ForeignKey(
@@ -112,6 +110,7 @@ class Operator(models.Model):
     equipment = models.ForeignKey(
         Equipment, on_delete=models.SET_NULL, blank=True, null=True
     )
+    phone = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} ({self.operator_id})"

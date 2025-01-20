@@ -6,10 +6,10 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView
 from . import views
 
 router = routers.DefaultRouter()
+router.register(r"data-provider", views.DataProviderViewSet)
 router.register(r"vehicle", views.VehicleViewSet)
-router.register(r"operator", views.OperatorViewSet)
-router.register(r"provider", views.DataProviderViewSet)
 router.register(r"equipment", views.EquipmentViewSet)
+router.register(r"operator", views.OperatorViewSet)
 router.register(r"journey", views.JourneyViewSet)
 router.register(r"position", views.PositionViewSet)
 router.register(r"progression", views.ProgressionViewSet)

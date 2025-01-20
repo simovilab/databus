@@ -22,21 +22,15 @@ def get_schema(request):
     )
 
 
-class VehicleViewSet(viewsets.ModelViewSet):
-    queryset = Vehicle.objects.all()
-    serializer_class = VehicleSerializer
-    authentication_classes = [TokenAuthentication]
-
-
-class OperatorViewSet(viewsets.ModelViewSet):
-    queryset = Operator.objects.all()
-    serializer_class = OperatorSerializer
-    authentication_classes = [TokenAuthentication]
-
-
 class DataProviderViewSet(viewsets.ModelViewSet):
     queryset = DataProvider.objects.all()
     serializer_class = DataProviderSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class VehicleViewSet(viewsets.ModelViewSet):
+    queryset = Vehicle.objects.all()
+    serializer_class = VehicleSerializer
     authentication_classes = [TokenAuthentication]
 
 
@@ -57,6 +51,12 @@ class EquipmentViewSet(viewsets.ModelViewSet):
                 # TODO: verify that no repeated serial numbers are allowed
             }
         )
+
+
+class OperatorViewSet(viewsets.ModelViewSet):
+    queryset = Operator.objects.all()
+    serializer_class = OperatorSerializer
+    authentication_classes = [TokenAuthentication]
 
 
 class JourneyViewSet(viewsets.ModelViewSet):
@@ -104,7 +104,9 @@ class FindTripsView(APIView):
         direction_id = request.query_params.get("direction_id")
         if not route_id or not service_id or not shape_id or not direction_id:
             return Response(
-                {"error": "Todos los parámetros route_id, service_id, shape_id, and direction_id son requeridos"},
+                {
+                    "error": "Todos los parámetros route_id, service_id, shape_id, and direction_id son requeridos"
+                },
                 status=400,
             )
 
@@ -133,7 +135,10 @@ class FindTripsView(APIView):
             )
             departure_time = first_stop_time.departure_time
             print(departure_time)
-            if departure_time > lower_bound.time() and departure_time < upper_bound.time():
+            if (
+                departure_time > lower_bound.time()
+                and departure_time < upper_bound.time()
+            ):
                 selected_trips.append(
                     {
                         "trip_id": trip.trip_id,
