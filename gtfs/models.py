@@ -615,6 +615,17 @@ class FeedInfo(models.Model):
     feed_version = models.CharField(
         max_length=255, blank=True, null=True, help_text="Versión del feed."
     )
+    feed_contact_email = models.EmailField(
+        max_length=254,
+        blank=True,
+        null=True,
+        help_text="Correo electrónico de contacto.",
+    )
+    feed_contact_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="URL de contacto.",
+    )
 
     def __str__(self):
         return f"{self.feed_publisher_name}: {self.feed_version}"
