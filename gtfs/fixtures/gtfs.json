@@ -32707,9 +32707,8 @@
     },
     {
         "model": "gtfs.gtfsprovider",
-        "pk": 1,
+        "pk": "bUCR",
         "fields": {
-            "code": "bUCR",
             "name": "bUCR",
             "description": "Bus de la UCR",
             "website": "https://bucr.digital",
@@ -32725,7 +32724,7 @@
         "model": "gtfs.feed",
         "pk": 1,
         "fields": {
-            "gtfs_provider": 1,
+            "gtfs_provider": "bUCR",
             "http_etag": null,
             "http_last_modified": "2024-07-11T00:00:00Z",
             "is_current": true,

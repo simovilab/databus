@@ -18,11 +18,12 @@ class GTFSProvider(models.Model):
     It might or might not be the same as the agency in the GTFS feed. A GTFS provider can serve multiple agencies.
     """
 
-    provider_id = models.BigAutoField(primary_key=True)
     code = models.CharField(
         max_length=31,
         help_text="Código (típicamente el acrónimo) de la empresa. No debe tener espacios ni símbolos especiales.",
         validators=[validate_no_spaces_or_special_symbols],
+        unique=True,
+        primary_key=True,
     )
     name = models.CharField(max_length=255, help_text="Nombre de la empresa.")
     description = models.TextField(
@@ -54,6 +55,8 @@ class GTFSProvider(models.Model):
     timezone = models.CharField(
         max_length=63,
         help_text="Zona horaria del proveedor de datos (asume misma zona horaria para todas las agencias). Ejemplo: America/Costa_Rica.",
+        blank=True,
+        null=True,
     )
     is_active = models.BooleanField(
         default=False,
