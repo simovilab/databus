@@ -349,6 +349,42 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/StopsResponse'
+  /gtfs/schedule:
+    get:
+      summary: GTFS Schedule
+      description: Obtiene la entidad GTFS Schedule en formato JSON
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+  /gtfs/realtime/vehicle-positions:
+    get:
+      summary: GTFS Realtime VehiclePositions
+      description: Obtiene la entidad GTFS Realtime VehiclePositions en formato JSON
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+  /gtfs/realtime/trip-updates:
+    get:
+      summary: GTFS Realtime TripUpdates
+      description: Obtiene la entidad GTFS Realtime TripUpdates en formato JSON
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
+  /gtfs/realtime/service-alerts:
+    get:
+      summary: GTFS Realtime ServiceAlerts
+      description: Obtiene la entidad GTFS Realtime ServiceAlerts en formato JSON
+      tags:
+        - GTFS
+      responses:
+        '200':
+          description: OK
   /find-trips:
     get:
       summary: Búsqueda de viajes
@@ -393,42 +429,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FindTripsResponse'
-  /gtfs/schedule:
-    get:
-      summary: GTFS Schedule
-      description: Obtiene la entidad GTFS Schedule en formato JSON
-      tags:
-        - GTFS
-      responses:
-        '200':
-          description: OK
-  /gtfs/realtime/vehicle-positions:
-    get:
-      summary: GTFS Realtime VehiclePositions
-      description: Obtiene la entidad GTFS Realtime VehiclePositions en formato JSON
-      tags:
-        - GTFS
-      responses:
-        '200':
-          description: OK
-  /gtfs/realtime/trip-updates:
-    get:
-      summary: GTFS Realtime TripUpdates
-      description: Obtiene la entidad GTFS Realtime TripUpdates en formato JSON
-      tags:
-        - GTFS
-      responses:
-        '200':
-          description: OK
-  /gtfs/realtime/service-alerts:
-    get:
-      summary: GTFS Realtime ServiceAlerts
-      description: Obtiene la entidad GTFS Realtime ServiceAlerts en formato JSON
-      tags:
-        - GTFS
-      responses:
-        '200':
-          description: OK
 
 components:
   schemas:
