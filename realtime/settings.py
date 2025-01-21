@@ -139,6 +139,9 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": None,
     "PAGE_SIZE": None,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+    ],
 }
 
 SPECTACULAR_SETTINGS = {
