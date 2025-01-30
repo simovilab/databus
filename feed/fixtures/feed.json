@@ -3,7 +3,7 @@
         "model": "feed.vehicle",
         "pk": "SJB1234",
         "fields": {
-            "agency": "bUCR",
+            "agency": 1,
             "label": "SJB1234",
             "license_plate": "SJB1234",
             "wheelchair_accessible": "WHEELCHAIR_ACCESIBLE",
@@ -20,7 +20,7 @@
         "model": "feed.vehicle",
         "pk": "SJB5678",
         "fields": {
-            "agency": "bUCR",
+            "agency": 1,
             "label": "SJB5678",
             "license_plate": "SJB5678",
             "wheelchair_accessible": "UNKNOWN",
@@ -45,8 +45,7 @@
         "model": "feed.equipment",
         "pk": "16736b9e-43d6-49f0-a269-6f71573d7730",
         "fields": {
-            "provider": "1964",
-            "agency": "bUCR",
+            "data_provider": "1964",
             "vehicle": "SJB5678",
             "serial_number": "H4939GNE9",
             "brand": "Hertz",
@@ -73,8 +72,7 @@
         "model": "feed.equipment",
         "pk": "2d01a00e-6287-4bfe-8a2b-7bc8a4e2aa5c",
         "fields": {
-            "provider": "1964",
-            "agency": "bUCR",
+            "data_provider": "1964",
             "vehicle": "SJB1234",
             "serial_number": "JE3984GW9",
             "brand": "Faraday",
