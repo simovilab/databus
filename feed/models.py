@@ -18,6 +18,21 @@ class DataProvider(models.Model):
         return self.name
 
 
+class Company(models.Model):
+    id = models.CharField(max_length=100, primary_key=True)
+    agency = models.ForeignKey(Agency, on_delete=models.SET_NULL, blank=True, null=True)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    phone = models.CharField(max_length=100, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    website = models.URLField(blank=True, null=True)
+    location = models.PointField(blank=True, null=True)
+    logo = models.ImageField(upload_to="companies/", blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Vehicle(models.Model):
     AMENITIES_CHOICES = [
         ("NO_VALUE", "No hay información"),
@@ -100,7 +115,7 @@ class Equipment(models.Model):
 
 
 class Operator(models.Model):
-    operator_id = models.CharField(max_length=100, primary_key=True)
+    id = models.CharField(max_length=100, primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
     agency = models.ManyToManyField(Agency, blank=True)
     data_provider = models.ManyToManyField(DataProvider, blank=True)
@@ -111,9 +126,10 @@ class Operator(models.Model):
         Equipment, on_delete=models.SET_NULL, blank=True, null=True
     )
     phone = models.CharField(max_length=100, blank=True, null=True)
+    photo = models.ImageField(upload_to="operators/", blank=True, null=True)
 
     def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name} ({self.operator_id})"
+        return f"{self.user.first_name} {self.user.last_name} ({self.id})"
 
 
 class Journey(models.Model):

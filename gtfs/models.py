@@ -393,10 +393,15 @@ class GeoShape(models.Model):
     shape_id = models.CharField(
         max_length=255, help_text="Identificador único de la trayectoria."
     )
+    direction_id = models.IntegerField(blank=True, null=True)
     geometry = models.LineStringField(
         help_text="Trayectoria de la ruta.",
         # dim=3, # To store 3D coordinates (x, y, z)
     )
+    shape_name = models.CharField(max_length=255, blank=True, null=True)
+    shape_desc = models.TextField(blank=True, null=True)
+    shape_from = models.CharField(max_length=255, blank=True, null=True)
+    shape_to = models.CharField(max_length=255, blank=True, null=True)
     has_altitude = models.BooleanField(
         help_text="Indica si la trayectoria tiene datos de altitud", default=False
     )
@@ -629,6 +634,39 @@ class FeedInfo(models.Model):
 
     def __str__(self):
         return f"{self.feed_publisher_name}: {self.feed_version}"
+
+
+# --------------
+# Auxiliary GTFS
+# --------------
+
+
+class RouteStop(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    feed = models.ForeignKey(Feed, on_delete=models.CASCADE)
+
+    route_id = models.CharField(max_length=255, blank=True, null=True)
+    shape_id = models.CharField(max_length=255, blank=True, null=True)
+    direction_id = models.IntegerField(blank=True, null=True)
+    stop_id = models.CharField(max_length=255, blank=True, null=True)
+    stop_sequence = models.IntegerField(blank=True, null=True)
+    timepoint = models.BooleanField(blank=True, null=True)
+    shape_dist_traveled = models.DecimalField(
+        max_digits=6, decimal_places=4, blank=True, null=True
+    )
+    stop_headsign = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.route_id}: {self.stop_id} ({self.stop_sequence})"
+
+
+class TripTime(models.Model):
+    trip_id = models.CharField(max_length=255, primary_key=True)
+    stop_id = models.CharField(max_length=255, blank=True, null=True)
+    trip_time = models.TimeField()
+
+    def __str__(self):
+        return f"{self.trip_id}: {self.stop_id} ({self.trip_time})"
 
 
 # -------------
