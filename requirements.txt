@@ -6,6 +6,7 @@ channels-redis
 celery[redis]
 django-celery-results
 django-celery-beat
+flower
 djangorestframework
 djangorestframework-gis
 django-filter
