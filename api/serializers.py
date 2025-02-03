@@ -14,6 +14,15 @@ from rest_framework import serializers
 from django.contrib.gis.geos import Point
 from rest_framework_gis.serializers import GeoFeatureModelSerializer, GeometryField
 
+# --------------
+# Login data
+# --------------
+
+
+class LoginSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    operator_id = serializers.CharField()
+
 
 # --------------
 # Telemetry data
@@ -158,11 +167,6 @@ class OccupancySerializer(serializers.HyperlinkedModelSerializer):
         ordering = ["id"]
 
 
-class FindTripsSerializer(serializers.Serializer):
-    trip_id = serializers.CharField()
-    trip_departure_time = serializers.TimeField()
-
-
 # -------------
 # GTFS Schedule
 # -------------
@@ -287,6 +291,30 @@ class FeedInfoSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = FeedInfo
         fields = "__all__"
+
+
+# --------------
+# Auxiliary GTFS
+# --------------
+
+
+class ServiceTodaySerializer(serializers.Serializer):
+    service_id = serializers.CharField()
+
+
+class WhichShapesSerializer(serializers.Serializer):
+    shape_id = serializers.CharField()
+    direction_id = serializers.IntegerField()
+    shape_name = serializers.CharField()
+    shape_desc = serializers.CharField()
+    shape_from = serializers.CharField()
+    shape_to = serializers.CharField()
+
+
+class FindTripsSerializer(serializers.Serializer):
+    trip_id = serializers.CharField()
+    trip_time = serializers.TimeField()
+    journey_status = serializers.CharField()
 
 
 # -------------

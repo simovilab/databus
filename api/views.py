@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django_filters.rest_framework import DjangoFilterBackend
 
 from feed.models import *
-from gtfs.models import Feed, Trip, StopTime
+from gtfs.models import Feed, Trip, StopTime, RouteStop
 from .serializers import *
 
 from datetime import datetime, timedelta
@@ -21,6 +21,26 @@ def get_schema(request):
     return FileResponse(
         open(file_path, "rb"), as_attachment=True, filename="realtime.yml"
     )
+
+
+class LoginView(APIView):
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            token, created = Token.objects.get_or_create(user=user)
+            return Response(
+                {
+                    "token": token.key,
+                    "operator_id": user.operator.id,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                },
+                status=200,
+            )
+        else:
+            return Response({"error": "Usuario o contraseña incorrectos"}, status=400)
 
 
 class DataProviderViewSet(viewsets.ModelViewSet):
@@ -92,65 +112,6 @@ class OccupancyViewSet(viewsets.ModelViewSet):
     queryset = Occupancy.objects.all()
     serializer_class = OccupancySerializer
     authentication_classes = [TokenAuthentication]
-
-
-class FindTripsView(APIView):
-    authentication_classes = [TokenAuthentication]
-
-    def get(self, request):
-        # Get the query parameters
-        route_id = request.query_params.get("route_id")
-        service_id = request.query_params.get("service_id")
-        shape_id = request.query_params.get("shape_id")
-        direction_id = request.query_params.get("direction_id")
-        if not route_id or not service_id or not shape_id or not direction_id:
-            return Response(
-                {
-                    "error": "Todos los parámetros route_id, service_id, shape_id, and direction_id son requeridos"
-                },
-                status=400,
-            )
-
-        # Get the current feed
-        feed = Feed.objects.filter(is_current=True).first()
-        trips = Trip.objects.filter(
-            route_id=route_id,
-            service_id=service_id,
-            shape_id=shape_id,
-            direction_id=direction_id,
-            feed=feed,
-        )
-
-        selected_trips = []
-        tolerance = timedelta(minutes=30)
-        lower_bound = datetime.now() - tolerance
-        upper_bound = datetime.now() + tolerance
-
-        for trip in trips:
-            # Get the stop times for the trip
-            print(trip)
-            first_stop_time = (
-                StopTime.objects.filter(trip_id=trip.trip_id)
-                .order_by("stop_sequence")
-                .first()
-            )
-            departure_time = first_stop_time.departure_time
-            print(departure_time)
-            if (
-                departure_time > lower_bound.time()
-                and departure_time < upper_bound.time()
-            ):
-                selected_trips.append(
-                    {
-                        "trip_id": trip.trip_id,
-                        "trip_departure_time": departure_time,
-                    }
-                )
-
-        # Serialize the journeys
-        serializer = FindTripsSerializer(selected_trips, many=True)
-
-        return Response(serializer.data)
 
 
 # -------------
@@ -341,3 +302,123 @@ class FeedInfoViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["feed_publisher_name"]
     # permission_classes = [permissions.IsAuthenticated]
+
+
+# --------------
+# Auxiliary GTFS
+# --------------
+
+
+class ServiceTodayView(APIView):
+    def get(self, request):
+        if request.query_params.get("date"):
+            date = datetime.strptime(request.query_params.get("date"), "%Y-%m-%d")
+        else:
+            date = datetime.now().date()
+
+        calendar_date = CalendarDate.objects.filter(date=date, exception_type=1).values(
+            "service_id"
+        )
+        if calendar_date:
+            serializer = ServiceTodaySerializer(calendar_date, many=True)
+            return Response(serializer.data)
+
+        days = [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        ]
+        day_of_week = date.weekday()
+        service = Calendar.objects.filter(
+            start_date__lte=date, end_date__gte=date, **{f"{days[day_of_week]}": True}
+        ).values("service_id")
+
+        serializer = ServiceTodaySerializer(service, many=True)
+        return Response(serializer.data)
+
+
+class WhichShapesView(APIView):
+    def get(self, request):
+        route_id = request.query_params.get("route_id")
+        shapes = RouteStop.objects.filter(route_id=route_id)
+        shapes = shapes.values("shape_id").distinct()
+        geo_shapes = []
+        for shape in shapes:
+            geo_shape = (
+                GeoShape.objects.filter(shape_id=shape["shape_id"])
+                .values(
+                    "shape_id",
+                    "direction_id",
+                    "shape_name",
+                    "shape_desc",
+                    "shape_from",
+                    "shape_to",
+                )
+                .first()
+            )
+            geo_shapes.append(geo_shape)
+
+        serializer = WhichShapesSerializer(geo_shapes, many=True)
+        return Response(serializer.data)
+
+
+class FindTripsView(APIView):
+    def get(self, request):
+        # Get the query parameters
+        route_id = request.query_params.get("route_id")
+        service_id = request.query_params.get("service_id")
+        shape_id = request.query_params.get("shape_id")
+        if not route_id or not service_id or not shape_id:
+            return Response(
+                {
+                    "error": "Todos los parámetros route_id, service_id, shape_id son requeridos"
+                },
+                status=400,
+            )
+
+        # Get the current feed
+        feed = Feed.objects.filter(is_current=True).first()
+        trips = Trip.objects.filter(
+            route_id=route_id,
+            service_id=service_id,
+            shape_id=shape_id,
+            feed=feed,
+        )
+        print(trips)
+
+        selected_trips = []
+        for trip in trips:
+            this_trip = (
+                TripTime.objects.filter(trip_id=trip.trip_id)
+                .order_by("trip_time")
+                .values("trip_id", "trip_time")
+                .first()
+            )
+            if this_trip:
+                this_journey_status = (
+                    Journey.objects.filter(
+                        trip_id=trip.trip_id, start_date=datetime.now().date()
+                        # TODO: check the criteria for selecting the journeys
+                    )
+                    .values("journey_status")
+                    .first()
+                )
+                if this_journey_status:
+                    journey_status = this_journey_status["journey_status"]
+                else:
+                    journey_status = "UNKNOWN"
+                selected_trips.append(
+                    {
+                        "trip_id": this_trip["trip_id"],
+                        "trip_time": this_trip["trip_time"],
+                        "journey_status": journey_status,
+                    }
+                )
+
+        serializer = FindTripsSerializer(selected_trips, many=True)
+
+        return Response(serializer.data)
