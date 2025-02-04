@@ -1,5 +1,28 @@
 [
     {
+        "model": "feed.dataprovider",
+        "pk": "1964",
+        "fields": {
+            "name": "EIE",
+            "description": "Escuela de Ingeniería Eléctrica",
+            "agency": []
+        }
+    },
+    {
+        "model": "feed.company",
+        "pk": "OSG",
+        "fields": {
+            "agency": 1,
+            "name": "Sección Transportes",
+            "description": "",
+            "phone": null,
+            "email": null,
+            "website": null,
+            "location": "SRID=4326;POINT (-84.04256870656747 9.943725615890358)",
+            "logo": ""
+        }
+    },
+    {
         "model": "feed.vehicle",
         "pk": "SJB1234",
         "fields": {
@@ -31,14 +54,6 @@
             "has_screen": false,
             "has_headsign_screen": true,
             "has_audio": false
-        }
-    },
-    {
-        "model": "feed.dataprovider",
-        "pk": "1964",
-        "fields": {
-            "name": "EIE",
-            "description": "Escuela de Ingeniería Eléctrica"
         }
     },
     {
@@ -100,9 +115,15 @@
         "pk": "1-1234-5678",
         "fields": {
             "user": 2,
-            "phone": "87654321",
             "vehicle": null,
-            "equipment": null
+            "equipment": null,
+            "phone": "87654321",
+            "photo": "",
+            "agency": [
+                1,
+                2
+            ],
+            "data_provider": []
         }
     },
     {
@@ -110,9 +131,15 @@
         "pk": "2-1234-5678",
         "fields": {
             "user": 3,
-            "phone": "87654321",
             "vehicle": null,
-            "equipment": null
+            "equipment": null,
+            "phone": "87654321",
+            "photo": "",
+            "agency": [
+                1,
+                2
+            ],
+            "data_provider": []
         }
     },
     {
