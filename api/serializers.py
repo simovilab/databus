@@ -77,15 +77,6 @@ class VehicleSerializer(serializers.HyperlinkedModelSerializer):
         ordering = ["id"]
 
 
-class VehicleSerializer(serializers.HyperlinkedModelSerializer):
-    company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
-
-    class Meta:
-        model = Vehicle
-        fields = "__all__"
-        ordering = ["id"]
-
-
 class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
 
     data_provider = serializers.PrimaryKeyRelatedField(
@@ -337,6 +328,8 @@ class FindTripsSerializer(serializers.Serializer):
     trip_id = serializers.CharField()
     trip_time = serializers.TimeField()
     journey_status = serializers.CharField()
+    direction_id = serializers.IntegerField()
+    trip_headsign = serializers.CharField()
 
 
 # -------------

@@ -113,7 +113,6 @@ class Vehicle(models.Model):
 
 
 class Equipment(models.Model):
-    # TODO: Create a log of vehicle/equipment pairings
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
