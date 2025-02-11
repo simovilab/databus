@@ -42,6 +42,11 @@ class LoginView(APIView):
         else:
             return Response({"error": "Usuario o contraseña incorrectos"}, status=400)
 
+class CompanyViewSet(viewsets.ModelViewSet):
+    queryset = Company.objects.all()
+    serializer_class = CompanySerializer
+    # authentication_classes = [TokenAuthentication]
+
 
 class DataProviderViewSet(viewsets.ModelViewSet):
     queryset = DataProvider.objects.all()
