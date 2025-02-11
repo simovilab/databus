@@ -35,8 +35,6 @@ class LoginSerializer(serializers.Serializer):
 
 class CompanySerializer(serializers.HyperlinkedModelSerializer):
 
-class CompanySerializer(serializers.HyperlinkedModelSerializer):
-
     agency = serializers.PrimaryKeyRelatedField(queryset=Agency.objects.all())
 
     class Meta:

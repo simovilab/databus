@@ -645,12 +645,12 @@ class RouteStop(models.Model):
     id = models.BigAutoField(primary_key=True)
     feed = models.ForeignKey(Feed, on_delete=models.CASCADE)
 
-    route_id = models.CharField(max_length=255, blank=True, null=True)
-    shape_id = models.CharField(max_length=255, blank=True, null=True)
-    direction_id = models.IntegerField(blank=True, null=True)
-    stop_id = models.CharField(max_length=255, blank=True, null=True)
+    route = models.ForeignKey(Route, on_delete=models.CASCADE)
+    shape = models.ForeignKey(GeoShape, on_delete=models.CASCADE)
+    stop = models.ForeignKey(Stop, on_delete=models.CASCADE)
     stop_sequence = models.IntegerField(blank=True, null=True)
     timepoint = models.BooleanField(blank=True, null=True)
+    direction_id = models.IntegerField(blank=True, null=True)
     shape_dist_traveled = models.DecimalField(
         max_digits=6, decimal_places=4, blank=True, null=True
     )

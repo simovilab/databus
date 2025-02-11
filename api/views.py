@@ -42,11 +42,6 @@ class LoginView(APIView):
         else:
             return Response({"error": "Usuario o contraseña incorrectos"}, status=400)
 
-class CompanyViewSet(viewsets.ModelViewSet):
-    queryset = Company.objects.all()
-    serializer_class = CompanySerializer
-    # authentication_classes = [TokenAuthentication]
-
 
 class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all()
@@ -364,12 +359,17 @@ class ServiceTodayView(APIView):
 class WhichShapesView(APIView):
     def get(self, request):
         route_id = request.query_params.get("route_id")
-        shapes = RouteStop.objects.filter(route_id=route_id)
-        shapes = shapes.values("shape_id").distinct()
+        feed = Feed.objects.filter(is_current=True).first()
+        route = Route.objects.filter(feed=feed, route_id=route_id).first()
+        shapes = RouteStop.objects.filter(route=route)
+        print(f"Shapes: {shapes}")
+        shapes = shapes.values("shape").distinct()
+        print(f"Shapes: {shapes}")
         geo_shapes = []
         for shape in shapes:
+            print(shape)
             geo_shape = (
-                GeoShape.objects.filter(shape_id=shape["shape_id"])
+                GeoShape.objects.filter(id=shape["shape"])
                 .values(
                     "shape_id",
                     "direction_id",
