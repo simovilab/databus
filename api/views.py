@@ -43,6 +43,12 @@ class LoginView(APIView):
             return Response({"error": "Usuario o contraseña incorrectos"}, status=400)
 
 
+class CompanyViewSet(viewsets.ModelViewSet):
+    queryset = Company.objects.all()
+    serializer_class = CompanySerializer
+    # authentication_classes = [TokenAuthentication]
+
+
 class DataProviderViewSet(viewsets.ModelViewSet):
     queryset = DataProvider.objects.all()
     serializer_class = DataProviderSerializer
@@ -72,6 +78,15 @@ class EquipmentViewSet(viewsets.ModelViewSet):
                 # TODO: verify that no repeated serial numbers are allowed
             }
         )
+
+
+class EquipmentLogViewSet(viewsets.ModelViewSet):
+    queryset = EquipmentLog.objects.all()
+    serializer_class = EquipmentLogSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["equipment", "data_provider", "vehicle"]
+    authentication_classes = [TokenAuthentication]
+    # TODO: Enable only the GET method
 
 
 class OperatorViewSet(viewsets.ModelViewSet):
@@ -401,7 +416,8 @@ class FindTripsView(APIView):
             if this_trip:
                 this_journey_status = (
                     Journey.objects.filter(
-                        trip_id=trip.trip_id, start_date=datetime.now().date()
+                        trip_id=trip.trip_id,
+                        start_date=datetime.now().date(),
                         # TODO: check the criteria for selecting the journeys
                     )
                     .values("journey_status")

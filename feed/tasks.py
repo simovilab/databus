@@ -27,9 +27,9 @@ def build_vehicle_position():
     journeys = Journey.objects.filter(journey_status="IN_PROGRESS")
 
     for journey in journeys:
-        vehicle = journey.equipment.vehicle
-        position = Position.objects.filter(journey=journey).latest("timestamp")
-        progression = Progression.objects.filter(journey=journey).latest("timestamp")
+        vehicle = journey.vehicle
+        position = Position.objects.filter(vehicle=vehicle).latest("timestamp")
+        progression = Progression.objects.filter(vehicle=vehicle).latest("timestamp")
         occupancy = Occupancy.objects.filter(journey=journey).latest("timestamp")
         # Entity
         entity = {}
