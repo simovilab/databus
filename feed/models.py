@@ -1,5 +1,4 @@
 from django.contrib.gis.db import models
-from django.contrib.gis.geos import Point
 from django.contrib.auth.models import User
 import uuid
 
@@ -8,19 +7,15 @@ from gtfs.models import Agency
 # Create your models here.
 
 
-class DataProvider(models.Model):
-    id = models.CharField(max_length=31, primary_key=True)
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    agency = models.ManyToManyField(Agency, blank=True)
-
-    def __str__(self):
-        return self.name
-
-
 class Company(models.Model):
+    """
+    A wrapper for the Agency model from GTFS.
+    """
+
     id = models.CharField(max_length=100, primary_key=True)
-    agency = models.ForeignKey(Agency, on_delete=models.SET_NULL, blank=True, null=True)
+    agency = models.OneToOneField(
+        Agency, on_delete=models.SET_NULL, blank=True, null=True
+    )
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     phone = models.CharField(max_length=100, blank=True, null=True)
@@ -28,6 +23,34 @@ class Company(models.Model):
     website = models.URLField(blank=True, null=True)
     location = models.PointField(blank=True, null=True)
     logo = models.ImageField(upload_to="companies/", blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Operator(models.Model):
+    id = models.CharField(max_length=100, primary_key=True, unique=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    company = models.ManyToManyField(Company)
+    phone = models.CharField(max_length=100, blank=True, null=True)
+    photo = models.ImageField(upload_to="operators/", blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.user.first_name} {self.user.last_name} ({self.id})"
+
+
+class DataProvider(models.Model):
+    """
+    A GTFS and telemetry data provider for a given company.
+    """
+
+    id = models.CharField(max_length=127, primary_key=True)
+    company = models.ManyToManyField(Company, blank=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=100, blank=True, null=True)
+    logo = models.ImageField(upload_to="data-providers/", blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -42,10 +65,11 @@ class Vehicle(models.Model):
     ]
 
     id = models.CharField(max_length=100, primary_key=True)
-
-    agency = models.ForeignKey(Agency, on_delete=models.SET_NULL, blank=True, null=True)
+    company = models.ForeignKey(
+        Company, on_delete=models.SET_NULL, blank=True, null=True
+    )
     label = models.CharField(max_length=100, blank=True, null=True)
-    license_plate = models.CharField(max_length=100, blank=True, null=True)
+    license_plate = models.CharField(max_length=31)
     wheelchair_accessible = models.CharField(
         max_length=100,
         blank=True,
@@ -72,26 +96,39 @@ class Vehicle(models.Model):
     has_screen = models.BooleanField(default=False)
     has_headsign_screen = models.BooleanField(default=False)
     has_audio = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        choices=[
+            ("IN_SERVICE", "En servicio"),
+            ("OUT_OF_SERVICE", "Fuera de servicio"),
+            ("SOLD", "Vendido"),
+            ("ON_FIRE", "En llamas"),
+        ],
+    )
 
     def __str__(self):
-        return f"{self.agency}: {self.license_plate}"
+        return f"{self.company}: {self.license_plate}"
 
 
 class Equipment(models.Model):
+    # TODO: Create a log of vehicle/equipment pairings
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     data_provider = models.ForeignKey(
-        DataProvider, on_delete=models.SET_NULL, blank=True, null=True
+        DataProvider, on_delete=models.PROTECT, blank=True, null=True
     )
     vehicle = models.ForeignKey(
-        Vehicle, on_delete=models.SET_NULL, blank=True, null=True
+        Vehicle, on_delete=models.PROTECT, blank=True, null=True
     )
     # Equipment information
     serial_number = models.CharField(max_length=100, blank=True, null=True)
-    brand = models.CharField(max_length=100, blank=True, null=True)
-    model = models.CharField(max_length=100, blank=True, null=True)
-    software_version = models.CharField(max_length=100, blank=True, null=True)
+    brand = models.CharField(max_length=100)
+    model = models.CharField(max_length=100)
+    os_version = models.CharField(max_length=100, blank=True, null=True)
+    app_version = models.CharField(max_length=100, blank=True, null=True)
     # Data provided
     provides_vehicle = models.BooleanField(default=False)
     provides_operator = models.BooleanField(default=False)
@@ -107,44 +144,91 @@ class Equipment(models.Model):
     provides_transfers = models.BooleanField(default=False)
     provides_alerts = models.BooleanField(default=False)
     # Registration
+    status = models.CharField(
+        max_length=100,
+        choices=[("ACTIVE", "Activo"), ("INACTIVE", "Inactivo")],
+        default="ACTIVE",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        super(Equipment, self).save(*args, **kwargs)
+        EquipmentLog.objects.create(
+            equipment=self,
+            data_provider=self.data_provider,
+            vehicle=self.vehicle,
+            serial_number=self.serial_number,
+            brand=self.brand,
+            model=self.model,
+            os_version=self.os_version,
+            app_version=self.app_version,
+            provides_vehicle=self.provides_vehicle,
+            provides_operator=self.provides_operator,
+            provides_journey=self.provides_journey,
+            provides_position=self.provides_position,
+            provides_progression=self.provides_progression,
+            provides_occupancy=self.provides_occupancy,
+            provides_conditions=self.provides_conditions,
+            provides_emissions=self.provides_emissions,
+            provides_travelers=self.provides_travelers,
+            provides_authorizations=self.provides_authorizations,
+            provides_fares=self.provides_fares,
+            provides_transfers=self.provides_transfers,
+            provides_alerts=self.provides_alerts,
+            status=self.status,
+        )
+
     def _str_(self):
-        return f"{self.data_provider}: {self.brand} {self.model}"
+        return f"{self.data_provider}: {self.brand} {self.model} ({self.id})"
 
 
-class Operator(models.Model):
-    id = models.CharField(max_length=100, primary_key=True)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, blank=True, null=True)
-    agency = models.ManyToManyField(Agency, blank=True)
-    data_provider = models.ManyToManyField(DataProvider, blank=True)
+class EquipmentLog(models.Model):
+
+    equipment = models.ForeignKey(Equipment, on_delete=models.PROTECT)
+    data_provider = models.ForeignKey(
+        DataProvider, on_delete=models.PROTECT, blank=True, null=True
+    )
     vehicle = models.ForeignKey(
-        Vehicle, on_delete=models.SET_NULL, blank=True, null=True
+        Vehicle, on_delete=models.PROTECT, blank=True, null=True
     )
-    equipment = models.ForeignKey(
-        Equipment, on_delete=models.SET_NULL, blank=True, null=True
+    # Equipment information
+    serial_number = models.CharField(max_length=100, blank=True, null=True)
+    brand = models.CharField(max_length=100)
+    model = models.CharField(max_length=100)
+    os_version = models.CharField(max_length=100, blank=True, null=True)
+    app_version = models.CharField(max_length=100, blank=True, null=True)
+    # Data provided
+    provides_vehicle = models.BooleanField(default=False)
+    provides_operator = models.BooleanField(default=False)
+    provides_journey = models.BooleanField(default=False)
+    provides_position = models.BooleanField(default=False)
+    provides_progression = models.BooleanField(default=False)
+    provides_occupancy = models.BooleanField(default=False)
+    provides_conditions = models.BooleanField(default=False)
+    provides_emissions = models.BooleanField(default=False)
+    provides_travelers = models.BooleanField(default=False)
+    provides_authorizations = models.BooleanField(default=False)
+    provides_fares = models.BooleanField(default=False)
+    provides_transfers = models.BooleanField(default=False)
+    provides_alerts = models.BooleanField(default=False)
+    # Registration
+    status = models.CharField(
+        max_length=100,
+        choices=[("ACTIVE", "Activo"), ("INACTIVE", "Inactivo")],
+        default="ACTIVE",
     )
-    phone = models.CharField(max_length=100, blank=True, null=True)
-    photo = models.ImageField(upload_to="operators/", blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name} ({self.id})"
+    def _str_(self):
+        return f"{self.data_provider}: {self.brand} {self.model} ({self.updated_at})"
 
 
 class Journey(models.Model):
     """A journey is an instance of GTFS trip."""
 
     id = models.AutoField(primary_key=True)
-    equipment = models.ForeignKey(
-        Equipment, on_delete=models.SET_NULL, blank=True, null=True
-    )
-    vehicle = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        help_text="Es agregado vía el equipo, que ya está asociado a un vehículo. No agregar manualmente.",
-    )
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     operator = models.ForeignKey(
         Operator, on_delete=models.SET_NULL, blank=True, null=True
     )
@@ -179,18 +263,13 @@ class Journey(models.Model):
         ],
     )
 
-    def save(self, *args, **kwargs):
-        if self.equipment:
-            self.vehicle = self.equipment.vehicle.id
-        super(Journey, self).save(*args, **kwargs)
-
     def __str__(self):
         return f"{self.route_id} / {self.trip_id} ({self.start_date})"
 
 
 class Position(models.Model):
     id = models.AutoField(primary_key=True)
-    journey = models.ForeignKey(Journey, on_delete=models.CASCADE)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
 
     timestamp = models.DateTimeField()
     point = models.PointField(blank=True, null=True)
@@ -202,7 +281,7 @@ class Position(models.Model):
 
 class Progression(models.Model):
     id = models.AutoField(primary_key=True)
-    journey = models.ForeignKey(Journey, on_delete=models.CASCADE)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     current_stop_sequence = models.PositiveIntegerField(blank=True, null=True)
     stop_id = models.CharField(max_length=100, blank=True, null=True)
@@ -232,7 +311,7 @@ class Progression(models.Model):
 
 class Occupancy(models.Model):
     id = models.AutoField(primary_key=True)
-    journey = models.ForeignKey(Journey, on_delete=models.CASCADE)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     occupancy_status = models.CharField(
         max_length=100,
