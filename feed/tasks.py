@@ -7,6 +7,7 @@ from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
 from .models import Journey, Progression, Position, Progression, Occupancy
 from .fake_stop_times import fake_stop_times
+import psycopg2
 
 
 @shared_task
@@ -69,6 +70,9 @@ def build_vehicle_position():
         entity["vehicle"]["occupancy_percentage"] = occupancy.occupancy_percentage
         # Append entity to feed message
         feed_message["entity"].append(entity)
+
+        # Mark journey information as sent
+        journey.mark_as_sent()
 
     # Create and save JSON
     feed_message_json = json.dumps(feed_message)
@@ -161,6 +165,33 @@ def build_trip_update():
 
     return f"Feed TripUpdate built."
 
+@shared_task
+def used_data_dump():
+    # Declare the local database
+    local_db = psycopg2.connect("dbname=local-database user=local-user password=local-password host=localhost")
+    # Declare the Digital Ocean database that will be used for dumping information
+    cloud_db = psycopg2.connect("dbname=your-database user=your-user password=your-password host=your-host port=your-port")
+
+    # Set the cursor for each database
+    local_cursor = local_db.cursor()
+    cloud_cursor = cloud_db.cursor()
+
+    # Select the rows that will be stored in Digital Ocean database
+    local_cursor.execute("SELECT * FROM realtime WHERE sent_time >= NOW() - INTERVAL 1 DAY;")
+    rows = local_cursor.fetchall()
+
+    # Inserting information into the Digital Ocean database
+    for row in rows:
+        cloud_cursor.execute("INSERT INTO your_table VALUES (%s, %s, %s)", row)
+
+    # Saving information of the Digital Ocean database
+    cloud_db.commit()
+
+    # Closing connections
+    local_cursor.close()
+    cloud_cursor.close()
+    local_db.close()
+    cloud_db.close()
 
 @shared_task
 def build_alert():

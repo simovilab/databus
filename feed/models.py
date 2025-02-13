@@ -148,6 +148,8 @@ class Journey(models.Model):
     operator = models.ForeignKey(
         Operator, on_delete=models.SET_NULL, blank=True, null=True
     )
+    sent_time = models.DateField(null=True, blank=True)
+
     # Journey information
     route_id = models.CharField(max_length=100, blank=True, null=True)
     trip_id = models.CharField(max_length=100, blank=True, null=True)
@@ -186,6 +188,10 @@ class Journey(models.Model):
 
     def __str__(self):
         return f"{self.route_id} / {self.trip_id} ({self.start_date})"
+
+    def mark_as_sent(self):
+        self.sent_time = timezone.now() # Still need to check which timezone or how to configure it for it to be consistent
+        self.save()
 
 
 class Position(models.Model):

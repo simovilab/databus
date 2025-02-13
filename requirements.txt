@@ -19,3 +19,4 @@ psycopg2-binary
 gunicorn
 mkdocs-material
 python-decouple
+django-silk

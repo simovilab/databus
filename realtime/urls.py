@@ -23,4 +23,5 @@ urlpatterns = [
     path("gtfs/", include("gtfs.urls")),
     path("api/", include("api.urls")),
     path("status/", include("feed.urls")),
+    path("silk/", include("silk.urls", namespace="silk")),
 ]
