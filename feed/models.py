@@ -277,6 +277,8 @@ class Position(models.Model):
     bearing = models.FloatField(blank=True, null=True)
     odometer = models.FloatField(blank=True, null=True)
 
+    is_new = models.BooleanField(default=True)
+
 
 class Progression(models.Model):
     id = models.AutoField(primary_key=True)
@@ -306,6 +308,8 @@ class Progression(models.Model):
             ("SEVERE_CONGESTION", "Congestión severa"),
         ],
     )
+
+    is_new = models.BooleanField(default=True)
 
 
 class Occupancy(models.Model):
@@ -341,3 +345,5 @@ class Occupancy(models.Model):
             ("WHEELCHAIR_INACCESIBLE", "No accesible para silla de ruedas"),
         ],
     )
+
+    is_new = models.BooleanField(default=True)

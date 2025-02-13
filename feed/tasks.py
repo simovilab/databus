@@ -10,7 +10,9 @@ from .fake_stop_times import fake_stop_times
 
 
 @shared_task
-def build_vehicle_position():
+def build_vehicle_positions():
+    """
+    Build the VehiclePosition feed message."""
 
     # Feed message dictionary
     feed_message = {}
@@ -24,16 +26,47 @@ def build_vehicle_position():
     # Feed message entity
     feed_message["entity"] = []
 
+    # TODO: Instrument this process with Prometheus
     journeys = Journey.objects.filter(journey_status="IN_PROGRESS")
 
     for journey in journeys:
+        
         vehicle = journey.vehicle
-        position = Position.objects.filter(vehicle=vehicle).latest("timestamp")
-        progression = Progression.objects.filter(vehicle=vehicle).latest("timestamp")
-        occupancy = Occupancy.objects.filter(journey=journey).latest("timestamp")
-        # Entity
+        
+        # Get position object
+        positions = Position.objects.filter(vehicle=vehicle, is_new=True)
+        if positions.exists():
+            position = positions.latest("timestamp")
+            for position in positions:
+                position.is_new = False
+                position.save()
+        else:
+            position = None
+        # Get progression object
+        progressions = Progression.objects.filter(vehicle=vehicle, is_new=True)
+        if progressions.exists():
+            progression = progressions.latest("timestamp")
+            for progression in progressions:
+                progression.is_new = False
+                progression.save()
+        else:
+            progression = None
+        # Get occupancy object
+        occupancies = Occupancy.objects.filter(vehicle=vehicle, is_new=True)
+        if occupancies.exists():
+            occupancy = occupancies.latest("timestamp")
+            for occupancy in occupancies:
+                occupancy.is_new = False
+                occupancy.save()
+        else:
+            occupancy = None
+
+        if not position and not progression and not occupancy:
+            continue
+        
+        # Build entity
         entity = {}
-        entity["id"] = f"bus-{vehicle.id}"
+        entity["id"] = f"{vehicle.id}"
         entity["vehicle"] = {}
         # Timestamp
         entity["vehicle"]["timestamp"] = int(position.timestamp.timestamp())
@@ -53,20 +86,23 @@ def build_vehicle_position():
         entity["vehicle"]["vehicle"]["label"] = vehicle.label
         entity["vehicle"]["vehicle"]["license_plate"] = vehicle.license_plate
         # Position
-        entity["vehicle"]["position"] = {}
-        entity["vehicle"]["position"]["latitude"] = position.point.y
-        entity["vehicle"]["position"]["longitude"] = position.point.x
-        entity["vehicle"]["position"]["bearing"] = position.bearing
-        entity["vehicle"]["position"]["odometer"] = position.odometer
-        entity["vehicle"]["position"]["speed"] = position.speed
+        if position:
+            entity["vehicle"]["position"] = {}
+            entity["vehicle"]["position"]["latitude"] = position.point.y
+            entity["vehicle"]["position"]["longitude"] = position.point.x
+            entity["vehicle"]["position"]["bearing"] = position.bearing
+            entity["vehicle"]["position"]["odometer"] = position.odometer
+            entity["vehicle"]["position"]["speed"] = position.speed
         # Progression
-        entity["vehicle"]["current_stop_sequence"] = progression.current_stop_sequence
-        entity["vehicle"]["stop_id"] = progression.stop_id
-        entity["vehicle"]["current_status"] = progression.current_status
-        entity["vehicle"]["congestion_level"] = progression.congestion_level
+        if progression:
+            entity["vehicle"]["current_stop_sequence"] = progression.current_stop_sequence
+            entity["vehicle"]["stop_id"] = progression.stop_id
+            entity["vehicle"]["current_status"] = progression.current_status
+            entity["vehicle"]["congestion_level"] = progression.congestion_level
         # Occupancy
-        entity["vehicle"]["occupancy_status"] = occupancy.occupancy_status
-        entity["vehicle"]["occupancy_percentage"] = occupancy.occupancy_percentage
+        if occupancy:
+            entity["vehicle"]["occupancy_status"] = occupancy.occupancy_status
+            entity["vehicle"]["occupancy_percentage"] = occupancy.occupancy_percentage
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
@@ -81,11 +117,11 @@ def build_vehicle_position():
     with open("feed/files/vehicle_positions.pb", "wb") as f:
         f.write(feed_message_pb.SerializeToString())
 
-    return "Feed VehiclePosition built"
+    return "FeedMessage VehiclePosition built successfully"
 
 
 @shared_task
-def build_trip_update():
+def build_trip_updates():
 
     # Feed message dictionary
     feed_message = {}
@@ -163,7 +199,7 @@ def build_trip_update():
 
 
 @shared_task
-def build_alert():
+def build_alerts():
     print("Building feed Alert...")
     return "Feed ServiceAlert built"
 
