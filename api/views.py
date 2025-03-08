@@ -43,6 +43,12 @@ class LoginView(APIView):
             return Response({"error": "Usuario o contraseña incorrectos"}, status=400)
 
 
+class CompanyViewSet(viewsets.ModelViewSet):
+    queryset = Company.objects.all()
+    serializer_class = CompanySerializer
+    # authentication_classes = [TokenAuthentication]
+
+
 class DataProviderViewSet(viewsets.ModelViewSet):
     queryset = DataProvider.objects.all()
     serializer_class = DataProviderSerializer
@@ -52,6 +58,8 @@ class DataProviderViewSet(viewsets.ModelViewSet):
 class VehicleViewSet(viewsets.ModelViewSet):
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["company"]
     authentication_classes = [TokenAuthentication]
 
 
@@ -60,7 +68,6 @@ class EquipmentViewSet(viewsets.ModelViewSet):
     serializer_class = EquipmentSerializer
     authentication_classes = [TokenAuthentication]
 
-    # Using Response, return the id of the created object
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -68,10 +75,17 @@ class EquipmentViewSet(viewsets.ModelViewSet):
         return Response(
             {
                 "id": serializer.instance.id,
-                "serial_number": serializer.instance.serial_number,
-                # TODO: verify that no repeated serial numbers are allowed
             }
         )
+
+
+class EquipmentLogViewSet(viewsets.ModelViewSet):
+    queryset = EquipmentLog.objects.all()
+    serializer_class = EquipmentLogSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["equipment", "data_provider", "vehicle"]
+    authentication_classes = [TokenAuthentication]
+    # TODO: Enable only the GET method
 
 
 class OperatorViewSet(viewsets.ModelViewSet):
@@ -344,12 +358,14 @@ class ServiceTodayView(APIView):
 class WhichShapesView(APIView):
     def get(self, request):
         route_id = request.query_params.get("route_id")
-        shapes = RouteStop.objects.filter(route_id=route_id)
-        shapes = shapes.values("shape_id").distinct()
+        feed = Feed.objects.filter(is_current=True).first()
+        route = Route.objects.filter(feed=feed, route_id=route_id).first()
+        shapes = RouteStop.objects.filter(route=route)
+        shapes = shapes.values("shape").distinct()
         geo_shapes = []
         for shape in shapes:
             geo_shape = (
-                GeoShape.objects.filter(shape_id=shape["shape_id"])
+                GeoShape.objects.filter(id=shape["shape"])
                 .values(
                     "shape_id",
                     "direction_id",
@@ -388,7 +404,6 @@ class FindTripsView(APIView):
             shape_id=shape_id,
             feed=feed,
         )
-        print(trips)
 
         selected_trips = []
         for trip in trips:
@@ -401,7 +416,8 @@ class FindTripsView(APIView):
             if this_trip:
                 this_journey_status = (
                     Journey.objects.filter(
-                        trip_id=trip.trip_id, start_date=datetime.now().date()
+                        trip_id=trip.trip_id,
+                        start_date=datetime.now().date(),
                         # TODO: check the criteria for selecting the journeys
                     )
                     .values("journey_status")
@@ -416,6 +432,8 @@ class FindTripsView(APIView):
                         "trip_id": this_trip["trip_id"],
                         "trip_time": this_trip["trip_time"],
                         "journey_status": journey_status,
+                        "direction_id": trip.direction_id,
+                        "trip_headsign": trip.trip_headsign,
                     }
                 )
 

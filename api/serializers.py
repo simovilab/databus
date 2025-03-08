@@ -1,8 +1,12 @@
 from feed.models import (
-    Vehicle,
+    Company,
+    Company,
     Operator,
     DataProvider,
+    Vehicle,
+    Vehicle,
     Equipment,
+    EquipmentLog,
     Journey,
     Position,
     Progression,
@@ -29,22 +33,46 @@ class LoginSerializer(serializers.Serializer):
 # --------------
 
 
-class VehicleSerializer(serializers.HyperlinkedModelSerializer):
+class CompanySerializer(serializers.HyperlinkedModelSerializer):
+
     agency = serializers.PrimaryKeyRelatedField(queryset=Agency.objects.all())
 
     class Meta:
-        model = Vehicle
+        model = Company
+        model = Company
         fields = "__all__"
         ordering = ["id"]
 
 
+class OperatorSerializer(serializers.HyperlinkedModelSerializer):
+
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    company = serializers.PrimaryKeyRelatedField(
+        queryset=Company.objects.all(), many=True
+    )
+
+    class Meta:
+        model = Operator
+        fields = "__all__"
+        ordering = ["operator_id"]
+
+
 class DataProviderSerializer(serializers.HyperlinkedModelSerializer):
-    agency = serializers.PrimaryKeyRelatedField(
-        queryset=Agency.objects.all(), many=True
+    company = serializers.PrimaryKeyRelatedField(
+        queryset=Company.objects.all(), many=True
     )
 
     class Meta:
         model = DataProvider
+        fields = "__all__"
+        ordering = ["id"]
+
+
+class VehicleSerializer(serializers.HyperlinkedModelSerializer):
+    company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
+
+    class Meta:
+        model = Vehicle
         fields = "__all__"
         ordering = ["id"]
 
@@ -62,24 +90,24 @@ class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
         ordering = ["id"]
 
 
-class OperatorSerializer(serializers.HyperlinkedModelSerializer):
+class EquipmentLogSerializer(serializers.HyperlinkedModelSerializer):
 
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
-    agency = serializers.PrimaryKeyRelatedField(
-        queryset=Agency.objects.all(), many=True
+    equipment = serializers.PrimaryKeyRelatedField(queryset=Equipment.objects.all())
+    data_provider = serializers.PrimaryKeyRelatedField(
+        queryset=DataProvider.objects.all()
     )
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
-    equipment = serializers.PrimaryKeyRelatedField(queryset=Equipment.objects.all())
 
     class Meta:
-        model = Operator
+        model = EquipmentLog
         fields = "__all__"
-        ordering = ["operator_id"]
+        ordering = ["id"]
 
 
 class JourneySerializer(serializers.HyperlinkedModelSerializer):
 
-    equipment = serializers.PrimaryKeyRelatedField(read_only=True)
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     operator = serializers.PrimaryKeyRelatedField(queryset=Operator.objects.all())
 
     class Meta:
@@ -90,9 +118,8 @@ class JourneySerializer(serializers.HyperlinkedModelSerializer):
 
 class PositionSerializer(serializers.HyperlinkedModelSerializer):
 
-    journey = serializers.PrimaryKeyRelatedField(
-        queryset=Journey.objects.filter(journey_status="IN_PROGRESS")
-    )
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
 
@@ -100,7 +127,8 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
         model = Position
         fields = [
             "url",
-            "journey",
+            "vehicle",
+            "vehicle",
             "timestamp",
             "point",
             "latitude",
@@ -130,40 +158,25 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
 
 class ProgressionSerializer(serializers.HyperlinkedModelSerializer):
 
-    journey = serializers.PrimaryKeyRelatedField(
-        queryset=Journey.objects.filter(journey_status="IN_PROGRESS")
-    )
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
     class Meta:
         model = Progression
-        fields = [
-            "url",
-            "journey",
-            "timestamp",
-            "current_stop_sequence",
-            "stop_id",
-            "current_status",
-            "congestion_level",
-        ]
+        fields = "__all__"
+        fields = "__all__"
         ordering = ["id"]
 
 
 class OccupancySerializer(serializers.HyperlinkedModelSerializer):
 
-    journey = serializers.PrimaryKeyRelatedField(
-        queryset=Journey.objects.filter(journey_status="IN_PROGRESS")
-    )
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
     class Meta:
         model = Occupancy
-        fields = [
-            "url",
-            "journey",
-            "timestamp",
-            "occupancy_status",
-            "occupancy_percentage",
-            "occupancy_count",
-        ]
+        fields = "__all__"
+        fields = "__all__"
         ordering = ["id"]
 
 
@@ -315,6 +328,8 @@ class FindTripsSerializer(serializers.Serializer):
     trip_id = serializers.CharField()
     trip_time = serializers.TimeField()
     journey_status = serializers.CharField()
+    direction_id = serializers.IntegerField()
+    trip_headsign = serializers.CharField()
 
 
 # -------------
