@@ -1,0 +1,3 @@
+[submodule "gtfs"]
+	path = gtfs
+	url = https://github.com/fabianabarca/django-app-gtfs.git
