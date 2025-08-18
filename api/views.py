@@ -8,6 +8,9 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from django.views.decorators.csrf import csrf_exempt
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.views import SpectacularRedocView
+from django.views.decorators.clickjacking import xframe_options_exempt
+from django.utils.decorators import method_decorator
 
 from feed.models import *
 from gtfs.models import Feed, Trip, StopTime, RouteStop
@@ -21,6 +24,11 @@ def get_schema(request):
     return FileResponse(
         open(file_path, "rb"), as_attachment=True, filename="realtime.yml"
     )
+
+
+@method_decorator(xframe_options_exempt, name="dispatch")
+class RedocView(SpectacularRedocView):
+    pass
 
 
 class LoginView(APIView):

@@ -19,7 +19,7 @@ router.register(r"occupancy", views.OccupancyViewSet)
 # GTFS Schedule
 router.register(r"agency", views.AgencyViewSet)
 router.register(r"stops", views.StopViewSet)
-router.register(r"geo-stops", views.GeoStopViewSet, basename='geo-stop')
+router.register(r"geo-stops", views.GeoStopViewSet, basename="geo-stop")
 router.register(r"shapes", views.ShapeViewSet)
 router.register(r"geo-shapes", views.GeoShapeViewSet)
 router.register(r"routes", views.RouteViewSet)
@@ -43,5 +43,5 @@ urlpatterns = [
     path("find-trips/", views.FindTripsView.as_view(), name="find_trips"),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("docs/schema/", views.get_schema, name="schema"),
-    path("docs/", SpectacularRedocView.as_view(url_name="schema"), name="api_docs"),
+    path("docs/", views.RedocView.as_view(url_name="schema"), name="api_docs"),
 ]
