@@ -1,51 +1,103 @@
-# gtfs-realtime
-Implementación de GTFS Realtime
+# Databús
 
-## Equipo de trabajo
+Core backend server implementing GTFS Schedule and GTFS Realtime specifications for comprehensive transit data management. Provides RESTful API endpoints for static schedule data (routes, stops, trips) and real-time vehicle information (positions, alerts, service updates) with PostgreSQL/PostGIS storage and real-time data validation.
 
-- Edson Murillo
-- Adrián Cordero
+## ✨ Features
 
-### Especificación del formato de transmisión de datos de telemetría
+- 🚌 **GTFS Schedule & Realtime Support** - Full implementation of GTFS specifications
+- 🌐 **RESTful API** - Comprehensive endpoints for transit data access
+- 📊 **Real-time Data Processing** - Live vehicle positions, alerts, and service updates
+- 🗺️ **Geospatial Support** - PostgreSQL/PostGIS for location-based queries
+- 🔄 **Background Processing** - Celery integration for data validation and updates
+- 🏢 **Multi-tenant Architecture** - Support for multiple transit agencies
 
-> "¿Cómo se van a transmitir los datos por la red desde los buses hasta el servidor en tiempo real?"
+## 🚀 Getting Started
 
-Esto es independiente de GTFS Realtime, en cuanto al formato. Debe incluir las variables deseadas en GTFS Realtime pero también contemplar todas las variables posibles para un sistema inteligente de transporte público, en general, según la referencia de ARC-IT o las necesidades del sistema en Costa Rica.
+### Prerequisites
 
-Según GTFS:
+- Python 3.11+
+- Redis server
+- PostgreSQL 12+ with PostGIS extension
+- Git
 
-- Ubicación geográfica
-- Dirección
-- Velocidad
-- Ocupación
+### Installation
 
-Según ARC-IT:
+1. **Clone the repository**
 
-- Presión de las llantas
-- Etc.
+   ```bash
+   git clone https://github.com/simovilab/databus.git
+   cd databus
+   ```
 
-Según necesidades específicas:
+2. **Set up virtual environment** (recommended)
 
-- Presión barométrica
-- Contaminación del aire
-- Etc.
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-(Ver issue #1)
+3. **Install dependencies**
 
-### Recopilación de datos de telemetría para GTFS Realtime
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-> "¿Cuáles datos vamos a mostrar en el prototipo?"
+4. **Configure environment**
 
-Para nuestra implementación del prototipo, esto puede ser de varias formas:
+   ```bash
+   cp .env.example .env  # Create and edit your environment variables
+   ```
 
-- Con una implementación a escala real en conjunto con RACSA
-- Con una implementación de prueba con una plataforma de desarrollo
-- Con datos sintéticos generados para mostrar la visualización (_hardcoded_)
+5. **Set up database**
+   ```bash
+   python manage.py migrate
+   python manage.py createsuperuser  # Optional: create admin user
+   ```
 
-Es necesario revisar la plataforma para recolección de datos en tiempo real. Podría ser Apache Pulsar.
+### Running the Application
 
-### Construcción y entrega del `FeedMessage` de GTFS Realtime
+1. **Start Redis server** (in separate terminal)
 
-Un _script_ para tomar las variables de interés de GTFS Realtime y construir un archivo binario `.pb` para distribución (será recopilado por el proyecto `gtfs-screens`).
+   ```bash
+   redis-server
+   ```
 
-Seguir la secuencia: diccionario de Python --> JSON (publicación de cortesía) --> (paquete de Google que lo hace) --> Protobuf --> colocar en el servidor para ser recopilado.
+2. **Start Celery worker** (in separate terminal)
+
+   ```bash
+   celery -A realtime worker -l info
+   ```
+
+3. **Start Django development server**
+   ```bash
+   python manage.py runserver
+   ```
+
+The application will be available at `http://localhost:8000`
+
+## 🚀 Usage
+
+| Endpoint            | Description                                    |
+| ------------------- | ---------------------------------------------- |
+| `/api/`             | REST API root - browse all available endpoints |
+| `/api/docs/`        | Interactive API documentation (ReDoc)          |
+| `/api/docs/schema/` | OpenAPI schema                                 |
+| `/admin/`           | Django admin interface                         |
+| `/feed/`            | GTFS feed endpoints                            |
+
+## 🛣️ Roadmap
+
+Where is this going? Check SIMOVI's [roadmap](https://github.com/simovilab/context/blob/main/roadmap.md).
+
+## 🤝 Contributing
+
+Help is welcome! See the [guidelines](https://github.com/simovilab/.github/blob/main/CONTRIBUTING.md).
+
+## 📞 Contact
+
+- Email: simovi@ucr.ac.cr
+- Website: [simovi.org](https://simovi.org)
+
+## 📄 License
+
+Apache 2.0
