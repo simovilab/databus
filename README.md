@@ -2,6 +2,9 @@
 
 # Databús
 
+![Static Badge](https://img.shields.io/badge/web_framework-Django-white?logo=django)
+![Static Badge](https://img.shields.io/badge/package_manager-uv-white?logo=uv)
+
 Core backend server implementing GTFS Schedule and GTFS Realtime specifications for comprehensive transit data management. Provides RESTful API endpoints for static schedule data (routes, stops, trips) and real-time vehicle information (positions, alerts, service updates) with PostgreSQL/PostGIS storage and real-time data validation.
 
 ## ✨ Features
