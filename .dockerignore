@@ -1,0 +1,42 @@
+# VCS
+.git
+.gitignore
+.github
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Environment
+.env
+*.env
+
+# Databases
+*.sqlite3
+*.db
+
+# Logs
+*.log
+
+# Django static/media (if not needed in image)
+static/
+media/
+
+# Test/dev
+.coverage
+.pytest_cache/
+.mypy_cache/
+
+# Editor
+*.swp
