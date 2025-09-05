@@ -1,5 +1,23 @@
 # Instrucciones de ejecución de la plataforma
 
+---
+
+URGENTE LA RENOVACIÓN DE Esto
+
+## Development
+
+```sh
+docker compose -f docker-compose.dev.yml build
+```
+
+## Production
+
+```sh
+docker compose -f docker-compose.prod.yml build
+```
+
+---
+
 El sistema requiere de:
 
 - Django / Python
@@ -39,6 +57,7 @@ local    all    postgres   trust
 
 local    all    all        trust
 ```
+
 y así no tendrá contraseñas. Luego en la terminal:
 
 ```bash
@@ -134,17 +153,18 @@ Para habilitar la conexión permanente y bidireccional entre cliente y servidor 
 - `redis`
 - `channel-redis`
 
-Este es un modo de conexión asíncrono, y por tanto requiere de la configuración ASGI (*Asynchronous Server Gateway Interface*). Esto se hace en el archivo `asgi.py`.
+Este es un modo de conexión asíncrono, y por tanto requiere de la configuración ASGI (_Asynchronous Server Gateway Interface_). Esto se hace en el archivo `asgi.py`.
 
 Similar a `urls.py`, Channels requiere un archivo `routing.py` donde establece los `websocket_urlpatterns`, es decir, las rutas o URLs donde se establece la conexión del WebSocket `ws://`.
 
 También, similar a `views.py`, Channels define un archivo `consumers.py` donde define la lógica a realizar durante la conexión.
 
-A diferencia de 
+A diferencia de
 
 Al configurar `settings.py` con Daphne, el comando `python manage.py runserver` ahora ejecuta también ASGI. De hecho, ahora en la terminal se muestra:
 
 ```bash
 Starting ASGI/Daphne version 4.1.0 development server at http://127.0.0.1:8000/
 ```
+
 y toda la funcionalidad "regular" (WSGI) continúa operando.

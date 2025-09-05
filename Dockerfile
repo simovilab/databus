@@ -6,9 +6,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# System libs needed at runtime for Geo/GIS and Postgres
 RUN apt-get update && \
     apt-get install -y \
-    build-essential \
     curl \
     gcc \
     g++ \
@@ -22,23 +22,47 @@ RUN apt-get update && \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install uv using pip instead of copying from ghcr.io
-RUN pip install uv
+# Install uv
+RUN pip install --no-cache-dir uv
 
-# Install project dependencies from pyproject (use lockfile if present)
+# --------------------------
+# Dependencies (prod)
+# --------------------------
+FROM base AS deps
 COPY pyproject.toml ./
 COPY uv.lock ./
-RUN uv sync --frozen
-
-# Copy the application source
-COPY . . 
-
-# Activate virtual environment by updating PATH
+RUN uv venv && uv sync --frozen
 ENV PATH="/app/.venv/bin:$PATH"
 
-RUN chmod +x /app/entrypoint.sh
+# --------------------------
+# Dependencies (dev)
+# --------------------------
+FROM base AS deps-dev
+COPY pyproject.toml ./
+COPY uv.lock ./
+RUN uv venv && uv sync --frozen --group dev
+ENV PATH="/app/.venv/bin:$PATH"
 
+# --------------------------
+# Development image
+# --------------------------
+FROM base AS dev
+COPY --from=deps-dev /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+COPY . .
+RUN chmod +x /app/entrypoint.dev.sh
 EXPOSE 8000
-
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.dev.sh"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+# --------------------------
+# Production image (ASGI via Daphne)
+# --------------------------
+FROM base AS prod
+COPY --from=deps /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+COPY . .
+RUN chmod +x /app/entrypoint.prod.sh
+EXPOSE 8000
+ENTRYPOINT ["/app/entrypoint.prod.sh"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "realtime.asgi:application"]
