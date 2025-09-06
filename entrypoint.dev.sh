@@ -9,9 +9,21 @@ echo "DB_HOST=${DB_HOST:-unset} DB_PORT=${DB_PORT:-unset} DB_NAME=${DB_NAME:-uns
 echo "Applying migrations..."
 python manage.py migrate --noinput
 
-# Load initial data (specific to development)
-echo "Loading initial data..."
-python manage.py loaddata initial_data.json
+# Load existing fixtures (feed + auth) if they exist
+echo "Loading fixtures (feed, auth)..."
+FEED_FIX=feed/fixtures/feed.json
+AUTH_FIX=website/fixtures/auth.json
+
+LOAD_ARGS=""
+[ -f "$FEED_FIX" ] && LOAD_ARGS="$LOAD_ARGS $FEED_FIX" || echo "Fixture not found: $FEED_FIX (skipping)"
+[ -f "$AUTH_FIX" ] && LOAD_ARGS="$LOAD_ARGS $AUTH_FIX" || echo "Fixture not found: $AUTH_FIX (skipping)"
+
+if [ -n "$LOAD_ARGS" ]; then
+	# shellcheck disable=SC2086
+	python manage.py loaddata $LOAD_ARGS
+else
+	echo "No fixtures to load."
+fi
 
 # Create superuser if not exists (specific to development)
 echo "Creating superuser if not exists..."
