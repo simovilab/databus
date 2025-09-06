@@ -29,9 +29,6 @@ venv/
 # Logs
 *.log
 
-# Django static/media (if not needed in image)
-static/
-media/
 
 # Test/dev
 .coverage
