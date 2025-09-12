@@ -30,9 +30,8 @@ def build_vehicle_positions():
     journeys = Journey.objects.filter(journey_status="IN_PROGRESS")
 
     for journey in journeys:
-        
         vehicle = journey.vehicle
-        
+
         # Get position object
         positions = Position.objects.filter(vehicle=vehicle, is_new=True)
         if positions.exists():
@@ -62,8 +61,9 @@ def build_vehicle_positions():
             occupancy = None
 
         if not position and not progression and not occupancy:
+            # TODO: Log this event, create strategy to clean up stale journeys
             continue
-        
+
         # Build entity
         entity = {}
         entity["id"] = f"{vehicle.id}"
@@ -77,9 +77,9 @@ def build_vehicle_positions():
         entity["vehicle"]["trip"]["direction_id"] = journey.direction_id
         entity["vehicle"]["trip"]["start_time"] = _format_time(journey.start_time)
         entity["vehicle"]["trip"]["start_date"] = journey.start_date.strftime("%Y%m%d")
-        entity["vehicle"]["trip"][
-            "schedule_relationship"
-        ] = journey.schedule_relationship
+        entity["vehicle"]["trip"]["schedule_relationship"] = (
+            journey.schedule_relationship
+        )
         # Vehicle
         entity["vehicle"]["vehicle"] = {}
         entity["vehicle"]["vehicle"]["id"] = vehicle.id
@@ -95,7 +95,9 @@ def build_vehicle_positions():
             entity["vehicle"]["position"]["speed"] = position.speed
         # Progression
         if progression:
-            entity["vehicle"]["current_stop_sequence"] = progression.current_stop_sequence
+            entity["vehicle"]["current_stop_sequence"] = (
+                progression.current_stop_sequence
+            )
             entity["vehicle"]["stop_id"] = progression.stop_id
             entity["vehicle"]["current_status"] = progression.current_status
             entity["vehicle"]["congestion_level"] = progression.congestion_level
@@ -122,7 +124,6 @@ def build_vehicle_positions():
 
 @shared_task
 def build_trip_updates():
-
     # Feed message dictionary
     feed_message = {}
 
@@ -156,9 +157,9 @@ def build_trip_updates():
         entity["trip_update"]["trip"]["start_date"] = journey.start_date.strftime(
             "%Y%m%d"
         )
-        entity["trip_update"]["trip"][
-            "schedule_relationship"
-        ] = journey.schedule_relationship
+        entity["trip_update"]["trip"]["schedule_relationship"] = (
+            journey.schedule_relationship
+        )
         # Vehicle
         entity["trip_update"]["vehicle"] = {}
         entity["trip_update"]["vehicle"]["id"] = vehicle.id
