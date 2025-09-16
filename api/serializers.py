@@ -34,7 +34,6 @@ class LoginSerializer(serializers.Serializer):
 
 
 class CompanySerializer(serializers.HyperlinkedModelSerializer):
-
     agency = serializers.PrimaryKeyRelatedField(queryset=Agency.objects.all())
 
     class Meta:
@@ -45,7 +44,6 @@ class CompanySerializer(serializers.HyperlinkedModelSerializer):
 
 
 class OperatorSerializer(serializers.HyperlinkedModelSerializer):
-
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     company = serializers.PrimaryKeyRelatedField(
         queryset=Company.objects.all(), many=True
@@ -78,7 +76,6 @@ class VehicleSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
-
     data_provider = serializers.PrimaryKeyRelatedField(
         queryset=DataProvider.objects.all()
     )
@@ -91,7 +88,6 @@ class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class EquipmentLogSerializer(serializers.HyperlinkedModelSerializer):
-
     equipment = serializers.PrimaryKeyRelatedField(queryset=Equipment.objects.all())
     data_provider = serializers.PrimaryKeyRelatedField(
         queryset=DataProvider.objects.all()
@@ -105,7 +101,6 @@ class EquipmentLogSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class JourneySerializer(serializers.HyperlinkedModelSerializer):
-
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     operator = serializers.PrimaryKeyRelatedField(queryset=Operator.objects.all())
@@ -117,7 +112,6 @@ class JourneySerializer(serializers.HyperlinkedModelSerializer):
 
 
 class PositionSerializer(serializers.HyperlinkedModelSerializer):
-
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     latitude = serializers.SerializerMethodField()
@@ -157,7 +151,6 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ProgressionSerializer(serializers.HyperlinkedModelSerializer):
-
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
@@ -169,7 +162,6 @@ class ProgressionSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class OccupancySerializer(serializers.HyperlinkedModelSerializer):
-
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
@@ -186,7 +178,6 @@ class OccupancySerializer(serializers.HyperlinkedModelSerializer):
 
 
 class AgencySerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -195,7 +186,6 @@ class AgencySerializer(serializers.HyperlinkedModelSerializer):
 
 
 class StopSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -204,7 +194,6 @@ class StopSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class GeoStopSerializer(GeoFeatureModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
     stop_point = GeometryField()
 
@@ -215,7 +204,6 @@ class GeoStopSerializer(GeoFeatureModelSerializer):
 
 
 class RouteSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -224,7 +212,6 @@ class RouteSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class CalendarSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -233,7 +220,6 @@ class CalendarSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class CalendarDateSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -242,7 +228,6 @@ class CalendarDateSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ShapeSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -251,7 +236,6 @@ class ShapeSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class GeoShapeSerializer(GeoFeatureModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
     geometry = GeometryField()
 
@@ -262,7 +246,6 @@ class GeoShapeSerializer(GeoFeatureModelSerializer):
 
 
 class TripSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -271,7 +254,6 @@ class TripSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class StopTimeSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -280,7 +262,6 @@ class StopTimeSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class FareAttributeSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -289,7 +270,6 @@ class FareAttributeSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class FareRuleSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -298,7 +278,6 @@ class FareRuleSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class FeedInfoSerializer(serializers.HyperlinkedModelSerializer):
-
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:

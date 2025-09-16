@@ -113,7 +113,6 @@ class Vehicle(models.Model):
 
 
 class Equipment(models.Model):
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     data_provider = models.ForeignKey(
@@ -183,7 +182,6 @@ class Equipment(models.Model):
 
 
 class EquipmentLog(models.Model):
-
     equipment = models.ForeignKey(Equipment, on_delete=models.PROTECT)
     data_provider = models.ForeignKey(
         DataProvider, on_delete=models.PROTECT, blank=True, null=True
