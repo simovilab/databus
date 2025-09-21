@@ -4,8 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
       target: prod
+    entrypoint: ["/app/docker-entrypoint.sh"]
     env_file:
       - .env
+      - .env.prod
+      - .env.local
     environment:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY}
@@ -41,9 +44,12 @@ services:
       context: .
       dockerfile: Dockerfile
       target: prod
-    command: ["celery", "-A", "realtime", "worker", "-l", "info"]
+    entrypoint: ["/app/docker-entrypoint.sh"]
+    command: ["uv", "run", "celery", "-A", "realtime", "worker", "-l", "info"]
     env_file:
       - .env
+      - .env.prod
+      - .env.local
     environment:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY}
@@ -66,8 +72,11 @@ services:
       context: .
       dockerfile: Dockerfile
       target: prod
+    entrypoint: ["/app/docker-entrypoint.sh"]
     command:
       [
+        "uv",
+        "run",
         "celery",
         "-A",
         "realtime",
@@ -78,6 +87,8 @@ services:
       ]
     env_file:
       - .env
+      - .env.prod
+      - .env.local
     environment:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY}

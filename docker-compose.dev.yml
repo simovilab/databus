@@ -4,13 +4,16 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
-    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    entrypoint: ["/app/docker-entrypoint.sh"]
+    command: ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports:
       - "8000:8000"
     env_file:
       - .env
+      - .env.dev
+      - .env.local
     environment:
-      - DEBUG=${DEBUG:-1}
+      # DEBUG comes from .env.dev (.env sets False, .env.dev overrides to True)
       - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=${DB_NAME:-realtime}
@@ -33,11 +36,14 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
-    command: ["celery", "-A", "realtime", "worker", "-l", "info"]
+    entrypoint: ["/app/docker-entrypoint.sh"]
+    command: ["uv", "run", "celery", "-A", "realtime", "worker", "-l", "info"]
     env_file:
       - .env
+      - .env.dev
+      - .env.local
     environment:
-      - DEBUG=${DEBUG:-1}
+      # DEBUG comes from .env.dev
       - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=${DB_NAME:-realtime}
@@ -60,8 +66,11 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
+    entrypoint: ["/app/docker-entrypoint.sh"]
     command:
       [
+        "uv",
+        "run",
         "celery",
         "-A",
         "realtime",
@@ -72,8 +81,10 @@ services:
       ]
     env_file:
       - .env
+      - .env.dev
+      - .env.local
     environment:
-      - DEBUG=${DEBUG:-1}
+      # DEBUG comes from .env.dev
       - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=${DB_NAME:-realtime}

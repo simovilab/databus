@@ -3,11 +3,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    entrypoint: ["/app/docker-entrypoint.sh"]
+    command: ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports:
       - "8000:8000"
     env_file:
       - .env
+      - .env.dev
+      - .env.local
     environment:
       # Fallbacks if not set in .env
       - DEBUG=${DEBUG:-1}
@@ -30,9 +33,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["celery", "-A", "realtime", "worker", "-l", "info"]
+    entrypoint: ["/app/docker-entrypoint.sh"]
+    command: ["uv", "run", "celery", "-A", "realtime", "worker", "-l", "info"]
     env_file:
       - .env
+      - .env.dev
+      - .env.local
     environment:
       - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
@@ -54,8 +60,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    entrypoint: ["/app/docker-entrypoint.sh"]
     command:
       [
+        "uv",
+        "run",
         "celery",
         "-A",
         "realtime",
@@ -66,6 +75,8 @@ services:
       ]
     env_file:
       - .env
+      - .env.dev
+      - .env.local
     environment:
       - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
