@@ -1,170 +1,117 @@
-# Instrucciones de ejecución de la plataforma
+# Enable a Development Environment with Docker
 
----
+This document describes how to configure and run a development environment for `databus` using Docker.
 
-URGENTE LA RENOVACIÓN DE Esto
+> [!WARNING]
+> It is ideal not to skip steps in this guide, and if necessary, ask for help.
 
-## Development
+> [!TIP]
+> After completing this manual, it is recommended to take a look at the documents inside the `docs` folder to get familiar with the project and its components.
 
-```sh
-docker compose -f docker-compose.dev.yml build
-```
+## Prerequisites
 
-## Production
+### Windows
 
-```sh
-docker compose -f docker-compose.prod.yml build
-```
+The following components must be installed:
 
----
+- [Windows Subsystem Linux](https://learn.microsoft.com/en-us/windows/wsl/setup/environment)
+- [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)
+- [Git](https://git-scm.com/downloads)
 
-El sistema requiere de:
+### UNIX-based Operating Systems (MacOS and Linux distributions)
 
-- Django / Python
-- PostgreSQL / PostGIS
-- Celery / Celery Beat
-- Redis
+The following components must be installed (it is recommended to check the specific documentation for your OS):
 
-## Django
+- [Python 3](https://www.python.org/)
+- [Docker](https://www.docker.com/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+- [Git](https://git-scm.com/downloads)
 
-La plataforma de Django será útil para:
+> [!TIP]
+> Installing [Docker Desktop](https://docs.docker.com/desktop/) includes the Docker engine and Docker Compose. It helps visualize containers and provides multiple useful tools.
 
-- Crear el sitio web con el panel de administración
-- Administrar las tareas periódicas con su integración con Celery y Celery Beat
-- Actualizar la información en tiempo real con las pantallas con WebSockets
+## Steps to Follow Before Starting the Container
 
-Es necesario instalar Django 5.0 y la extensión Django Channels:
-
-```bash
-pip install django
-pip install channels
-```
-
-## PostgreSQL / PostGIS
-
-El proyecto requiere de una base de datos con una extensión para datos geoespaciales...
+### 1. Clone the Repository
 
 ```bash
-sudo apt install postgresql
-(...)
-sudo apt install postgis
+git clone https://github.com/simovilab/databus.git
 ```
 
-Modificar `pg_hba.conf` de forma que sea:
+### 2. Create Environment Variables File
 
-```text
-local    all    postgres   trust
+Before starting the environment, you need to create a `.env.local` file at the root of the project. This file contains sensitive variables such as secret keys and database credentials.
 
-local    all    all        trust
-```
+> [!IMPORTANT]
+> The `.env.local` file **must not be uploaded** to the repository. Request the content from another project collaborator.
 
-y así no tendrá contraseñas. Luego en la terminal:
+> [!NOTE]
+> The file [`.env.local.example`](.env.example) contains the fields that need to be filled in.
+
+### 3. Grant Permissions to Scripts
+
+Ensure the scripts are executable:
 
 ```bash
-sudo -u postgres psql
+chmod +x ./scripts/*.sh
 ```
 
-que nos lleva a la interfaz de `psql` para configurar un nuevo usuario:
+## Start the Container with the Development Environment
+
+### 1. Run Docker Desktop:
+
+Open the Docker Desktop executable application.
+
+### 2. Run the Scripts
+
+Run the script from the root:
 
 ```bash
-postgres=# CREATE ROLE user_name SUPERUSER;
-postgres=# ALTER ROLE user_name LOGIN;
+./scripts/dev.sh
 ```
 
-Ahora podemos crear una base de datos, para este proyecto:
+> [!NOTE]
+> It is normal to see several warnings during this process.
+> This process may take several minutes, be patient until it says "database is ready to accept connections"
+
+## Access the Application
+
+Once everything is running, access the browser with the following address, which by default is port 8000:
+
+```
+http://localhost:8000/
+```
+
+## Common Issues
+
+### Permission Denied in the Docker Console
+- Restart the docker container with
 
 ```bash
-createdb realtime
+./scripts/dev.sh
 ```
 
-ahora hay que ingresar a esa base de datos:
+### The Container Does Not Start or Fails During Installation
+
+- Verify that Docker is running correctly.
+- Ensure that the `.env.local` file is present and properly configured.
+- If changes are made to the `Dockerfile` or dependencies, run:
 
 ```bash
-psql realtime
+docker-compose down
+docker-compose up --build
 ```
 
-y ahí crear la extensión de PostGIS con:
+## Other Useful Commands
+
+### Stop the Environment
 
 ```bash
-realtime=# CREATE EXTENSION postgis;
+docker-compose down
 ```
 
-Con esto quedaría lista la base de datos para conectarnos desde Django.
-
-## Celery
-
-Celery es un administrador de tareas (_task manager_)...
-
-### Celery
-
-Instalar Celery...
+### View Real-Time Logs
 
 ```bash
-pip install version
+docker-compose logs -f
 ```
-
-y probar con `celery --version`.
-
-Ejecutar Celery con:
-
-```bash
-celery -A realtime worker --loglevel=info
-```
-
-### Celery Beat
-
-Celery utiliza los paquetes de integración con Django `django-celery-results` y `django-celery-beat`, y el intermediador de mensajes Redis.
-
-```bash
-celery -A realtime beat --scheduler django_celery_beat.schedulers:DatabaseScheduler --loglevel=info
-```
-
-## Redis
-
-```bash
-sudo apt install redis-server
-```
-
-Nota: en macOS:
-
-```bash
-brew install redis
-```
-
-Probar su estado como proceso del sistema:
-
-```bash
-sudo systemctl status redis-server
-```
-
-Probar la conexión:
-
-```bash
->>> redis-cli ping
-PONG
-```
-
-## Django Channels
-
-Para habilitar la conexión permanente y bidireccional entre cliente y servidor con WebSockets, es necesario utilizar la extensión Django [Channels](https://channels.readthedocs.io/en/latest/), con [Daphne](https://github.com/django/daphne) como servidor HTTP/WebSocket (`http://`/`ws://`) y con [Redis](https://github.com/django/channels_redis) como intermediador de mensajes nuevamente. Para esto son necesarios los paquetes:
-
-- `channels`
-- `daphne`
-- `redis`
-- `channel-redis`
-
-Este es un modo de conexión asíncrono, y por tanto requiere de la configuración ASGI (_Asynchronous Server Gateway Interface_). Esto se hace en el archivo `asgi.py`.
-
-Similar a `urls.py`, Channels requiere un archivo `routing.py` donde establece los `websocket_urlpatterns`, es decir, las rutas o URLs donde se establece la conexión del WebSocket `ws://`.
-
-También, similar a `views.py`, Channels define un archivo `consumers.py` donde define la lógica a realizar durante la conexión.
-
-A diferencia de
-
-Al configurar `settings.py` con Daphne, el comando `python manage.py runserver` ahora ejecuta también ASGI. De hecho, ahora en la terminal se muestra:
-
-```bash
-Starting ASGI/Daphne version 4.1.0 development server at http://127.0.0.1:8000/
-```
-
-y toda la funcionalidad "regular" (WSGI) continúa operando.
