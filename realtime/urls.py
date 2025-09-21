@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+import os
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -27,5 +28,8 @@ urlpatterns = [
     path("feed/", include("feed.urls")),
 ]
 
-if settings.DEBUG:
+serve_static_flag = os.environ.get("DJANGO_SERVE_STATIC", "").lower() in ("1", "true", "yes", "on")
+if settings.DEBUG or serve_static_flag:
+    # For debugging purposes, serve media and static files through Django.
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
