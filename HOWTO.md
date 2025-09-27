@@ -98,8 +98,8 @@ http://localhost:8000/
 - If changes are made to the `Dockerfile` or dependencies, run:
 
 ```bash
-docker-compose down
-docker-compose up --build
+docker compose down
+docker compose up --build
 ```
 
 ## Other Useful Commands
@@ -107,11 +107,11 @@ docker-compose up --build
 ### Stop the Environment
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### View Real-Time Logs
 
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
