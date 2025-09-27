@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}🚀 Starting Infobús in DEVELOPMENT mode...${NC}"
+echo -e "${GREEN}🚀 Starting DATABUS in DEVELOPMENT mode...${NC}"
 echo "Features enabled:"
 echo "  - Live reloading"
 echo "  - Debug mode"
