@@ -36,4 +36,5 @@ dev = [
     "pytest>=8.4.1",
     "pytest-django>=4.11.1",
     "ruff>=0.12.11",
+    "watchfiles>=0.24.0",
 ]
