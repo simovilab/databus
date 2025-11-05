@@ -10,7 +10,6 @@ services:
     env_file:
       - .env
       - .env.dev
-      - .env.local
     environment:
       # Fallbacks if not set in .env
       - DEBUG=${DEBUG:-1}
@@ -38,7 +37,6 @@ services:
     env_file:
       - .env
       - .env.dev
-      - .env.local
     environment:
       - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
@@ -76,7 +74,6 @@ services:
     env_file:
       - .env
       - .env.dev
-      - .env.local
     environment:
       - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}

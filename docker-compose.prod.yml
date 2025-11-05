@@ -8,18 +8,6 @@ services:
     env_file:
       - .env
       - .env.prod
-      - .env.local
-    environment:
-      - DEBUG=0
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_HOST=db
-      - DB_PORT=5432
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
     depends_on:
       db:
         condition: service_healthy
@@ -49,18 +37,6 @@ services:
     env_file:
       - .env
       - .env.prod
-      - .env.local
-    environment:
-      - DEBUG=0
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_HOST=db
-      - DB_PORT=5432
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
     depends_on:
       db:
         condition: service_healthy
@@ -88,18 +64,6 @@ services:
     env_file:
       - .env
       - .env.prod
-      - .env.local
-    environment:
-      - DEBUG=0
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_HOST=db
-      - DB_PORT=5432
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
     depends_on:
       db:
         condition: service_healthy
@@ -107,21 +71,25 @@ services:
         condition: service_healthy
 
   db:
-    image: postgis/postgis:15-3.3
+    image: postgis/postgis:16-3.4
+    env_file:
+      - .env
+      - .env.prod
     environment:
+      # Ensure the application database is created on first initialization
       - POSTGRES_DB=${DB_NAME}
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${DB_USER}"]
+      test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data

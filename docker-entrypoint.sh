@@ -25,7 +25,11 @@ fi
 # Build DATABASE_URL if missing (fallback)
 if [ -z "${DATABASE_URL:-}" ]; then
     if [[ -n "${DB_USER:-}" && -n "${DB_HOST:-}" && -n "${DB_NAME:-}" ]]; then
-        export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD:-}${DB_PASSWORD:+@}${DB_HOST}:${DB_PORT:-5432}/${DB_NAME}"
+        if [ -n "${DB_PASSWORD:-}" ]; then
+            export DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT:-5432}/${DB_NAME}"
+        else
+            export DATABASE_URL="postgresql://${DB_USER}@${DB_HOST}:${DB_PORT:-5432}/${DB_NAME}"
+        fi
         warn "DATABASE_URL not set; constructed: ${DATABASE_URL}"
     else
         warn "DATABASE_URL not set and insufficient components to construct it."
@@ -105,11 +109,11 @@ else
     uv run python manage.py collectstatic --noinput || warn "Static files collection skipped"
 
     # Load initial data (if needed)
-        if [ -f bucr.json ]; then
-            log "Loading initial data fixture bucr.json"
-            uv run python manage.py loaddata bucr.json || warn "Initial data load failed"
+        if [ -f gtfs.json ]; then
+            log "Loading initial data fixture gtfs.json"
+            uv run python manage.py loaddata gtfs.json || warn "Initial data load failed"
         else
-            log "No optional initial data fixture bucr.json present"
+            log "No optional initial data fixture gtfs.json present"
         fi
 
     log "Django application setup complete!"
