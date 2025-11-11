@@ -22,6 +22,7 @@ services:
       - DB_PORT=5432
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
+      - RUN_MAKEMIGRATIONS=0
     depends_on:
       db:
         condition: service_healthy
@@ -48,6 +49,7 @@ services:
       - DB_PORT=5432
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
+      - MIGRATE_ON_CELERY=0
     depends_on:
       db:
         condition: service_healthy
@@ -85,6 +87,7 @@ services:
       - DB_PORT=5432
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
+      - MIGRATE_ON_CELERY=0
     depends_on:
       db:
         condition: service_healthy

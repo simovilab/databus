@@ -13,6 +13,7 @@ services:
       - .env.dev
     environment:
       # DEBUG comes from .env.dev (.env sets False, .env.dev overrides to True)
+      - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=${DB_NAME:-realtime}
@@ -22,6 +23,7 @@ services:
       - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - RUN_MAKEMIGRATIONS=1
     volumes:
       - .:/app
     depends_on:
@@ -42,6 +44,7 @@ services:
       - .env.dev
     environment:
       # DEBUG comes from .env.dev
+      - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=${DB_NAME:-realtime}
@@ -51,6 +54,7 @@ services:
       - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - MIGRATE_ON_CELERY=0
     volumes:
       - .:/app
     depends_on:
@@ -82,6 +86,7 @@ services:
       - .env.dev
     environment:
       # DEBUG comes from .env.dev
+      - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=${DB_NAME:-realtime}
@@ -91,6 +96,7 @@ services:
       - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - MIGRATE_ON_CELERY=0
     volumes:
       - .:/app
     depends_on:
@@ -108,7 +114,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}"]
+      test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}", "-d", "${DB_NAME:-realtime}"]
       interval: 10s
       timeout: 5s
       retries: 5
