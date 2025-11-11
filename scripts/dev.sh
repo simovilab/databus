@@ -1,5 +1,6 @@
 #!/bin/bash
 # Development environment startup script for Databus (container)
+# Use of emojis is intentional, requested by PO to make the script more engaging
 
 set -e  # Exit on any error
 
@@ -85,9 +86,7 @@ else
 fi
 
 
-echo -e "${YELLOW}⚠️  Applying fake migration for django_celery_beat (only if necessary)...${NC}"
-docker compose -f ${COMPOSE_FILE} exec web uv run python manage.py migrate django_celery_beat --fake || \
-     echo -e "${YELLOW}⚠️  Fake migration failed or was not necessary.${NC}"
+# Celery migrations are applied by the web service; worker/beat will skip.
 
 
 echo ""

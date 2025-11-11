@@ -57,11 +57,33 @@ if [ "$IS_CELERY" = true ]; then
         log "Database is ready!"
 
         # Optionally run migrations for beat/worker to ensure django_celery_beat tables exist
-        if [[ "${MIGRATE_ON_CELERY:-1}" == "1" || "${MIGRATE_ON_CELERY:-true}" == "true" ]]; then
+        # Default DISABLED to prevent concurrent migrations from multiple services
+        if [[ "${MIGRATE_ON_CELERY:-0}" == "1" || "${MIGRATE_ON_CELERY:-false}" == "true" ]]; then
             log "Applying pending migrations (Celery service)..."
             uv run python manage.py migrate --noinput || warn "Celery migration step failed (continuing)"
         else
             log "Skipping migrations in Celery service (MIGRATE_ON_CELERY=${MIGRATE_ON_CELERY})"
+        fi
+
+        # If this is the beat process, ensure beat tables are present before starting
+        if [[ "${*:-}" == *" beat "* || "${*:-}" == *" beat" || "${*:-}" == *"beat "* ]]; then
+            log "Ensuring django_celery_beat tables exist before starting beat..."
+            until uv run python - <<'PY'
+import os, psycopg2
+dsn=os.environ['DATABASE_URL']
+with psycopg2.connect(dsn) as conn:
+    with conn.cursor() as cur:
+        cur.execute("SELECT to_regclass('public.django_celery_beat_periodictask') IS NOT NULL;")
+        ok = cur.fetchone()[0]
+import sys
+print("OK" if ok else "WAIT")
+sys.exit(0 if ok else 1)
+PY
+            do
+                warn "django_celery_beat tables not ready - waiting"
+                sleep 2
+            done
+            log "django_celery_beat tables ready."
         fi
 
         log "Starting Celery process..."
@@ -85,30 +107,45 @@ else
 
     log "Database is ready!"
 
-    # List of apps to make migrations for
-    APPS_TO_MIGRATE=("website" "gtfs" "feed" "alerts" "api")
-
-    # Make migrations for the registered apps
-    log "Making migrations for apps: ${APPS_TO_MIGRATE[*]}"
-    uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
+    # Optionally create new migration files (disabled by default to prevent conflicts)
+    if [[ "${RUN_MAKEMIGRATIONS:-0}" == "1" || "${RUN_MAKEMIGRATIONS:-false}" == "true" ]]; then
+        APPS_TO_MIGRATE=("website" "gtfs" "feed" "alerts" "api")
+        log "RUN_MAKEMIGRATIONS enabled. Creating migrations for: ${APPS_TO_MIGRATE[*]}"
+        uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
+    else
+        log "Skipping makemigrations (RUN_MAKEMIGRATIONS=${RUN_MAKEMIGRATIONS:-0})"
+    fi
 
     # Run database migrations
     log "Running database migrations..."
     uv run python manage.py migrate --noinput
 
-    # Create superuser if it doesn't exist
-        if [[ "${DEBUG:-}" == "True" || "${DEBUG:-}" == "1" ]]; then
-            log "Ensuring development superuser 'admin' exists (DEBUG mode)"
-            uv run python manage.py shell -c "from django.contrib.auth import get_user_model; U=get_user_model();\nimport os;\nusername=os.environ.get('DJANGO_SUPERUSER_USERNAME','admin');\npassword=os.environ.get('DJANGO_SUPERUSER_PASSWORD','admin');\nemail=os.environ.get('DJANGO_SUPERUSER_EMAIL','admin@example.com');\nU.objects.filter(username=username).exists() or (U.objects.create_superuser(username, email, password) and print(f'Superuser created: {username}/{password}')) or print('Superuser already exists')" || warn "Superuser creation skipped"
+    # Create superuser if it doesn't exist using defaults in development mode
+    if [[ "${CREATE_SUPERUSER:-1}" == "1" && ( "${DEBUG:-}" == "True" || "${DEBUG:-}" == "1" ) ]]; then
+        # Provide defaults if not set for development
+        export DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}"
+        export DJANGO_SUPERUSER_PASSWORD="${DJANGO_SUPERUSER_PASSWORD:-admin}"
+        export DJANGO_SUPERUSER_EMAIL="${DJANGO_SUPERUSER_EMAIL:-admin@example.com}"
+        log "Ensuring development superuser '${DJANGO_SUPERUSER_USERNAME}' exists (DEBUG mode)"
+        # Run createsuperuser non-interactively, it will fail if user exists but the error is handled
+        set +e
+        uv run python manage.py createsuperuser --noinput
+        csu_exit=$?
+        set -e
+        if [ $csu_exit -eq 0 ]; then
+            log "Superuser created: ${DJANGO_SUPERUSER_USERNAME}/${DJANGO_SUPERUSER_PASSWORD}"
         else
-            log "DEBUG not true; skipping automatic superuser creation"
+            warn "Superuser creation skipped (maybe already exists)"
         fi
+    else
+        log "Skipping auto superuser creation (CREATE_SUPERUSER=${CREATE_SUPERUSER:-0} DEBUG=${DEBUG:-})"
+    fi
 
     # Collect static files
     log "Collecting static files..."
     uv run python manage.py collectstatic --noinput || warn "Static files collection skipped"
 
-    # Load initial data (if needed)
+    # Load initial data (if needed) -> This should probably be looked at, there is no data when the container starts
         if [ -f gtfs.json ]; then
             log "Loading initial data fixture gtfs.json"
             uv run python manage.py loaddata gtfs.json || warn "Initial data load failed"
