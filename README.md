@@ -288,7 +288,93 @@ open htmlcov/index.html
 
 📖 See [Testing Guide](docs/testing.md) for detailed documentation on writing tests, using fixtures, and CI/CD pipeline.
 
-## 🛣️ Roadmap
+## � Troubleshooting
+
+### Docker Issues
+
+#### Services fail with "ModuleNotFoundError"
+
+**Symptom**: Worker or beat services exit with Python import errors like `ModuleNotFoundError: No module named 'corsheaders'`.
+
+**Solution**: Rebuild Docker images to install updated dependencies:
+```bash
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+**When to rebuild**:
+- 🆕 First-time setup
+- 📦 After updating `requirements.txt` or `pyproject.toml`
+- 🐳 After modifying the `Dockerfile`
+
+#### Check service status and logs
+
+```bash
+# Verify all services are running
+docker-compose ps
+
+# Check logs for specific service
+docker-compose logs web
+docker-compose logs worker
+docker-compose logs beat
+
+# Follow logs in real-time
+docker-compose logs -f web
+
+# Check for errors in worker
+docker-compose logs worker | grep -i error
+```
+
+#### Expected service status
+
+All services should show these statuses:
+- ✅ `db`: Up (healthy)
+- ✅ `redis`: Up (healthy)  
+- ✅ `web`: Up
+- ✅ `worker`: Up
+- ✅ `beat`: Up
+
+#### Access Django shell in container
+
+```bash
+docker-compose exec web python manage.py shell
+```
+
+#### Reset database
+
+```bash
+docker-compose down -v  # Removes volumes
+docker-compose up -d
+docker-compose exec web python manage.py migrate
+docker-compose exec web python manage.py createsuperuser
+```
+
+### Admin Access Issues
+
+If you can't access `/admin/`:
+
+1. **Create superuser** if you haven't:
+   ```bash
+   docker-compose exec web python manage.py createsuperuser
+   ```
+
+2. **Reset admin password**:
+   ```bash
+   docker-compose exec web python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); admin = User.objects.get(username='admin'); admin.set_password('new-password'); admin.save(); print('Password updated')"
+   ```
+
+### API Authentication Issues
+
+See [JWT Authentication Troubleshooting](docs/JWT_AUTH_README.md#troubleshooting) for:
+- Token refresh issues
+- Invalid signature errors
+- Expired token handling
+- CORS configuration
+
+📖 See [Docker Setup Validation](docs/DOCKER_SETUP_VALIDATION.md) for complete first-time setup verification.
+
+## �🛣️ Roadmap
 
 Where is this going? Check SIMOVI's [roadmap](https://github.com/simovilab/context/blob/main/roadmap.md).
 
