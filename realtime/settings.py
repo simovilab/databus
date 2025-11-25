@@ -68,6 +68,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Admin audit logging
+    "api.admin_audit.AdminAuditMiddleware",
     # API caching and performance
     "api.cache_middleware.SecurityHeadersMiddleware",
     "api.cache_middleware.ConditionalGetMiddleware",

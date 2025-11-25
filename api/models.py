@@ -7,6 +7,7 @@ from .client_models import (
     ClientQuota,
     ClientUsageMetrics,
     ClientAuditLog,
+    AdminAuditLog,
     ClientType,
     ClientStatus,
 )
@@ -17,6 +18,7 @@ __all__ = [
     'ClientQuota',
     'ClientUsageMetrics',
     'ClientAuditLog',
+    'AdminAuditLog',
     'ClientType',
     'ClientStatus',
 ]

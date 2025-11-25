@@ -4,12 +4,38 @@
 
 # Development tools
 django-debug-toolbar>=6.0.0
+django-extensions>=3.2.3
 watchfiles>=0.24.0
 
 # Testing
 pytest>=8.4.1
 pytest-django>=4.11.1
+pytest-cov>=4.1.0
+pytest-asyncio>=0.23.0
+pytest-mock>=3.12.0
+pytest-xdist>=3.5.0  # parallel testing
+factory-boy>=3.3.0
+faker>=22.0.0
+requests-mock>=1.11.0
+responses>=0.25.0
 
 # Code quality
 ruff>=0.12.11
 mypy>=1.17.1
+black>=24.0.0
+isort>=5.13.0
+flake8>=7.0.0
+bandit>=1.7.6  # security
+
+# Coverage
+coverage[toml]>=7.4.0
+
+# Contract Testing
+openapi-spec-validator>=0.7.1
+jsonschema>=4.21.0
+
+# Type Stubs
+django-stubs>=4.2.7
+djangorestframework-stubs>=3.14.5
+types-redis>=4.6.0
+types-requests>=2.31.0

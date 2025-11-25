@@ -619,3 +619,130 @@ class ClientAuditLog(models.Model):
             ip_address=ip_address,
             user_agent=user_agent
         )
+
+
+class AdminAuditLog(models.Model):
+    """
+    Audit log for administrative actions in the admin panel.
+    
+    Tracks all administrative operations including views, changes, and deletions
+    for compliance and security monitoring.
+    """
+    
+    # Action details
+    action_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('view', 'Viewed'),
+            ('add', 'Added'),
+            ('change', 'Changed'),
+            ('delete', 'Deleted'),
+            ('export', 'Exported'),
+            ('bulk_action', 'Bulk Action'),
+            ('login', 'Admin Login'),
+            ('logout', 'Admin Logout'),
+            ('permission_change', 'Permission Changed'),
+        ],
+        help_text="Type of administrative action"
+    )
+    
+    # Target information
+    content_type = models.CharField(
+        max_length=100,
+        help_text="Type of object affected (e.g., 'apiclient', 'apikey')"
+    )
+    object_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="ID of the affected object"
+    )
+    object_repr = models.CharField(
+        max_length=500,
+        help_text="String representation of the affected object"
+    )
+    
+    # Timing
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    # Actor
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='admin_audit_logs',
+        help_text="Admin user who performed the action"
+    )
+    
+    # Context
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="IP address of the admin user"
+    )
+    user_agent = models.TextField(
+        blank=True,
+        help_text="Browser user agent string"
+    )
+    
+    # Change details
+    changes = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Details of what was changed (before/after values)"
+    )
+    
+    # Additional context
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional notes or reason for the action"
+    )
+    
+    class Meta:
+        db_table = 'api_admin_audit_log'
+        ordering = ['-timestamp']
+        verbose_name = 'Admin Audit Log'
+        verbose_name_plural = 'Admin Audit Logs'
+        indexes = [
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['action_type', '-timestamp']),
+            models.Index(fields=['content_type', '-timestamp']),
+        ]
+    
+    def __str__(self):
+        action = self.get_action_type_display()
+        user = self.user.username if self.user else 'System'
+        return f"{user} {action} {self.content_type} at {self.timestamp}"
+    
+    @classmethod
+    def log_action(cls, action_type, content_type, object_repr, user=None,
+                   object_id=None, ip_address=None, user_agent=None, 
+                   changes=None, notes=''):
+        """
+        Helper method to create an admin audit log entry.
+        
+        Args:
+            action_type: Type of action (view, add, change, delete, etc.)
+            content_type: Type of object affected
+            object_repr: String representation of the object
+            user: User who performed the action
+            object_id: ID of the affected object
+            ip_address: IP address of the user
+            user_agent: Browser user agent
+            changes: Dictionary of changes (before/after values)
+            notes: Additional notes
+        
+        Returns:
+            AdminAuditLog instance
+        """
+        return cls.objects.create(
+            action_type=action_type,
+            content_type=content_type,
+            object_id=str(object_id) if object_id else None,
+            object_repr=object_repr[:500],  # Truncate if too long
+            user=user,
+            ip_address=ip_address,
+            user_agent=user_agent or '',  # Default to empty string
+            changes=changes or {},
+            notes=notes
+        )

@@ -17,6 +17,13 @@ Core backend server implementing GTFS Schedule and GTFS Realtime specifications 
 - 🏢 **Multi-tenant Architecture** - Support for multiple transit agencies
 - 🔬 **Telemetry Simulator** - Test system before deploying real equipment
 - 🚏 **Buses as Rolling Sensors** - Ready for "Células TP" project integration
+- 🔑 **JWT Authentication** - Secure token-based authentication with RBAC
+- 🚦 **Rate Limiting** - Per-client quotas and throttling
+- 🎛️ **Admin Dashboard** - Real-time metrics, audit logging, analytics
+- 🧪 **Comprehensive Testing** - 70%+ coverage with CI/CD pipeline
+- 📦 **TODS Integration** - Transit Operational Data Standard support
+
+📊 **[View Complete Issues Status Report](docs/ISSUES_STATUS_REPORT.md)** - Track all features, implementation status, and documentation
 
 ## 🚀 Getting Started
 
@@ -90,28 +97,49 @@ Core backend server implementing GTFS Schedule and GTFS Realtime specifications 
 The easiest way to run the application with all services:
 
 ```bash
-# Copy environment file
+# 1. Build Docker images (REQUIRED for first-time setup)
+docker-compose build
+
+# 2. Copy environment file
 cp .env.example .env
 
-# Edit .env with your settings
+# 3. Edit .env with your settings (database, Redis, JWT secret, etc.)
 nano .env
 
-# Start all services
+# 4. Start all services
 docker-compose up -d
 
-# View logs
+# 5. Create admin user (required for accessing /admin/)
+docker-compose exec web python manage.py createsuperuser
+
+# 6. View logs to verify everything is working
 docker-compose logs -f web
 
-# Stop services
+# Stop services when needed
 docker-compose down
 ```
 
-Services included:
+**⚠️ Important Notes:**
+
+- **First-time setup**: You MUST run `docker-compose build` before starting services
+- **After updating dependencies**: Rebuild with `docker-compose build --no-cache`
+- **Default admin credentials** (if you need to set them manually):
+  ```bash
+  docker-compose exec web python manage.py shell -c "from django.contrib.auth import get_user_model; User = get_user_model(); admin = User.objects.get(username='admin'); admin.set_password('your-password'); admin.save()"
+  ```
+
+**Services included:**
 - **web**: Django application (port 8000)
 - **db**: PostgreSQL 18 with PostGIS
 - **redis**: Redis server
 - **worker**: Celery worker
 - **beat**: Celery beat scheduler
+
+**Verify services are running:**
+```bash
+docker-compose ps  # All services should show "Up" or "Up (healthy)"
+docker-compose logs worker  # Check for errors
+```
 
 #### Option B: Manual Setup
 
@@ -202,6 +230,63 @@ Databus is designed to support the "Células TP" concept - using buses as rollin
 - 🚏 [Células TP Project](docs/celulas-tp.md) - Buses as rolling sensors
 - 🌐 [NGSI-LD Compatibility](docs/ngsi-ld-compatibility.md) - Smart City integration
 - 📖 [API Documentation](docs/api.md) - Endpoint reference
+
+### 🎛️ Admin Panel
+
+Databus includes a comprehensive admin dashboard for monitoring and managing your transit API:
+
+- **📊 Metrics Dashboard** - Real-time traffic, latency, and error monitoring
+- **👥 Client Management** - API client lifecycle, keys, and quotas
+- **📝 Audit Logging** - Complete compliance trail of admin actions
+- **📈 Analytics** - Charts for traffic patterns and performance
+- **🔐 Access Control** - Secure admin interface with full audit trail
+
+Access the admin panel at `/admin/` and the metrics dashboard at `/admin/api/dashboard/`
+
+📖 See [Admin Dashboard Guide](api/ADMIN_DASHBOARD_README.md) for detailed documentation on:
+- Viewing traffic and performance metrics
+- Managing API clients and quotas
+- Reviewing audit logs for compliance
+- Setting up alerts and monitoring
+
+### API Features
+
+- **🔑 Client Registry** - Multi-tenant API client management ([docs](api/CLIENT_REGISTRY_README.md))
+- **🚦 Rate Limiting** - Per-client quotas and throttling ([docs](api/RATE_LIMITING_README.md))
+- **🔒 JWT Authentication** - Secure token-based auth ([docs](api/JWT_AUTH_README.md))
+- **⚡ Performance** - Caching, pagination, compression ([docs](api/SECURITY_PERFORMANCE_README.md))
+- **🎛️ Admin Dashboard** - Metrics and audit logging ([docs](api/ADMIN_DASHBOARD_README.md))
+
+## 🧪 Testing
+
+Databus has comprehensive test coverage with unit, integration, and contract tests:
+
+- **📊 Coverage**: 70% minimum threshold enforced
+- **🔬 Unit Tests**: Serializers, validators, business logic
+- **🔗 Integration Tests**: API endpoints, authentication, rate limiting, caching
+- **📋 Contract Tests**: OpenAPI schema validation, response formats
+- **🤖 CI/CD**: Automated testing, linting, security scanning on every push
+- **📈 Reports**: HTML coverage reports, Codecov integration
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run by category
+pytest tests/ -m "unit" -v
+pytest tests/ -m "integration" -v
+pytest tests/ -m "contract" -v
+
+# Run with coverage
+pytest tests/ --cov=api --cov=feed --cov=gtfs --cov-report=html
+
+# View coverage report
+open htmlcov/index.html
+```
+
+📖 See [Testing Guide](docs/testing.md) for detailed documentation on writing tests, using fixtures, and CI/CD pipeline.
 
 ## 🛣️ Roadmap
 

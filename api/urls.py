@@ -7,6 +7,7 @@ from . import views
 from . import category_views
 from . import jwt_views
 from . import client_views
+from . import admin_dashboard
 
 router = routers.DefaultRouter()
 router.register(r"company", views.CompanyViewSet)
@@ -60,6 +61,13 @@ urlpatterns = [
     path("auth/token/refresh/", jwt_views.CustomTokenRefreshView.as_view(), name="token_refresh"),
     path("auth/verify/", jwt_views.TokenVerifyView.as_view(), name="token_verify"),
     path("auth/logout/", jwt_views.LogoutView.as_view(), name="logout"),
+    # Admin Dashboard (staff only)
+    path("dashboard/", admin_dashboard.admin_dashboard, name="admin_dashboard"),
+    path("dashboard/traffic-data/", admin_dashboard.traffic_chart_data, name="traffic_chart_data"),
+    path("dashboard/latency-data/", admin_dashboard.latency_chart_data, name="latency_chart_data"),
+    path("dashboard/error-data/", admin_dashboard.error_chart_data, name="error_chart_data"),
+    path("dashboard/client-distribution/", admin_dashboard.client_distribution_data, name="client_distribution_data"),
+    path("dashboard/quota-usage/", admin_dashboard.quota_usage_data, name="quota_usage_data"),
     # DRF Auth & Docs
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("docs/schema/", views.get_schema, name="schema"),
