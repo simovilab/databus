@@ -133,7 +133,8 @@ class VehicleSimulator:
                 longitude=float(current_point.shape_pt_lon),
                 speed=self.simulated_vehicle.speed,
                 bearing=bearing,
-                odometer=float(current_point.shape_dist_traveled) if current_point.shape_dist_traveled else 0.0
+                odometer=float(current_point.shape_dist_traveled) if current_point.shape_dist_traveled else 0.0,
+                is_new=True
             )
             
             # Move to next shape point
@@ -210,7 +211,8 @@ class VehicleSimulator:
                     current_stop_sequence=current_stop.stop_sequence,
                     stop_id=current_stop.stop_id,
                     current_status='STOPPED_AT',
-                    congestion_level=random.choice(['RUNNING_SMOOTHLY', 'STOP_AND_GO', 'CONGESTION'])
+                    congestion_level=random.choice(['RUNNING_SMOOTHLY', 'STOP_AND_GO', 'CONGESTION']),
+                    is_new=True
                 )
                 
                 # Update occupancy
@@ -269,7 +271,8 @@ class VehicleSimulator:
                 timestamp=timezone.now(),
                 occupancy_status=status,
                 occupancy_percentage=occupancy_percentage,
-                occupancy_count=occupancy_count
+                occupancy_count=occupancy_count,
+                is_new=True
             )
             
             # Log event
