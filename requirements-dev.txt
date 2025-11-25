@@ -1,0 +1,15 @@
+# Databus - Development Requirements
+
+-r requirements.txt
+
+# Development tools
+django-debug-toolbar>=6.0.0
+watchfiles>=0.24.0
+
+# Testing
+pytest>=8.4.1
+pytest-django>=4.11.1
+
+# Code quality
+ruff>=0.12.11
+mypy>=1.17.1

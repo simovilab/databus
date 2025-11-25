@@ -1,0 +1,40 @@
+# Databus - Requirements
+# Python >=3.14
+
+# Django core
+django>=5.2.6
+gunicorn>=23.0.0
+django-filter>=25.1
+python-decouple>=3.8
+
+# REST API
+djangorestframework>=3.16.1
+djangorestframework-gis>=1.2.0
+drf-spectacular>=0.28.0
+
+# WebSockets y async
+channels>=4.3.1
+channels-redis>=4.3.0
+daphne>=4.2.1
+
+# Background tasks
+celery[redis]>=5.5.3
+django-celery-beat>=2.8.1
+django-celery-results>=2.6.0
+flower>=2.0.1
+redis>=5.2.1
+
+# Database
+psycopg2-binary>=2.9.10
+
+# GTFS
+gtfs-realtime-bindings>=1.0.0
+
+# Data processing
+pandas>=2.3.2
+geopandas>=1.1.1
+
+# Utils
+requests>=2.32.5
+pillow>=11.3.0
+mkdocs-material>=9.6.18

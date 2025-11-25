@@ -3,7 +3,7 @@ name = "databus"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
     "celery[redis]>=5.5.3",
     "channels>=4.3.1",

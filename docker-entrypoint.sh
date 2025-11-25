@@ -82,7 +82,8 @@ else
     log "Database is ready!"
 
     # List of apps to make migrations for
-    APPS_TO_MIGRATE=("website" "gtfs" "feed" "alerts" "api")
+    #APPS_TO_MIGRATE=("website" "gtfs" "feed" "alerts" "api")
+    APPS_TO_MIGRATE=("website" "gtfs" "feed" "api")
 
     # Make migrations for the registered apps
     log "Making migrations for apps: ${APPS_TO_MIGRATE[*]}"

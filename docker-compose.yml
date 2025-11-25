@@ -95,7 +95,7 @@ services:
         condition: service_healthy
 
   db:
-    image: postgis/postgis:15-3.3
+    image: postgis/postgis:16-3.4
     environment:
       - POSTGRES_DB=${DB_NAME:-realtime}
       - POSTGRES_USER=${DB_USER:-postgres}
@@ -109,7 +109,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.4.0-alpine
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data

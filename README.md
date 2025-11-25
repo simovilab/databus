@@ -20,9 +20,9 @@ Core backend server implementing GTFS Schedule and GTFS Realtime specifications 
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.14+
 - Redis server
-- PostgreSQL 12+ with PostGIS extension
+- PostgreSQL 18+ with PostGIS extension
 - Git
 
 ### Installation
