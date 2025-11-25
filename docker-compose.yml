@@ -3,10 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     entrypoint: ["/app/docker-entrypoint.sh"]
-    command: ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
     env_file:
       - .env
       - .env.dev
@@ -33,8 +36,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     entrypoint: ["/app/docker-entrypoint.sh"]
-    command: ["uv", "run", "celery", "-A", "realtime", "worker", "-l", "info"]
+    command: ["celery", "-A", "realtime", "worker", "-l", "info"]
+    volumes:
+      - .:/app
     env_file:
       - .env
       - .env.dev
@@ -60,11 +66,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     entrypoint: ["/app/docker-entrypoint.sh"]
     command:
       [
-        "uv",
-        "run",
         "celery",
         "-A",
         "realtime",
@@ -73,6 +78,8 @@ services:
         "django_celery_beat.schedulers:DatabaseScheduler",
         "--loglevel=info",
       ]
+    volumes:
+      - .:/app
     env_file:
       - .env
       - .env.dev

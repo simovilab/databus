@@ -1,4 +1,4 @@
-# Multi-stage build for Django app with uv
+# Multi-stage build for Django app
 FROM python:3.14-slim as base
 
 # Install system dependencies
@@ -11,14 +11,11 @@ RUN apt-get update && apt-get install -y \
     libgdal-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Create app user
 RUN groupadd --gid 1000 app && \
@@ -27,10 +24,12 @@ RUN groupadd --gid 1000 app && \
 # Set work directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml uv.lock ./
+# Copy requirements file
+COPY requirements.txt .
 
-# Dependencies will be installed at runtime to avoid permission issues
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
 
 # ---- Development stage
 FROM base as dev
@@ -48,7 +47,7 @@ USER app
 EXPOSE 8000
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
 # ---- Production stage
 FROM base as prod
@@ -64,18 +63,10 @@ RUN chmod +x /app/docker-entrypoint.sh
 RUN mkdir -p /app/staticfiles /app/media && \
     chown -R app:app /app/staticfiles /app/media
 
-# Clean up any existing venv and set proper permissions
-RUN rm -rf /app/.venv && \
-    chown -R app:app /app
-
-# Switch to app user before installing dependencies to avoid permission issues
 USER app
 
-# Install dependencies in production mode
-RUN uv sync --frozen --no-dev
-
-# Expose port for ASGI server
+# Expose port for gunicorn
 EXPOSE 8000
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["uv", "run", "daphne", "-b", "0.0.0.0", "-p", "8000", "realtime.asgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120", "realtime.wsgi:application"]

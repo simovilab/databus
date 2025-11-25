@@ -49,9 +49,31 @@ Core backend server implementing GTFS Schedule and GTFS Realtime specifications 
 
 4. **Configure environment**
 
+   Create your environment configuration file:
    ```bash
-   cp .env.example .env  # Create and edit your environment variables
+   cp .env.example .env
    ```
+   
+   Edit `.env` and set your values:
+   ```bash
+   # Required settings
+   SECRET_KEY=your-secret-key-here
+   DEBUG=1
+   ALLOWED_HOSTS=localhost,127.0.0.1
+   
+   # Database
+   DB_NAME=realtime
+   DB_USER=postgres
+   DB_PASSWORD=your-password
+   DB_HOST=localhost
+   DB_PORT=5432
+   
+   # Redis
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+   ```
+   
+   📖 See [Environment Variables Guide](docs/environment-variables.md) for detailed configuration.
 
 5. **Set up database**
    ```bash
@@ -60,6 +82,36 @@ Core backend server implementing GTFS Schedule and GTFS Realtime specifications 
    ```
 
 ### Running the Application
+
+#### Option A: Docker (Recommended)
+
+The easiest way to run the application with all services:
+
+```bash
+# Copy environment file
+cp .env.example .env
+
+# Edit .env with your settings
+nano .env
+
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f web
+
+# Stop services
+docker-compose down
+```
+
+Services included:
+- **web**: Django application (port 8000)
+- **db**: PostgreSQL 18 with PostGIS
+- **redis**: Redis server
+- **worker**: Celery worker
+- **beat**: Celery beat scheduler
+
+#### Option B: Manual Setup
 
 1. **Start Redis server** (in separate terminal)
 
