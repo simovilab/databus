@@ -15,6 +15,8 @@ Core backend server implementing GTFS Schedule and GTFS Realtime specifications 
 - 🗺️ **Geospatial Support** - PostgreSQL/PostGIS for location-based queries
 - 🔄 **Background Processing** - Celery integration for data validation and updates
 - 🏢 **Multi-tenant Architecture** - Support for multiple transit agencies
+- 🔬 **Telemetry Simulator** - Test system before deploying real equipment
+- 🚏 **Buses as Rolling Sensors** - Ready for "Células TP" project integration
 
 ## 🚀 Getting Started
 
@@ -132,6 +134,56 @@ Services included:
 
 The application will be available at `http://localhost:8000`
 
+## 🧪 Telemetry Simulator
+
+Test the system before installing equipment on real buses using the built-in telemetry simulator.
+
+### Quick Start
+
+```bash
+# Setup simulator (first time only)
+docker-compose exec web python manage.py makemigrations simulator
+docker-compose exec web python manage.py migrate simulator
+
+# Start simulation for all vehicles
+docker-compose exec web python manage.py start_simulation --all
+
+# Or use the helper script
+./scripts/simulator.sh start --all
+
+# Monitor simulation
+docker-compose exec web python manage.py shell
+>>> from simulator.models import SimulatedVehicle
+>>> SimulatedVehicle.objects.filter(is_active=True)
+
+# Stop simulation
+./scripts/simulator.sh stop --all
+```
+
+### What It Does
+
+- Simulates vehicle movement along GTFS routes
+- Updates position every 10 seconds
+- Updates occupancy at each stop
+- Generates realistic telemetry data
+- Compatible with GTFS Realtime and "Células TP" project
+
+📖 See [Simulator Documentation](docs/simulator.md) for detailed information.
+
+## 🚏 Proyecto Células TP
+
+Databus is designed to support the "Células TP" concept - using buses as rolling sensors that collect telemetry, tracking, and environmental data.
+
+### Supported Data Types
+
+- **Position**: GPS location, speed, bearing (every 10s)
+- **Occupancy**: Passenger count, capacity status (at stops)
+- **Emissions**: Air quality, CO₂, NOx
+- **Conditions**: Temperature, humidity, vehicle status
+- **Progression**: Route progress, stop arrival/departure
+
+📖 See [Células TP Documentation](docs/celulas-tp.md) for the complete vision and implementation roadmap.
+
 ## 🚀 Usage
 
 | Endpoint            | Description                                    |
@@ -141,6 +193,15 @@ The application will be available at `http://localhost:8000`
 | `/api/docs/schema/` | OpenAPI schema                                 |
 | `/admin/`           | Django admin interface                         |
 | `/feed/`            | GTFS feed endpoints                            |
+
+### Documentation
+
+- 📚 [HOWTO - Docker Setup](HOWTO.md) - Complete setup guide
+- 🔧 [Environment Variables](docs/environment-variables.md) - Configuration reference
+- 🧪 [Telemetry Simulator](docs/simulator.md) - Testing platform
+- 🚏 [Células TP Project](docs/celulas-tp.md) - Buses as rolling sensors
+- 🌐 [NGSI-LD Compatibility](docs/ngsi-ld-compatibility.md) - Smart City integration
+- 📖 [API Documentation](docs/api.md) - Endpoint reference
 
 ## 🛣️ Roadmap
 

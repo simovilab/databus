@@ -286,3 +286,70 @@ docker-compose ps
 ```bash
 docker stats
 ```
+
+## Using the Telemetry Simulator
+
+The telemetry simulator allows you to test the system before installing equipment on real buses. It generates simulated tracking and telemetry data.
+
+### Setup Simulator
+
+1. **Apply migrations for simulator app**:
+
+```bash
+docker-compose exec web python manage.py makemigrations simulator
+docker-compose exec web python manage.py migrate simulator
+```
+
+2. **Ensure you have GTFS data loaded** (routes, trips, stops, shapes)
+
+3. **Create at least one operator** in the admin panel
+
+### Start Simulation
+
+Start simulation for all vehicles:
+
+```bash
+docker-compose exec web python manage.py start_simulation --all
+```
+
+Start simulation for a specific vehicle:
+
+```bash
+docker-compose exec web python manage.py start_simulation --vehicle SJB9876
+```
+
+Start with custom speed (m/s):
+
+```bash
+docker-compose exec web python manage.py start_simulation --vehicle SJB9876 --speed 15.0
+```
+
+### Monitor Simulation
+
+- Access admin panel: `http://localhost:8000/admin/simulator/`
+- View simulated vehicles and their status
+- Check simulation logs for events and errors
+
+### Stop Simulation
+
+Stop all simulations:
+
+```bash
+docker-compose exec web python manage.py stop_simulation --all
+```
+
+Stop specific vehicle:
+
+```bash
+docker-compose exec web python manage.py stop_simulation --vehicle SJB9876
+```
+
+### How It Works
+
+1. **Position updates**: Every 10 seconds (configurable)
+2. **Occupancy updates**: When arriving at stops
+3. **Automatic journey management**: Starts trips, follows routes, completes journeys
+
+> [!NOTE]
+> For detailed simulator documentation, see [`docs/simulator.md`](docs/simulator.md)
+

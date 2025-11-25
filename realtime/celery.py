@@ -1,6 +1,7 @@
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "realtime.settings")
@@ -15,6 +16,21 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
+
+# Configure periodic tasks for simulator
+app.conf.beat_schedule = {
+    'update-simulated-positions': {
+        'task': 'simulator.update_positions',
+        'schedule': 10.0,  # Every 10 seconds
+        'options': {
+            'expires': 15.0,  # Task expires after 15 seconds
+        }
+    },
+    'cleanup-simulation-logs': {
+        'task': 'simulator.cleanup_logs',
+        'schedule': crontab(hour=2, minute=0),  # Daily at 2:00 AM
+    },
+}
 
 
 @app.task(bind=True, ignore_result=True)
