@@ -4,6 +4,7 @@ from rest_framework.authtoken.views import obtain_auth_token
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView
 
 from . import views
+from . import category_views
 
 router = routers.DefaultRouter()
 router.register(r"company", views.CompanyViewSet)
@@ -41,6 +42,13 @@ urlpatterns = [
     path("service-today/", views.ServiceTodayView.as_view(), name="service_today"),
     path("which-shapes/", views.WhichShapesView.as_view(), name="which_shapes"),
     path("find-trips/", views.FindTripsView.as_view(), name="find_trips"),
+    # GTFS Categories
+    path("route-types/", category_views.RouteTypeListView.as_view(), name="route_types"),
+    path("location-types/", category_views.LocationTypeListView.as_view(), name="location_types"),
+    path("wheelchair-accessibility/", category_views.WheelchairAccessibilityListView.as_view(), name="wheelchair_accessibility"),
+    path("pickup-dropoff-types/", category_views.PickupDropoffTypeListView.as_view(), name="pickup_dropoff_types"),
+    path("payment-methods/", category_views.PaymentMethodListView.as_view(), name="payment_methods"),
+    path("transfer-types/", category_views.TransferTypeListView.as_view(), name="transfer_types"),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("docs/schema/", views.get_schema, name="schema"),
     path("docs/", views.RedocView.as_view(url_name="schema"), name="api_docs"),
