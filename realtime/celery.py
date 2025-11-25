@@ -38,6 +38,14 @@ app.conf.beat_schedule = {
         'task': 'feed.tasks.update_conn_status',
         'schedule': 30.0,  # Every 30 seconds
     },
+    'archive-old-data': {
+        'task': 'feed.tasks.archive_old_data',
+        'schedule': crontab(hour=3, minute=0),  # Daily at 3:00 AM
+    },
+    'generate-daily-statistics': {
+        'task': 'feed.tasks.generate_daily_statistics',
+        'schedule': crontab(hour=1, minute=0),  # Daily at 1:00 AM
+    },
 }
 
 

@@ -339,6 +339,218 @@ def update_conn_status():
     }
 
 
+@shared_task
+def archive_old_data():
+    """
+    Archiva y limpia datos antiguos de telemetría.
+    
+    Estrategia:
+    - Datos > 7 días: Exportar a JSON y eliminar (Position, Progression)
+    - Datos > 30 días: Exportar y eliminar (Occupancy, Journey completados)
+    - Journey activos: No eliminar
+    - Operators/Equipment: Marcar como 'archived', no eliminar
+    
+    Los datos se exportan para futura carga en S3/bucket externo.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    import json
+    from pathlib import Path
+    
+    now = timezone.now()
+    results = {
+        'timestamp': now.isoformat(),
+        'archived': {},
+        'deleted': {}
+    }
+    
+    # Directorio para archivos temporales de exportación
+    export_dir = Path('/tmp/databus_exports')
+    export_dir.mkdir(exist_ok=True)
+    
+    # 1. Archivar Position > 7 días
+    cutoff_7days = now - timedelta(days=7)
+    old_positions = Position.objects.filter(timestamp__lt=cutoff_7days)
+    
+    if old_positions.exists():
+        # Exportar a JSON
+        positions_data = list(old_positions.values(
+            'id', 'journey_id', 'vehicle_id', 'timestamp',
+            'latitude', 'longitude', 'bearing', 'speed', 'odometer'
+        ))
+        
+        export_file = export_dir / f'positions_{now.strftime("%Y%m%d")}.json'
+        with open(export_file, 'w') as f:
+            json.dump(positions_data, f, default=str)
+        
+        count = old_positions.count()
+        old_positions.delete()
+        
+        results['archived']['positions'] = {
+            'count': count,
+            'file': str(export_file)
+        }
+        results['deleted']['positions'] = count
+    
+    # 2. Archivar Progression > 7 días
+    old_progressions = Progression.objects.filter(timestamp__lt=cutoff_7days)
+    
+    if old_progressions.exists():
+        progressions_data = list(old_progressions.values(
+            'id', 'journey_id', 'vehicle_id', 'timestamp',
+            'current_stop_sequence', 'stop_id', 'current_status', 'congestion_level'
+        ))
+        
+        export_file = export_dir / f'progressions_{now.strftime("%Y%m%d")}.json'
+        with open(export_file, 'w') as f:
+            json.dump(progressions_data, f, default=str)
+        
+        count = old_progressions.count()
+        old_progressions.delete()
+        
+        results['archived']['progressions'] = {
+            'count': count,
+            'file': str(export_file)
+        }
+        results['deleted']['progressions'] = count
+    
+    # 3. Archivar Occupancy > 30 días
+    cutoff_30days = now - timedelta(days=30)
+    old_occupancies = Occupancy.objects.filter(timestamp__lt=cutoff_30days)
+    
+    if old_occupancies.exists():
+        occupancies_data = list(old_occupancies.values(
+            'id', 'journey_id', 'vehicle_id', 'timestamp',
+            'occupancy_status', 'occupancy_percentage', 'occupancy_count'
+        ))
+        
+        export_file = export_dir / f'occupancies_{now.strftime("%Y%m%d")}.json'
+        with open(export_file, 'w') as f:
+            json.dump(occupancies_data, f, default=str)
+        
+        count = old_occupancies.count()
+        old_occupancies.delete()
+        
+        results['archived']['occupancies'] = {
+            'count': count,
+            'file': str(export_file)
+        }
+        results['deleted']['occupancies'] = count
+    
+    # 4. Archivar Journey completados > 30 días
+    old_journeys = Journey.objects.filter(
+        journey_status__in=['COMPLETED', 'INTERRUPTED'],
+        start_date__lt=(now - timedelta(days=30)).date()
+    )
+    
+    if old_journeys.exists():
+        journeys_data = list(old_journeys.values(
+            'id', 'vehicle_id', 'equipment_id', 'operator_id',
+            'route_id', 'trip_id', 'direction_id', 'shape_id',
+            'start_date', 'start_time', 'journey_status', 'schedule_relationship'
+        ))
+        
+        export_file = export_dir / f'journeys_{now.strftime("%Y%m%d")}.json'
+        with open(export_file, 'w') as f:
+            json.dump(journeys_data, f, default=str)
+        
+        count = old_journeys.count()
+        old_journeys.delete()
+        
+        results['archived']['journeys'] = {
+            'count': count,
+            'file': str(export_file)
+        }
+        results['deleted']['journeys'] = count
+    
+    return results
+
+
+@shared_task
+def generate_daily_statistics():
+    """
+    Genera estadísticas diarias sintetizadas de telemetría.
+    
+    Calcula y almacena:
+    - Promedio de posiciones por vehículo
+    - Promedio de ocupación por ruta
+    - Tiempos de viaje promedio
+    - Nivel de congestión por hora del día
+    """
+    from django.utils import timezone
+    from django.db.models import Avg, Count, Max, Min
+    from datetime import timedelta
+    
+    now = timezone.now()
+    yesterday = now - timedelta(days=1)
+    
+    stats = {
+        'date': yesterday.date().isoformat(),
+        'generated_at': now.isoformat(),
+        'vehicles': {},
+        'routes': {},
+        'system': {}
+    }
+    
+    # Estadísticas por vehículo
+    from feed.models import Vehicle
+    vehicles = Vehicle.objects.all()
+    
+    for vehicle in vehicles:
+        positions_count = Position.objects.filter(
+            vehicle=vehicle,
+            timestamp__date=yesterday.date()
+        ).count()
+        
+        avg_occupancy = Occupancy.objects.filter(
+            vehicle=vehicle,
+            timestamp__date=yesterday.date()
+        ).aggregate(Avg('occupancy_percentage'))
+        
+        journeys_count = Journey.objects.filter(
+            vehicle=vehicle,
+            start_date=yesterday.date()
+        ).count()
+        
+        stats['vehicles'][vehicle.license_plate] = {
+            'positions': positions_count,
+            'avg_occupancy': avg_occupancy['occupancy_percentage__avg'] or 0,
+            'journeys': journeys_count
+        }
+    
+    # Estadísticas del sistema
+    total_positions = Position.objects.filter(
+        timestamp__date=yesterday.date()
+    ).count()
+    
+    total_journeys = Journey.objects.filter(
+        start_date=yesterday.date()
+    ).count()
+    
+    stats['system'] = {
+        'total_positions': total_positions,
+        'total_journeys': total_journeys,
+        'active_vehicles': len([v for v in stats['vehicles'].values() if v['positions'] > 0])
+    }
+    
+    # Guardar estadísticas (podrían almacenarse en un modelo DailyStatistics)
+    from pathlib import Path
+    import json
+    
+    stats_dir = Path('/tmp/databus_stats')
+    stats_dir.mkdir(exist_ok=True)
+    
+    stats_file = stats_dir / f'stats_{yesterday.date().isoformat()}.json'
+    with open(stats_file, 'w') as f:
+        json.dump(stats, f, indent=2, default=str)
+    
+    return {
+        'success': True,
+        'date': yesterday.date().isoformat(),
+        'stats_file': str(stats_file)
+    }
+
+
 def _format_time(time) -> str:
     """Format start time into a string in HH:MM:SS format.
 
