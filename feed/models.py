@@ -29,14 +29,37 @@ class Company(models.Model):
 
 
 class Operator(models.Model):
+    ROLE_CHOICES = [
+        ('admin', 'Administrator'),
+        ('operator', 'Bus Operator'),
+        ('dispatcher', 'Dispatcher'),
+        ('supervisor', 'Supervisor'),
+        ('api_client', 'API Client'),
+        ('readonly', 'Read Only'),
+    ]
+    
     id = models.CharField(max_length=100, primary_key=True, unique=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     company = models.ManyToManyField(Company)
     phone = models.CharField(max_length=100, blank=True, null=True)
     photo = models.ImageField(upload_to="operators/", blank=True, null=True)
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='operator',
+        help_text="User role for access control"
+    )
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} ({self.id})"
+    
+    @property
+    def is_admin(self):
+        return self.role == 'admin' or self.user.is_staff
+    
+    @property
+    def can_write(self):
+        return self.role in ['admin', 'operator', 'dispatcher', 'supervisor']
 
 
 class DataProvider(models.Model):

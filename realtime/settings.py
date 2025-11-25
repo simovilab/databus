@@ -36,6 +36,7 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 INSTALLED_APPS = [
     "daphne",
     "channels",
+    "corsheaders",  # CORS headers support
     "gtfs.apps.GtfsConfig",
     "feed.apps.FeedConfig",
     "website.apps.WebsiteConfig",
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
     "tods.apps.TodsConfig",
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "django_celery_results",
     "django_celery_beat",
@@ -60,11 +62,23 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # CORS (must be before CommonMiddleware)
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # API caching and performance
+    "api.cache_middleware.SecurityHeadersMiddleware",
+    "api.cache_middleware.ConditionalGetMiddleware",
+    "api.cache_middleware.APICacheControlMiddleware",
+    "api.cache_middleware.LastModifiedMiddleware",
+    "api.cache_middleware.CompressionVaryMiddleware",
+    "api.cache_middleware.APIResponseTimingMiddleware",
+    # Rate limiting and API client authentication
+    "api.rate_limit_middleware.APIClientAuthMiddleware",
+    "api.rate_limit_middleware.RateLimitHeaderMiddleware",
+    "api.rate_limit_middleware.ClientUsageTrackingMiddleware",
 ]
 
 ROOT_URLCONF = "realtime.urls"
@@ -139,7 +153,6 @@ CACHES = {
         "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
         "OPTIONS": {
             "db": "1",
-            "parser_class": "redis.connection.PythonParser",
             "pool_class": "redis.BlockingConnectionPool",
         },
         "TIMEOUT": 300,  # 5 minutes default
@@ -155,24 +168,47 @@ CELERY_RESULTS_EXTENDED = True
 
 # REST Framework settings
 
+from datetime import timedelta
+
 REST_FRAMEWORK = {
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    # Pagination
+    "DEFAULT_PAGINATION_CLASS": "api.pagination.StandardPageNumberPagination",
     "PAGE_SIZE": 50,
+    
+    # Schema
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    
+    # Authentication
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
+    
+    # Permissions
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ],
+    
+    # Throttling
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        "api.throttling.GlobalAnonThrottle",
+        "api.throttling.GlobalUserThrottle",
+        "api.throttling.ClientQuotaThrottle",
+        "api.throttling.BurstRateThrottle",
+        "api.throttling.SustainedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
+        # Global limits for anonymous users
         "anon": "100/hour",
+        # Global limits for authenticated users (without API key)
         "user": "1000/hour",
+        # Per-client limits (defined in ClientQuota model)
+        "client_quota": None,  # Managed per-client
+        # Burst protection (short time window)
+        "burst": "20/second",
+        # Sustained rate limit (long time window)
+        "sustained": "1000/hour",
     },
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
@@ -184,6 +220,35 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
+}
+
+# Simple JWT settings
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "VERIFYING_KEY": None,
+    "AUDIENCE": None,
+    "ISSUER": "databus",
+    
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    
+    "JTI_CLAIM": "jti",
+    
+    "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
+    "SLIDING_TOKEN_LIFETIME": timedelta(hours=1),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=7),
 }
 
 SPECTACULAR_SETTINGS = {
@@ -232,3 +297,197 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# =============================================================================
+# SECURITY AND PERFORMANCE SETTINGS (Issue #24)
+# =============================================================================
+
+# CORS Configuration
+# https://github.com/adamchainz/django-cors-headers
+
+# Environment-specific CORS settings
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:3000,http://localhost:8080",
+    cast=Csv()
+)
+
+# Allow credentials (cookies, auth headers)
+CORS_ALLOW_CREDENTIALS = True
+
+# Allowed methods
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+# Allowed headers
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-api-key",  # Custom API key header
+]
+
+# Expose additional headers to browser
+CORS_EXPOSE_HEADERS = [
+    "content-type",
+    "x-ratelimit-limit",
+    "x-ratelimit-remaining",
+    "x-ratelimit-reset",
+    "x-response-time",
+    "etag",
+    "last-modified",
+    "cache-control",
+]
+
+# Cache preflight requests for 1 hour
+CORS_PREFLIGHT_MAX_AGE = 3600
+
+# Security Headers
+# https://docs.djangoproject.com/en/5.0/ref/settings/#security
+
+# Force HTTPS in production
+SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=False, cast=bool)
+
+# HSTS (HTTP Strict Transport Security)
+SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=0, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=False, cast=bool)
+SECURE_HSTS_PRELOAD = config("SECURE_HSTS_PRELOAD", default=False, cast=bool)
+
+# Cookie security
+SESSION_COOKIE_SECURE = config("SESSION_COOKIE_SECURE", default=False, cast=bool)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
+CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=False, cast=bool)
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# Prevent browser from sniffing content types
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# XSS protection
+SECURE_BROWSER_XSS_FILTER = True
+
+# Referrer policy
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# Database Connection Pooling and Timeouts
+# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+
+# Connection pool settings (using persistent connections)
+CONN_MAX_AGE = config("CONN_MAX_AGE", default=600, cast=int)  # 10 minutes
+
+# Database connection timeout
+DATABASE_CONNECT_TIMEOUT = config("DATABASE_CONNECT_TIMEOUT", default=5, cast=int)  # 5 seconds
+
+# Statement timeout (PostgreSQL specific)
+DATABASE_STATEMENT_TIMEOUT = config("DATABASE_STATEMENT_TIMEOUT", default=30000, cast=int)  # 30 seconds in ms
+
+# Update database configuration with timeouts
+DATABASES["default"]["CONN_MAX_AGE"] = CONN_MAX_AGE
+DATABASES["default"]["OPTIONS"] = {
+    "connect_timeout": DATABASE_CONNECT_TIMEOUT,
+    "options": f"-c statement_timeout={DATABASE_STATEMENT_TIMEOUT}",
+}
+
+# HTTP Request Timeouts
+# Used by external services and Celery tasks
+
+REQUEST_TIMEOUT = config("REQUEST_TIMEOUT", default=30, cast=int)  # 30 seconds
+REQUEST_CONNECT_TIMEOUT = config("REQUEST_CONNECT_TIMEOUT", default=5, cast=int)  # 5 seconds
+
+# Celery Timeouts
+# https://docs.celeryproject.org/en/stable/userguide/configuration.html
+
+CELERY_TASK_TIME_LIMIT = config("CELERY_TASK_TIME_LIMIT", default=300, cast=int)  # 5 minutes hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = config("CELERY_TASK_SOFT_TIME_LIMIT", default=240, cast=int)  # 4 minutes soft limit
+
+# Redis connection pool settings (already configured, document for reference)
+# CACHES['default']['OPTIONS']['pool_class'] = 'redis.BlockingConnectionPool'
+# Maximum connections in pool: 50 (default)
+# Connection timeout: 20 seconds (default)
+
+# Cache timeouts for different data types
+CACHE_TTL = {
+    "gtfs_static": 3600,      # GTFS static data: 1 hour
+    "realtime_feed": 30,      # Realtime feeds: 30 seconds
+    "api_response": 300,      # API responses: 5 minutes
+    "user_session": 1800,     # User sessions: 30 minutes
+    "rate_limit": 86400,      # Rate limit counters: 24 hours
+}
+
+# GZip Compression
+# https://docs.djangoproject.com/en/5.0/ref/middleware/#module-django.middleware.gzip
+
+# Enable GZip compression for responses
+MIDDLEWARE.insert(0, "django.middleware.gzip.GZipMiddleware")
+
+# Minimum size for compression (in bytes)
+GZIP_MINIMUM_SIZE = 1024  # 1 KB
+
+# Pagination defaults (already configured in REST_FRAMEWORK, document for reference)
+# See api/pagination.py for custom pagination classes
+
+# Performance monitoring
+# Add X-Response-Time header via middleware (already enabled)
+
+# Content Security Policy
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")  # Allow inline scripts for admin
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
+CSP_IMG_SRC = ("'self'", "data:", "https:")
+CSP_FONT_SRC = ("'self'", "data:")
+CSP_CONNECT_SRC = ("'self'",)
+
+# =============================================================================
+# ENVIRONMENT-SPECIFIC OVERRIDES
+# =============================================================================
+
+# Development settings
+if DEBUG:
+    # Allow all origins in development
+    CORS_ALLOW_ALL_ORIGINS = config("CORS_ALLOW_ALL_ORIGINS", default=True, cast=bool)
+    
+    # Disable HTTPS redirects in development
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    
+    # Add debug toolbar if installed
+    try:
+        import debug_toolbar
+        INSTALLED_APPS.append("debug_toolbar")
+        MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+        INTERNAL_IPS = ["127.0.0.1", "localhost"]
+    except ImportError:
+        pass
+
+# Production settings
+else:
+    # Strict CORS in production
+    CORS_ALLOW_ALL_ORIGINS = False
+    
+    # Force HTTPS
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # HSTS
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Longer connection pooling in production
+    DATABASES["default"]["CONN_MAX_AGE"] = 600  # 10 minutes

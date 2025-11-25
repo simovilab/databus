@@ -10,7 +10,9 @@ python-decouple>=3.8
 # REST API
 djangorestframework>=3.16.1
 djangorestframework-gis>=1.2.0
+djangorestframework-simplejwt>=5.5.1
 drf-spectacular>=0.28.0
+django-cors-headers>=4.6.0
 
 # WebSockets y async
 channels>=4.3.1

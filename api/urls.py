@@ -5,6 +5,8 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView
 
 from . import views
 from . import category_views
+from . import jwt_views
+from . import client_views
 
 router = routers.DefaultRouter()
 router.register(r"company", views.CompanyViewSet)
@@ -17,6 +19,10 @@ router.register(r"journey", views.JourneyViewSet)
 router.register(r"position", views.PositionViewSet)
 router.register(r"progression", views.ProgressionViewSet)
 router.register(r"occupancy", views.OccupancyViewSet)
+# API Client Registry
+router.register(r"clients", client_views.APIClientViewSet, basename="client")
+router.register(r"client-metrics", client_views.ClientUsageMetricsViewSet, basename="client-metrics")
+router.register(r"client-audit", client_views.ClientAuditLogViewSet, basename="client-audit")
 # GTFS Schedule
 router.register(r"agency", views.AgencyViewSet)
 router.register(r"stops", views.StopViewSet)
@@ -49,6 +55,12 @@ urlpatterns = [
     path("pickup-dropoff-types/", category_views.PickupDropoffTypeListView.as_view(), name="pickup_dropoff_types"),
     path("payment-methods/", category_views.PaymentMethodListView.as_view(), name="payment_methods"),
     path("transfer-types/", category_views.TransferTypeListView.as_view(), name="transfer_types"),
+    # JWT Authentication
+    path("auth/token/", jwt_views.CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("auth/token/refresh/", jwt_views.CustomTokenRefreshView.as_view(), name="token_refresh"),
+    path("auth/verify/", jwt_views.TokenVerifyView.as_view(), name="token_verify"),
+    path("auth/logout/", jwt_views.LogoutView.as_view(), name="logout"),
+    # DRF Auth & Docs
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("docs/schema/", views.get_schema, name="schema"),
     path("docs/", views.RedocView.as_view(url_name="schema"), name="api_docs"),
