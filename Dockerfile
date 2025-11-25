@@ -31,15 +31,19 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
+# Copy source code (needed for both stages)
+COPY . .
+
 # ---- Development stage
 FROM base as dev
 # -------------------
 
-# Copy source code
-COPY --chown=app:app . .
+# Set work directory
+WORKDIR /app
 
 # Ensure entrypoint script executable
-RUN chmod +x /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh && \
+    chmod +x /app/scripts/*.sh
 
 USER app
 
@@ -53,14 +57,13 @@ CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 FROM base as prod
 # ------------------
 
-# Copy source code
-COPY --chown=app:app . .
+# Set work directory
+WORKDIR /app
 
-# Ensure entrypoint script executable
-RUN chmod +x /app/docker-entrypoint.sh
-
-# Create static files and media directories
-RUN mkdir -p /app/staticfiles /app/media && \
+# Ensure entrypoint script executable and create directories
+RUN chmod +x /app/docker-entrypoint.sh && \
+    chmod +x /app/scripts/*.sh && \
+    mkdir -p /app/staticfiles /app/media && \
     chown -R app:app /app/staticfiles /app/media
 
 USER app
