@@ -6,7 +6,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 Databús is a Django-based backend server implementing GTFS Schedule and GTFS Realtime specifications for transit data management. It provides RESTful API endpoints for static schedule data and real-time vehicle information with PostgreSQL/PostGIS storage, Celery for background processing, and Redis for caching and message brokering.
 
-**Tech Stack:** Django 5.2+, Python 3.11+, PostgreSQL/PostGIS, Redis, Celery, Django Channels, uv package manager
+**Tech Stack:** Django 5.2+, Python 3.14+, PostgreSQL 18/PostGIS 3.6, Redis 8.4, Celery, Django Channels, uv package manager
 
 ## Development Commands
 

@@ -95,13 +95,13 @@ services:
         condition: service_healthy
 
   db:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:18-3.6
     environment:
       - POSTGRES_DB=${DB_NAME:-realtime}
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}", "-d", "${DB_NAME:-realtime}"]
       interval: 10s
