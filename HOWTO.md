@@ -56,62 +56,233 @@ Ensure the scripts are executable:
 chmod +x ./scripts/*.sh
 ```
 
-## Start the Container with the Development Environment
+## Build and Run the Containers
 
-### 1. Run Docker Desktop:
+### 1. Run Docker Desktop
 
 Open the Docker Desktop executable application.
 
-### 2. Run the Scripts
+### 2. Build and Start All Services
 
-Run the script from the root:
+Build and start all containers in detached mode:
 
 ```bash
-./scripts/dev.sh
+docker-compose up -d --build
 ```
 
+This command will:
+- Build the Docker images
+- Start PostgreSQL, Redis, Django web server, Celery worker, and Celery beat
+- Run in the background (detached mode)
+
 > [!NOTE]
-> It is normal to see several warnings during this process.
-> This process may take several minutes, be patient until it says "database is ready to accept connections"
+> The first build may take several minutes. Subsequent builds will be faster.
+
+### 3. Check Container Status
+
+Verify all containers are running:
+
+```bash
+docker-compose ps
+```
+
+### 4. View Logs
+
+View logs from all services:
+
+```bash
+docker-compose logs -f
+```
+
+Or view logs from a specific service:
+
+```bash
+docker-compose logs -f web
+```
+
+## Apply Migrations and Create Superuser
+
+### Apply Database Migrations
+
+Run migrations inside the container:
+
+```bash
+docker-compose exec web python manage.py migrate
+```
+
+Or use the helper script:
+
+```bash
+docker-compose exec web ./scripts/migrate.sh
+```
+
+### Create a Superuser
+
+Create an admin user interactively:
+
+```bash
+docker-compose exec web python manage.py createsuperuser
+```
+
+Or use the helper script:
+
+```bash
+docker-compose exec web ./scripts/superuser.sh
+```
+
+Follow the prompts to enter username, email, and password.
+
+## Run Tests
+
+Run the test suite inside the container:
+
+```bash
+docker-compose exec web python manage.py test
+```
+
+Or use the helper script:
+
+```bash
+docker-compose exec web ./scripts/test.sh
+```
+
+## Stop and Clean Up Containers
+
+### Stop All Containers
+
+Stop all running containers without removing them:
+
+```bash
+docker-compose stop
+```
+
+### Stop and Remove Containers
+
+Stop and remove all containers:
+
+```bash
+docker-compose down
+```
+
+### Stop, Remove Containers, and Delete Volumes
+
+Stop containers and remove all data (including database):
+
+```bash
+docker-compose down -v
+```
+
+> [!WARNING]
+> Using `-v` flag will delete all data in PostgreSQL and Redis. Use with caution!
+
+### Remove Everything (Containers, Volumes, and Images)
+
+```bash
+docker-compose down -v --rmi all
+```
 
 ## Access the Application
 
-Once everything is running, access the browser with the following address, which by default is port 8000:
+Once everything is running, access the application in your browser:
 
 ```
 http://localhost:8000/
 ```
 
-## Common Issues
+Access the Django admin panel:
 
-### Permission Denied in the Docker Console
-- Restart the docker container with
-
-```bash
-./scripts/dev.sh
+```
+http://localhost:8000/admin/
 ```
 
-### The Container Does Not Start or Fails During Installation
+## Common Issues
 
-- Verify that Docker is running correctly.
-- Ensure that the `.env.local` file is present and properly configured.
-- If changes are made to the `Dockerfile` or dependencies, run:
+### Container Fails to Start
+
+- Verify that Docker is running correctly
+- Ensure that the `.env` file is present and properly configured
+- Check if ports 8000, 5432, or 6379 are already in use
+- Try rebuilding the containers:
 
 ```bash
-docker compose down
-docker compose up --build
+docker-compose down -v
+docker-compose up -d --build
+```
+
+### Database Connection Errors
+
+- Ensure PostgreSQL container is healthy:
+
+```bash
+docker-compose ps db
+```
+
+- Check database logs:
+
+```bash
+docker-compose logs db
+```
+
+- Verify environment variables in `.env` file match the database service configuration
+
+### Permission Denied in the Docker Console
+
+- Restart the docker containers:
+
+```bash
+docker-compose restart
+```
+
+### Changes Not Reflected in Container
+
+If you modify `Dockerfile`, `requirements.txt`, or other build files, rebuild the containers:
+
+```bash
+docker-compose up -d --build
 ```
 
 ## Other Useful Commands
 
-### Stop the Environment
+### Restart a Specific Service
 
 ```bash
-docker compose down
+docker-compose restart web
+```
+
+### Execute Commands in a Running Container
+
+```bash
+docker-compose exec web bash
 ```
 
 ### View Real-Time Logs
 
+View logs from all services:
+
 ```bash
-docker compose logs -f
+docker-compose logs -f
+```
+
+View logs from a specific service:
+
+```bash
+docker-compose logs -f web
+```
+
+### Rebuild a Single Service
+
+```bash
+docker-compose up -d --build web
+```
+
+### List All Containers
+
+```bash
+docker-compose ps
+```
+
+### Check Container Resource Usage
+
+```bash
+docker stats
 ```
