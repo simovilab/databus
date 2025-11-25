@@ -1,0 +1,55 @@
+Roadmap de dos semanas
+
+Semana 1 (Lunes - Sábado)
+
+Lunes - Día 1: Planificación y arquitectura de la base de datos
+- Definir el esquema de base de datos para vehículos, dispositivos, personas y agencias.
+- Definir CRUD para las entidades principales.
+Archivos necesarios:
+- Esquema de base de datos (SQL/NoSQL)
+- Modelos de Django
+
+Martes - Día 2: Endpoints CRUD y Validación
+- Implementar endpoints CRUD con Django REST Framework.
+- Crear validación de datos con serializers y middleware.
+Archivos necesarios:
+- views.py
+- serializers.py
+- middleware de validación
+
+Miércoles - Día 3: Autenticación
+- Implementar JWT.
+Archivos necesarios:
+- middleware de autenticación
+- configuración de Docker y .env
+- Machote de documentación técnica
+
+Jueves - Día 4: Paginación, caché y seguridad
+- Implementar paginación.
+- Integrar Redis para caching.
+- Configurar CORS y seguridad básica.
+Archivos necesarios:
+- settings.py modificado
+- redis.py
+- Avance en documentación técnica
+
+Viernes - Día 5: Documentación OpenAPI
+- Completar documentación con Swagger.
+Archivos necesarios:
+- openapi.yaml o drf-yasg config
+- Documentación técnica para revisión
+
+Sábado - Día 6: Prototipo del Admin Panel
+- Crear panel básico (Vue o Django Admin custom).
+Archivos necesarios:
+- templates
+- componentes frontend
+- Documentación técnica finalizada
+
+Semana 2 (Lunes - Sábado)
+
+Lunes - Día 7: Finalización del CRUD
+Martes - Día 8: Seguridad avanzada y permisos
+Miércoles - Día 9: Unit e integration tests
+Jueves - Día 10: Despliegue en entorno de pruebas
+Viernes - Día 11: Optimización de rendimiento
