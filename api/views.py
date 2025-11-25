@@ -1,20 +1,26 @@
 from django.conf import settings
 from django.http import FileResponse
 from django.contrib.auth import authenticate
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django.views.decorators.csrf import csrf_exempt
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 from drf_spectacular.views import SpectacularRedocView
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 
 from feed.models import *
 from gtfs.models import Feed, Trip, StopTime, RouteStop
 from .serializers import *
+from .permissions import IsOperatorOrReadOnly, IsAdminOrReadOnly, CanManageEquipment
 
 from datetime import datetime, timedelta
 
@@ -51,10 +57,63 @@ class LoginView(APIView):
             return Response({"error": "Usuario o contraseña incorrectos"}, status=400)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        description="List all companies",
+        examples=[
+            OpenApiExample(
+                'Company List Response',
+                value={
+                    "count": 1,
+                    "next": None,
+                    "previous": None,
+                    "results": [{
+                        "id": "company001",
+                        "name": "Transporte Ejemplo S.A.",
+                        "description": "Empresa de transporte público",
+                        "phone": "+50612345678",
+                        "email": "contacto@ejemplo.com"
+                    }]
+                },
+                response_only=True
+            )
+        ]
+    ),
+    create=extend_schema(
+        description="Create a new company",
+        examples=[
+            OpenApiExample(
+                'Create Company Request',
+                value={
+                    "id": "company002",
+                    "name": "Nueva Compañía",
+                    "description": "Descripción de la compañía",
+                    "phone": "+50687654321",
+                    "email": "info@nueva.com"
+                },
+                request_only=True
+            )
+        ]
+    )
+)
 class CompanyViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing transport companies.
+    
+    list: Get all companies
+    retrieve: Get a specific company by ID
+    create: Create a new company (admin only)
+    update: Update a company (admin only)
+    partial_update: Partially update a company (admin only)
+    destroy: Delete a company (admin only)
+    """
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
-    # authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['name', 'description']
+    ordering_fields = ['name', 'id']
+    ordering = ['name']
 
 
 class DataProviderViewSet(viewsets.ModelViewSet):
@@ -63,12 +122,43 @@ class DataProviderViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
+@extend_schema_view(
+    list=extend_schema(
+        description="List all vehicles with optional filtering",
+        parameters=[
+            OpenApiParameter(name='company', description='Filter by company ID', required=False, type=str),
+        ],
+    ),
+    create=extend_schema(
+        description="Create a new vehicle",
+        examples=[
+            OpenApiExample(
+                'Create Vehicle Request',
+                value={
+                    "company": "company001",
+                    "license_plate": "ABC123",
+                    "vehicle_type": "bus",
+                    "capacity": 40
+                },
+                request_only=True
+            )
+        ]
+    )
+)
 class VehicleViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing vehicles.
+    
+    Supports filtering by company.
+    """
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
-    filter_backends = [DjangoFilterBackend]
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["company"]
-    authentication_classes = [TokenAuthentication]
+    search_fields = ['license_plate', 'internal_id']
+    ordering_fields = ['license_plate', 'id']
+    ordering = ['license_plate']
 
 
 class EquipmentViewSet(viewsets.ModelViewSet):
@@ -102,38 +192,165 @@ class OperatorViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
+@extend_schema_view(
+    list=extend_schema(
+        description="List all journeys with optional filtering",
+        parameters=[
+            OpenApiParameter(name='vehicle', description='Filter by vehicle ID', required=False, type=int),
+            OpenApiParameter(name='status', description='Filter by status', required=False, type=str),
+            OpenApiParameter(name='operator', description='Filter by operator ID', required=False, type=str),
+        ],
+    ),
+    create=extend_schema(
+        description="Create a new journey",
+        examples=[
+            OpenApiExample(
+                'Create Journey Request',
+                value={
+                    "vehicle": 1,
+                    "operator": "OP001",
+                    "trip": 100,
+                    "start_time": "2025-11-25T06:00:00Z",
+                    "status": "ACTIVE"
+                },
+                request_only=True
+            )
+        ]
+    )
+)
 class JourneyViewSet(viewsets.ModelViewSet):
-    queryset = Journey.objects.all()
+    """
+    API endpoint for managing journeys (vehicle trips).
+    
+    A journey represents a specific execution of a planned trip by a vehicle.
+    Supports filtering by vehicle, status, and operator.
+    """
+    queryset = Journey.objects.select_related('vehicle', 'operator', 'trip').all()
     serializer_class = JourneySerializer
-    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsOperatorOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['vehicle', 'status', 'operator', 'connection_status']
+    search_fields = ['vehicle__license_plate', 'operator__id']
+    ordering_fields = ['start_time', 'end_time', 'status']
+    ordering = ['-start_time']
 
-    def create(self, request):
+    def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
         return Response(
-            {
-                "id": serializer.instance.id,
-            }
+            {"id": serializer.instance.id, **serializer.data},
+            status=status.HTTP_201_CREATED,
+            headers=headers
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        description="List vehicle positions with optional filtering",
+        parameters=[
+            OpenApiParameter(name='vehicle', description='Filter by vehicle ID', required=False, type=int),
+            OpenApiParameter(name='journey', description='Filter by journey ID', required=False, type=int),
+        ],
+    ),
+    create=extend_schema(
+        description="Report a vehicle position",
+        examples=[
+            OpenApiExample(
+                'Create Position Request (with lat/lon)',
+                value={
+                    "vehicle": 1,
+                    "journey": 10,
+                    "latitude": 9.9333,
+                    "longitude": -84.0833,
+                    "bearing": 45.5,
+                    "speed": 35.0,
+                    "timestamp": "2025-11-25T10:30:00Z"
+                },
+                request_only=True
+            ),
+            OpenApiExample(
+                'Create Position Request (with point)',
+                value={
+                    "vehicle": 1,
+                    "journey": 10,
+                    "point": "POINT(-84.0833 9.9333)",
+                    "bearing": 45.5,
+                    "speed": 35.0,
+                    "timestamp": "2025-11-25T10:30:00Z"
+                },
+                request_only=True
+            )
+        ]
+    )
+)
 class PositionViewSet(viewsets.ModelViewSet):
-    queryset = Position.objects.all()
+    """
+    API endpoint for vehicle positions (GPS telemetry).
+    
+    Positions can be created using either:
+    - 'latitude' and 'longitude' fields (simpler)
+    - 'point' field with WKT/GeoJSON (advanced)
+    
+    Supports filtering by vehicle and journey.
+    """
+    queryset = Position.objects.select_related('vehicle', 'journey').all()
     serializer_class = PositionSerializer
-    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsOperatorOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['vehicle', 'journey']
+    ordering_fields = ['timestamp']
+    ordering = ['-timestamp']
 
 
+@extend_schema_view(
+    list=extend_schema(
+        description="List progression updates with optional filtering",
+        parameters=[
+            OpenApiParameter(name='vehicle', description='Filter by vehicle ID', required=False, type=int),
+            OpenApiParameter(name='journey', description='Filter by journey ID', required=False, type=int),
+            OpenApiParameter(name='trip', description='Filter by trip ID', required=False, type=int),
+        ],
+    ),
+)
 class ProgressionViewSet(viewsets.ModelViewSet):
-    queryset = Progression.objects.all()
+    """
+    API endpoint for vehicle progression (stop arrivals/departures).
+    
+    Progression tracks a vehicle's movement through trip stops.
+    """
+    queryset = Progression.objects.select_related('vehicle', 'journey', 'trip', 'stop').all()
     serializer_class = ProgressionSerializer
-    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsOperatorOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['vehicle', 'journey', 'trip', 'stop']
+    ordering_fields = ['timestamp', 'stop_sequence']
+    ordering = ['-timestamp']
 
 
+@extend_schema_view(
+    list=extend_schema(
+        description="List occupancy updates with optional filtering",
+        parameters=[
+            OpenApiParameter(name='vehicle', description='Filter by vehicle ID', required=False, type=int),
+            OpenApiParameter(name='journey', description='Filter by journey ID', required=False, type=int),
+        ],
+    ),
+)
 class OccupancyViewSet(viewsets.ModelViewSet):
-    queryset = Occupancy.objects.all()
+    """
+    API endpoint for vehicle occupancy (passenger count).
+    
+    Tracks how many passengers are on board.
+    """
+    queryset = Occupancy.objects.select_related('vehicle', 'journey').all()
     serializer_class = OccupancySerializer
-    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsOperatorOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['vehicle', 'journey', 'occupancy_status']
+    ordering_fields = ['timestamp']
+    ordering = ['-timestamp']
 
 
 # -------------
