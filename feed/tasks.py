@@ -205,6 +205,140 @@ def build_alerts():
     return "Feed ServiceAlert built"
 
 
+@shared_task
+def update_journey_status():
+    """
+    Actualiza el estado de los viajes según criterios de terminación.
+    
+    Criterios:
+    - Si last_update > TTL (5 minutos sin actualización) -> journey_status = 'STALE'
+    - Si está en parada final > 2 minutos -> journey_status = 'COMPLETED'
+    - Si journey_status = 'STALE' y no hay updates en 30 min -> journey_status = 'INTERRUPTED'
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from gtfs.models import StopTime
+    
+    now = timezone.now()
+    updated_count = 0
+    
+    # Obtener viajes en progreso
+    journeys = Journey.objects.filter(journey_status='IN_PROGRESS')
+    
+    for journey in journeys:
+        # Obtener última posición
+        last_position = Position.objects.filter(journey=journey).order_by('-timestamp').first()
+        
+        if not last_position:
+            continue
+        
+        time_since_update = now - last_position.timestamp
+        
+        # Criterio 1: Sin actualización por más de 5 minutos -> STALE
+        if time_since_update > timedelta(minutes=5):
+            journey.journey_status = 'STALE'
+            journey.save()
+            updated_count += 1
+            continue
+        
+        # Criterio 2: Verificar si está en parada final
+        last_progression = Progression.objects.filter(journey=journey).order_by('-timestamp').first()
+        
+        if last_progression:
+            # Obtener última parada del trip
+            final_stop = StopTime.objects.filter(
+                trip__trip_id=journey.trip_id
+            ).order_by('-stop_sequence').first()
+            
+            if final_stop and last_progression.stop_id == final_stop.stop_id:
+                # Si lleva más de 2 minutos en parada final -> COMPLETED
+                time_at_final = now - last_progression.timestamp
+                if time_at_final > timedelta(minutes=2):
+                    journey.journey_status = 'COMPLETED'
+                    journey.save()
+                    updated_count += 1
+    
+    # Criterio 3: Viajes STALE sin updates en 30 min -> INTERRUPTED
+    stale_journeys = Journey.objects.filter(journey_status='STALE')
+    
+    for journey in stale_journeys:
+        last_position = Position.objects.filter(journey=journey).order_by('-timestamp').first()
+        if last_position:
+            time_since_update = now - last_position.timestamp
+            if time_since_update > timedelta(minutes=30):
+                journey.journey_status = 'INTERRUPTED'
+                journey.save()
+                updated_count += 1
+    
+    return {
+        'success': True,
+        'updated_count': updated_count,
+        'timestamp': now.isoformat()
+    }
+
+
+@shared_task
+def update_conn_status():
+    """
+    Actualiza el estado de conexión de los equipos activos.
+    
+    Estados:
+    - 'CONNECTED': Actualización reciente (< 30 segundos)
+    - 'INACTIVE': Sin actualización por 30-300 segundos
+    - 'LOST': Sin actualización por > 300 segundos (5 minutos)
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from feed.models import Equipment
+    
+    now = timezone.now()
+    updated_count = 0
+    
+    # Obtener todos los equipos
+    equipments = Equipment.objects.all()
+    
+    for equipment in equipments:
+        # Buscar última posición del vehículo asociado
+        if not equipment.vehicle:
+            continue
+            
+        last_position = Position.objects.filter(
+            vehicle=equipment.vehicle
+        ).order_by('-timestamp').first()
+        
+        if not last_position:
+            # Sin posiciones registradas
+            if equipment.conn_status != 'LOST':
+                equipment.conn_status = 'LOST'
+                equipment.save()
+                updated_count += 1
+            continue
+        
+        time_since_update = now - last_position.timestamp
+        
+        # Determinar estado de conexión
+        new_status = None
+        
+        if time_since_update < timedelta(seconds=30):
+            new_status = 'CONNECTED'
+        elif time_since_update < timedelta(seconds=300):
+            new_status = 'INACTIVE'
+        else:
+            new_status = 'LOST'
+        
+        # Actualizar si cambió el estado
+        if equipment.conn_status != new_status:
+            equipment.conn_status = new_status
+            equipment.save()
+            updated_count += 1
+    
+    return {
+        'success': True,
+        'updated_count': updated_count,
+        'timestamp': now.isoformat()
+    }
+
+
 def _format_time(time) -> str:
     """Format start time into a string in HH:MM:SS format.
 

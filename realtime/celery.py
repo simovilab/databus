@@ -30,6 +30,14 @@ app.conf.beat_schedule = {
         'task': 'simulator.cleanup_logs',
         'schedule': crontab(hour=2, minute=0),  # Daily at 2:00 AM
     },
+    'update-journey-status': {
+        'task': 'feed.tasks.update_journey_status',
+        'schedule': 60.0,  # Every 60 seconds
+    },
+    'update-connection-status': {
+        'task': 'feed.tasks.update_conn_status',
+        'schedule': 30.0,  # Every 30 seconds
+    },
 }
 
 
