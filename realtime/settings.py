@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "website.apps.WebsiteConfig",
     "api.apps.ApiConfig",
     "simulator.apps.SimulatorConfig",
+    "tods.apps.TodsConfig",
     "rest_framework",
     "rest_framework.authtoken",
     "drf_spectacular",
