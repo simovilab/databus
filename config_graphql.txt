@@ -1,0 +1,3 @@
+#congif_bash
+
+Python manage.py startapp graphql
