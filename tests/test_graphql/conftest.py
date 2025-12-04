@@ -63,7 +63,7 @@ def route(feed, agency):
         agency=agency,
         route_short_name="1",
         route_long_name="Downtown Express",
-        route_type=3,  # Bus
+        route_type=3,  # Ciencias del Movimiento Humano
         route_color="FF0000",
         route_text_color="FFFFFF",
     )
