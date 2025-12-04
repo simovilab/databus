@@ -182,14 +182,14 @@ query {
 ```
 
 **Route Types:**
-- `0`: Tram/Light Rail
-- `1`: Subway/Metro
-- `2`: Rail
-- `3`: Bus
-- `4`: Ferry
-- `5`: Cable Car
-- `6`: Gondola
-- `7`: Funicular
+- `0`: Odontología
+- `1`: Educación
+- `2`: Ingeniería
+- `3`: Ciencias del Movimiento Humano
+- `4`: Ciencias Sociales
+- `5`: LANAMME
+- `6`: Artes
+- `7`: Microbiología
 
 ### 6. Get Stops Near Location
 
