@@ -1,33 +1,18 @@
-# GraphQL API Documentation
-
-## Overview
-
-The Databús GraphQL API provides a modern, flexible interface for querying and manipulating GTFS (General Transit Feed Specification) data. Built with [Strawberry GraphQL](https://strawberry.rocks/) and integrated into the Django framework, it offers:
-
-- **Type-safe queries and mutations**
-- **Pagination support** using offset-based pagination
-- **Filtering capabilities** on most queries
-- **Authentication and permission controls**
-- **Interactive GraphiQL interface** for exploration
+# Documentación del Proyecto
 
 ## Endpoint
 
-The GraphQL API is available at:
+La API de GraphQL está disponible en:
 
 ```
 /graphql/
 ```
+### Método de Autenticación
 
-## Authentication
+1. **Session Authentication** - Para acceso desde navegador web
+2. **Token Authentication** - Para clientes API (vía DRF Token Auth)
 
-All queries and mutations require authentication. The API uses Django's authentication system.
-
-### Authentication Methods
-
-1. **Session Authentication** - For web browser access
-2. **Token Authentication** - For API clients (via DRF Token Auth)
-
-### Example with Token Authentication
+### Ejemplo con Autenticación por Token
 
 ```bash
 curl -X POST http://localhost:8000/graphql/ \
@@ -36,46 +21,39 @@ curl -X POST http://localhost:8000/graphql/ \
   -d '{"query": "{ allFeeds { id name } }"}'
 ```
 
-## Permissions
+## Permisos
 
-- **Queries**: Require authentication (any authenticated user)
-- **Mutations**: Require staff permissions (`is_staff=True`)
+- **Queries**: Requieren autenticación (cualquier usuario autenticado)
+- **Mutations**: Requieren permisos de staff (`is_staff=True`)
 
-## Running the GraphQL Endpoint
+## Ejecutar el Endpoint de GraphQL
 
-### Development
+### Desarrollo
 
-1. Start the Django development server:
+1. Iniciar el servidor de desarrollo de Django:
 
 ```bash
 python manage.py runserver
 ```
 
-2. Navigate to `http://localhost:8000/graphql/` in your browser to access the GraphiQL interface.
+2. Ingrese a `http://localhost:8000/graphql/` en su navegador para acceder a la interfaz GraphiQL.
 
-### Using GraphiQL Interface
 
-The GraphiQL interface provides:
-- Auto-completion
-- Schema documentation
-- Query history
-- Variable editor
+## Descripción General del Esquema
 
-## Schema Overview
+### Tipos
 
-### Types
+- **FeedType**: Representa un feed GTFS
+- **AgencyType**: Agencias de transporte
+- **RouteType**: Rutas de transporte
+- **StopType**: Paradas/estaciones de transporte
+- **TripType**: Viajes individuales
+- **StopTimeType**: Horarios de paradas para viajes
+- **CalendarType**: Calendarios de servicio
 
-- **FeedType**: Represents a GTFS feed
-- **AgencyType**: Transit agencies
-- **RouteType**: Transit routes
-- **StopType**: Transit stops/stations
-- **TripType**: Individual trips
-- **StopTimeType**: Stop times for trips
-- **CalendarType**: Service calendars
+### Paginación
 
-### Pagination
-
-Most list queries return paginated results with the following structure:
+La mayoría de las consultas de listas devuelven resultados paginados con la siguiente estructura:
 
 ```graphql
 type Connection {
@@ -92,9 +70,9 @@ type PageInfo {
 }
 ```
 
-## Query Examples
+## Ejemplos de Consultas
 
-### 1. Get All Feeds
+### 1. Obtener Todos los Feeds
 
 ```graphql
 query {
@@ -108,7 +86,7 @@ query {
 }
 ```
 
-### 2. Get Single Feed by ID
+### 2. Obtener un Feed por ID
 
 ```graphql
 query {
@@ -120,7 +98,7 @@ query {
 }
 ```
 
-### 3. Get All Agencies (with Pagination)
+### 3. Obtener Todas las Agencias (con Paginación)
 
 ```graphql
 query {
@@ -144,7 +122,7 @@ query {
 }
 ```
 
-### 4. Filter Agencies by Name
+### 4. Filtrar Agencias por Nombre
 
 ```graphql
 query {
@@ -160,7 +138,7 @@ query {
 }
 ```
 
-### 5. Get Routes with Filtering
+### 5. Obtener Rutas con Filtros
 
 ```graphql
 query {
@@ -191,7 +169,7 @@ query {
 - `6`: Artes
 - `7`: Microbiología
 
-### 6. Get Stops Near Location
+### 6. Obtener Paradas Cercanas a una Ubicación
 
 ```graphql
 query {
@@ -210,7 +188,7 @@ query {
 }
 ```
 
-### 7. Get Trips by Route
+### 7. Obtener Viajes por Ruta
 
 ```graphql
 query {
@@ -232,7 +210,7 @@ query {
 }
 ```
 
-### 8. Get Stop Times for a Trip
+### 8. Obtener Horarios de Paradas para un Viaje
 
 ```graphql
 query {
@@ -254,7 +232,7 @@ query {
 }
 ```
 
-### 9. Complex Nested Query
+### 9. Consulta Compleja Anidada
 
 ```graphql
 query {
@@ -274,9 +252,9 @@ query {
 }
 ```
 
-## Mutation Examples
+## Ejemplos de Mutaciones
 
-### 1. Create a New Agency
+### 1. Crear una Nueva Agencia
 
 ```graphql
 mutation {
@@ -285,11 +263,11 @@ mutation {
       feedId: 1
       agencyId: "NYC_MTA"
       agencyName: "New York MTA"
-      agencyUrl: "https://www.mta.info"
-      agencyTimezone: "America/New_York"
+      agencyUrl: "https://www.ticabus.info"
+      agencyTimezone: "America/Costa Rica"
       agencyLang: "en"
       agencyPhone: "511"
-      agencyEmail: "info@mta.info"
+      agencyEmail: "info@ticabus.info"
     }
   ) {
     success
@@ -304,7 +282,7 @@ mutation {
 }
 ```
 
-### 2. Create Agency with Minimal Fields
+### 2. Crear Agencia con Campos Mínimos
 
 ```graphql
 mutation {
@@ -327,17 +305,17 @@ mutation {
 }
 ```
 
-### 3. Handle Validation Errors
+### 3. Manejar Errores de Validación
 
 ```graphql
 mutation {
   createAgency(
     input: {
-      feedId: 999  # Non-existent feed
+      feedId: 999  # Feed inexistente
       agencyId: "TEST"
-      agencyName: ""  # Empty name (invalid)
+      agencyName: ""  # Nombre vacío (inválido)
       agencyUrl: "https://test.com"
-      agencyTimezone: "America/New_York"
+      agencyTimezone: "America/CostaRica"
     }
   ) {
     success
@@ -349,7 +327,7 @@ mutation {
 }
 ```
 
-**Response:**
+**Respuesta:**
 ```json
 {
   "data": {
@@ -365,9 +343,9 @@ mutation {
 }
 ```
 
-## Using Variables
+## Usar Variables
 
-For dynamic queries, use GraphQL variables:
+Para consultas dinámicas, usar variables de GraphQL:
 
 ```graphql
 query GetAgency($id: Int!) {
@@ -385,14 +363,14 @@ query GetAgency($id: Int!) {
 }
 ```
 
-## Pagination Patterns
+## Patrones de Paginación
 
-### Offset-Based Pagination
+### Paginación Basada en Offset
 
-The API uses offset-based pagination (not cursor-based):
+La API usa paginación basada en offset (no basada en cursor):
 
 ```graphql
-# First page (items 0-19)
+# Primera página (elementos 0-19)
 query {
   allAgencies(offset: 0, limit: 20) {
     edges { ... }
@@ -403,7 +381,7 @@ query {
   }
 }
 
-# Second page (items 20-39)
+# Segunda página (elementos 20-39)
 query {
   allAgencies(offset: 20, limit: 20) {
     edges { ... }
@@ -415,13 +393,13 @@ query {
 }
 ```
 
-**Default Limits:**
-- Most queries: `limit=20` (max: `100`)
-- Stop times: `limit=100` (max: `200`)
+**Límites Predeterminados:**
+- La mayoría de consultas: `limit=20` (máx: `100`)
+- Horarios de paradas: `limit=100` (máx: `200`)
 
-## Error Handling
+## Manejo de Errores
 
-### Authentication Errors
+### Errores de Autenticación
 
 ```json
 {
@@ -434,7 +412,7 @@ query {
 }
 ```
 
-### Permission Errors
+### Errores de Permisos
 
 ```json
 {
@@ -447,9 +425,9 @@ query {
 }
 ```
 
-### Validation Errors
+### Errores de Validación
 
-Mutations return structured error messages:
+Las mutaciones devuelven mensajes de error estructurados:
 
 ```json
 {
@@ -466,20 +444,20 @@ Mutations return structured error messages:
 }
 ```
 
-## Extending the Schema
+## Extender el Esquema
 
-### Adding a New Query
+### Agregar una Nueva Consulta
 
-1. Define the query in `graphql_api/queries.py`:
+1. Definir la consulta en `graphql_api/queries.py`:
 
 ```python
 @strawberry.field(permission_classes=[IsAuthenticated])
 def my_custom_query(self, info: Info, param: str) -> List[MyType]:
-    """Custom query description"""
+    """Descripción de consulta personalizada"""
     return MyModel.objects.filter(field=param)
 ```
 
-2. The query is automatically available:
+2. La consulta estará disponible automáticamente:
 
 ```graphql
 query {
@@ -490,9 +468,9 @@ query {
 }
 ```
 
-### Adding a New Mutation
+### Agregar una Nueva Mutación
 
-1. Define input type in `graphql_api/types.py`:
+1. Definir el tipo de entrada en `graphql_api/types.py`:
 
 ```python
 @strawberry.input
@@ -507,26 +485,26 @@ class CreateMyEntityPayload:
     success: bool
 ```
 
-2. Define mutation in `graphql_api/mutations.py`:
+2. Definir la mutación en `graphql_api/mutations.py`:
 
 ```python
 @strawberry.mutation(permission_classes=[IsStaff])
 def create_my_entity(
     self, info: Info, input: CreateMyEntityInput
 ) -> CreateMyEntityPayload:
-    """Mutation description"""
-    # Implementation
+    """Descripción de la mutación"""
+    # Implementación
     pass
 ```
 
-### Adding a New Type
+### Agregar un Nuevo Tipo
 
-1. Define type in `graphql_api/types.py`:
+1. Definir el tipo en `graphql_api/types.py`:
 
 ```python
 @strawberry.django.type
 class MyEntityType:
-    """GraphQL type for MyEntity model"""
+    """Tipo GraphQL para el modelo MyEntity"""
     
     id: auto
     name: str
@@ -534,46 +512,46 @@ class MyEntityType:
     created_at: datetime.datetime
 ```
 
-2. Use it in queries and mutations.
+2. Usarlo en consultas y mutaciones.
 
-## Testing
+## Pruebas
 
-Run the GraphQL tests:
+Ejecutar las pruebas de GraphQL:
 
 ```bash
-# All GraphQL tests
+# Todas las pruebas de GraphQL
 pytest tests/test_graphql/
 
-# Specific test file
+# Archivo de prueba específico
 pytest tests/test_graphql/test_queries.py
 
-# Specific test
+# Prueba específica
 pytest tests/test_graphql/test_queries.py::TestQueries::test_all_agencies_query
 
-# With coverage
+# Con cobertura
 pytest tests/test_graphql/ --cov=graphql_api
 ```
 
-### Test Structure
+### Estructura de Pruebas
 
 ```
 tests/test_graphql/
 ├── __init__.py
-├── conftest.py          # Fixtures for tests
-├── test_schema.py       # Schema structure tests
-├── test_queries.py      # Query functionality tests
-├── test_mutations.py    # Mutation tests
-└── test_permissions.py  # Access control tests
+├── conftest.py          # Fixtures para las pruebas
+├── test_schema.py       # Pruebas de estructura del esquema
+├── test_queries.py      # Pruebas de funcionalidad de consultas
+├── test_mutations.py    # Pruebas de mutaciones
+└── test_permissions.py  # Pruebas de control de acceso
 ```
 
-## Best Practices
+## Mejores Prácticas
 
-### 1. Use Pagination
+### 1. Usar Paginación
 
-Always use pagination for list queries to avoid performance issues:
+Siempre usar paginación para consultas de listas para evitar problemas de rendimiento:
 
 ```graphql
-# ✅ Good
+# ✅ Bien
 query {
   allStops(offset: 0, limit: 50) {
     edges { ... }
@@ -581,7 +559,7 @@ query {
   }
 }
 
-# ❌ Avoid (will still paginate with defaults, but less explicit)
+# ❌ Evitar (aún paginará con valores predeterminados, pero menos explícito)
 query {
   allStops {
     edges { ... }
@@ -589,12 +567,12 @@ query {
 }
 ```
 
-### 2. Request Only Needed Fields
+### 2. Solicitar Solo los Campos Necesarios
 
-GraphQL allows you to request exactly what you need:
+GraphQL permite solicitar exactamente lo que necesitas:
 
 ```graphql
-# ✅ Good - Only request needed fields
+# ✅ Bien - Solo solicitar campos necesarios
 query {
   allAgencies {
     edges {
@@ -604,7 +582,7 @@ query {
   }
 }
 
-# ❌ Less efficient - Requesting all fields
+# ❌ Menos eficiente - Solicitar todos los campos
 query {
   allAgencies {
     edges {
@@ -623,17 +601,17 @@ query {
 }
 ```
 
-### 3. Use Variables for Dynamic Queries
+### 3. Usar Variables para Consultas Dinámicas
 
 ```graphql
-# ✅ Good - Using variables
+# ✅ Bien - Usar variables
 query GetRoute($id: Int!) {
   route(id: $id) {
     routeShortName
   }
 }
 
-# ❌ Avoid - String interpolation (security risk)
+# ❌ Evitar - Interpolación de cadenas (riesgo de seguridad)
 query {
   route(id: ${userInput}) {
     routeShortName
@@ -641,9 +619,9 @@ query {
 }
 ```
 
-### 4. Handle Errors Gracefully
+### 4. Manejar Errores Correctamente
 
-Always check for both GraphQL errors and mutation errors:
+Siempre verificar tanto errores de GraphQL como errores de mutaciones:
 
 ```javascript
 const result = await fetch('/graphql/', {
@@ -657,20 +635,20 @@ const result = await fetch('/graphql/', {
 
 const data = await result.json();
 
-// Check for GraphQL errors
+// Verificar errores de GraphQL
 if (data.errors) {
-  console.error('GraphQL errors:', data.errors);
+  console.error('Errores de GraphQL:', data.errors);
 }
 
-// Check for mutation errors
+// Verificar errores de mutación
 if (data.data?.createAgency?.errors?.length > 0) {
   console.error('Mutation errors:', data.data.createAgency.errors);
 }
 ```
 
-## Integration Examples
+## Ejemplos de Integración
 
-### Python Client
+### Cliente Python
 
 ```python
 import requests
@@ -705,7 +683,7 @@ result = query_agencies()
 print(result["data"]["allAgencies"])
 ```
 
-### JavaScript Client
+### Cliente JavaScript
 
 ```javascript
 async function createAgency(feedId, agencyData) {
@@ -741,58 +719,58 @@ async function createAgency(feedId, agencyData) {
   const result = await response.json();
   
   if (result.data.createAgency.success) {
-    console.log('Agency created:', result.data.createAgency.agency);
+    console.log('Agencia creada:', result.data.createAgency.agency);
   } else {
-    console.error('Errors:', result.data.createAgency.errors);
+    console.error('Errores:', result.data.createAgency.errors);
   }
 }
 ```
 
-## Troubleshooting
+## Solución de Problemas
 
-### Issue: "User is not authenticated"
+### Problema: "User is not authenticated"
 
-**Solution:** Ensure you're passing authentication credentials:
+**Solución:** Asegurarse de pasar las credenciales de autenticación:
 
 ```bash
-# With token
+# Con token
 curl -H "Authorization: Token YOUR_TOKEN" ...
 
-# With session (browser)
-# Make sure you're logged in first
+# Con sesión (navegador)
+# Asegurarse de iniciar sesión primero
 ```
 
-### Issue: "User must be staff to perform this operation"
+### Problema: "User must be staff to perform this operation"
 
-**Solution:** Mutations require staff permissions. Update user:
+**Solución:** Las mutaciones requieren permisos de staff. Actualizar usuario:
 
 ```python
 user.is_staff = True
 user.save()
 ```
 
-### Issue: Slow Queries
+### Problema: Consultas Lentas
 
-**Solution:** 
-1. Use pagination with smaller page sizes
-2. Request only needed fields
-3. Add database indexes on frequently filtered fields
+**Solución:** 
+1. Usar paginación con tamaños de página más pequeños
+2. Solicitar solo los campos necesarios
+3. Agregar índices de base de datos en campos filtrados frecuentemente
 
-### Issue: Cannot Find Type/Field
+### Problema: No se Puede Encontrar Tipo/Campo
 
-**Solution:** Check the GraphiQL interface's documentation explorer to see available types and fields.
+**Solución:** Verificar el explorador de documentación de la interfaz GraphiQL para ver los tipos y campos disponibles.
 
-## Additional Resources
+## Recursos Adicionales
 
-- [Strawberry GraphQL Documentation](https://strawberry.rocks/docs)
-- [GraphQL Official Documentation](https://graphql.org/)
-- [GTFS Specification](https://gtfs.org/schedule/reference/)
-- [Django Authentication](https://docs.djangoproject.com/en/stable/topics/auth/)
+- [Documentación de Strawberry GraphQL](https://strawberry.rocks/docs)
+- [Documentación Oficial de GraphQL](https://graphql.org/)
+- [Especificación GTFS](https://gtfs.org/schedule/reference/)
+- [Autenticación de Django](https://docs.djangoproject.com/en/stable/topics/auth/)
 
-## Support
+## Soporte
 
-For issues or questions:
-1. Check the GraphiQL interface documentation
-2. Review the test files in `tests/test_graphql/`
-3. Consult the Strawberry GraphQL documentation
-4. Open an issue in the project repository
+Para problemas o preguntas:
+1. Verificar la documentación de la interfaz GraphiQL
+2. Revisar los archivos de prueba en `tests/test_graphql/`
+3. Consultar la documentación de Strawberry GraphQL
+4. Abrir un issue en el repositorio del proyecto

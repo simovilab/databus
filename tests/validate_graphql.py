@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 """
-Validation script for GraphQL API implementation.
-Checks that all modules can be imported and schema can be built.
+Script de validación para la implementación de la API GraphQL.
+Verifica que todos los módulos puedan ser importados y que el esquema pueda ser construido.
 """
 
 import sys
 import os
 
-# Add project root to path
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Set environment variables for testing
+# Configurar variables de entorno para pruebas
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("DEBUG", "True")
 os.environ.setdefault("ALLOWED_HOSTS", "localhost")
@@ -24,22 +24,22 @@ os.environ.setdefault("REDIS_PORT", "6379")
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "realtime.settings")
 
 print("=" * 60)
-print("GraphQL API Implementation Validation")
+print(" Validando API GraphQL")
 print("=" * 60)
 
-# Test 1: Import Django and setup
-print("\n1. Testing Django setup...")
+# Test 1: Importar Django y configuración
+print("\n1. Testeando el Django setup...")
 try:
     import django
 
     django.setup()
-    print("   ✓ Django setup successful")
+    print("   ✓ Django setup exitoso")
 except Exception as e:
-    print(f"   ✗ Django setup failed: {e}")
+    print(f"   ✗ Django setup fallido: {e}")
     sys.exit(1)
 
-# Test 2: Import models
-print("\n2. Testing GTFS models...")
+# Test 2: Importar modelos
+print("\n2. Testeando los modelos GTFS...")
 try:
     from gtfs.models import (
         Agency,
@@ -52,13 +52,13 @@ try:
         CalendarDate,
     )
 
-    print("   ✓ GTFS models imported successfully")
+    print("   ✓ Modelos GTFS importados exitosamente")
 except Exception as e:
-    print(f"   ✗ GTFS models import failed: {e}")
+    print(f"   ✗ Fallo al importar los modelos GTFS: {e}")
     sys.exit(1)
 
-# Test 3: Import GraphQL types
-print("\n3. Testing GraphQL types...")
+# Test 3: Importar tipos GraphQL
+print("\n3. Testeando los tipos GraphQL...")
 try:
     from graphql_api.types import (
         AgencyType,
@@ -73,72 +73,71 @@ try:
         CreateAgencyPayload,
     )
 
-    print("   ✓ GraphQL types imported successfully")
+    print("   ✓ Tipos GraphQL importados exitosamente")
 except Exception as e:
-    print(f"   ✗ GraphQL types import failed: {e}")
+    print(f"   ✗ Fallo al importar los tipos GraphQL: {e}")
     sys.exit(1)
 
-# Test 4: Import permissions
-print("\n4. Testing permissions...")
+# Test 4: Importar permisos
+print("\n4. Testeando los permisos...")
 try:
     from graphql_api.permissions import IsAuthenticated, IsStaff
 
-    print("   ✓ Permissions imported successfully")
+    print("   ✓ Permisos importados exitosamente")
 except Exception as e:
-    print(f"   ✗ Permissions import failed: {e}")
+    print(f"   ✗ Fallo al importar los permisos: {e}")
     sys.exit(1)
 
-# Test 5: Import queries
-print("\n5. Testing queries...")
+# Test 5: Importar consultas
+print("\n5. Testeando las consultas...")
 try:
     from graphql_api.queries import Query
 
-    print("   ✓ Queries imported successfully")
+    print("   ✓ Consultas importadas exitosamente")
 except Exception as e:
-    print(f"   ✗ Queries import failed: {e}")
+    print(f"   ✗ Fallo al importar las consultas: {e}")
     sys.exit(1)
 
-# Test 6: Import mutations
-print("\n6. Testing mutations...")
+# Test 6: Importar mutaciones
+print("\n6. Testeando las mutaciones...")
 try:
     from graphql_api.mutations import Mutation
 
-    print("   ✓ Mutations imported successfully")
+    print("   ✓ Mutaciones importadas exitosamente")
 except Exception as e:
-    print(f"   ✗ Mutations import failed: {e}")
+    print(f"   ✗ Fallo al importar las mutaciones: {e}")
     sys.exit(1)
 
-# Test 7: Build schema
-print("\n7. Testing schema construction...")
+# Test 7: Construcción del esquema
+print("\n7. Testeando la construcción del esquema...")
 try:
     from graphql_api.schema import schema
 
-    print("   ✓ Schema built successfully")
+    print("   ✓ Esquema construido exitosamente")
 except Exception as e:
-    print(f"   ✗ Schema build failed: {e}")
+    print(f"   ✗ Fallo en la construcción del esquema: {e}")
     sys.exit(1)
 
 # Test 8: Verify schema structure
-print("\n8. Testing schema structure...")
+print("\n8. Testeando la estructura del esquema...")
 try:
     # Check that schema has graphql_schema attribute
-    assert hasattr(schema, "graphql_schema"), "Schema doesn't have graphql_schema"
+    assert hasattr(schema, "graphql_schema"), "El esquema no tiene graphql_schema"
     graphql_schema = schema.graphql_schema
     
     # Check query type
     query_type = graphql_schema.query_type
-    assert query_type is not None, "Query type is None"
-    assert query_type.name == "Query", f"Query type name is {query_type.name}"
-    print("   ✓ Query type is valid")
+    assert query_type is not None, "El tipo de consulta es None"
+    assert query_type.name == "Query", f"El nombre del tipo de consulta es {query_type.name}"
+    print("   ✓ El tipo de consulta es válido")
 
     # Check mutation type
     mutation_type = graphql_schema.mutation_type
-    assert mutation_type is not None, "Mutation type is None"
+    assert mutation_type is not None, "El tipo de mutación es None"
     assert (
         mutation_type.name == "Mutation"
-    ), f"Mutation type name is {mutation_type.name}"
-    print("   ✓ Mutation type is valid")
-
+    ), f"El nombre del tipo de mutación es {mutation_type.name}"
+    print("   ✓ El tipo de mutación es válido")
     # Check query fields
     query_fields = list(query_type.fields.keys())
     expected_queries = [
@@ -157,56 +156,55 @@ try:
     ]
 
     for expected in expected_queries:
-        assert expected in query_fields, f"Query {expected} not found"
-    print(f"   ✓ All {len(expected_queries)} expected queries present")
+        assert expected in query_fields, f"Query {expected} no encontrado"
+    print(f"   ✓ Todas las {len(expected_queries)} consultas esperadas están presentes")
 
     # Check mutation fields
     mutation_fields = list(mutation_type.fields.keys())
     expected_mutations = ["createAgency"]
 
     for expected in expected_mutations:
-        assert expected in mutation_fields, f"Mutation {expected} not found"
-    print(f"   ✓ All {len(expected_mutations)} expected mutations present")
+        assert expected in mutation_fields, f"Mutación {expected} no encontrada"
+    print(f"   ✓ Todas las {len(expected_mutations)} mutaciones esperadas están presentes")
 
 except Exception as e:
-    print(f"   ✗ Schema structure validation failed: {e}")
+    print(f"   ✗ Fallo en la validación de la estructura del esquema: {e}")
     sys.exit(1)
 
 # Test 9: Import URL configuration
-print("\n9. Testing URL configuration...")
+print("\n9. Testeando la configuración de URL...")
 try:
     from graphql_api.urls import urlpatterns
 
-    assert len(urlpatterns) > 0, "No URL patterns defined"
-    print("   ✓ URL configuration valid")
+    assert len(urlpatterns) > 0, "No hay patrones de URL definidos"
+    print("   ✓ Configuración de URL válida")
 except Exception as e:
-    print(f"   ✗ URL configuration failed: {e}")
+    print(f"   ✗ Fallo en la configuración de URL: {e}")
     sys.exit(1)
 
-# Test 10: Check app configuration
-print("\n10. Testing app configuration...")
+# Test 10: Comprobando la configuración de la aplicación
+print("\n10. Testeando la configuración de la aplicación...")
 try:
     from django.apps import apps
 
     graphql_app = apps.get_app_config("graphql_api")
-    assert graphql_app is not None, "GraphQL app not registered"
-    print("   ✓ GraphQL app registered successfully")
+    assert graphql_app is not None, "La aplicación GraphQL no está registrada"
+    print("   ✓ La aplicación GraphQL está registrada exitosamente")
 
     gtfs_app = apps.get_app_config("gtfs")
-    assert gtfs_app is not None, "GTFS app not registered"
-    print("   ✓ GTFS app registered successfully")
+    assert gtfs_app is not None, "La aplicación GTFS no está registrada"
+    print("   ✓ La aplicación GTFS está registrada exitosamente")
 except Exception as e:
-    print(f"   ✗ App configuration failed: {e}")
+    print(f"   ✗ Fallo en la configuración de la aplicación: {e}")
     sys.exit(1)
 
-# Summary
 print("\n" + "=" * 60)
-print("✓ All validation checks passed!")
+print("✓ Todas las comprobaciones de validación pasaron!")
 print("=" * 60)
-print("\nNext steps:")
-print("1. Run migrations: python manage.py makemigrations && python manage.py migrate")
-print("2. Create a superuser: python manage.py createsuperuser")
-print("3. Run the server: python manage.py runserver")
-print("4. Access GraphQL at: http://localhost:8000/graphql/")
-print("5. Run tests: pytest tests/test_graphql/")
+print("\nPróximos pasos:")
+print("1. Ejecutar migraciones: python manage.py makemigrations && python manage.py migrate")
+print("2. Crear un superusuario: python manage.py createsuperuser")
+print("3. Ejecutar el servidor: python manage.py runserver")
+print("4. Acceder a GraphQL en: http://localhost:8000/graphql/")
+print("5. Ejecutar pruebas: pytest tests/test_graphql/")
 print()
