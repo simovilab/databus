@@ -27,6 +27,7 @@ urlpatterns = [
     path("gtfs/", include("gtfs.urls")),
     path("api/", include("api.urls")),
     path("feed/", include("feed.urls")),
+    path("graphql/", include("graphql_api.urls")),
 ]
 
 serve_static_flag = os.environ.get("DJANGO_SERVE_STATIC", "").lower() in ("1", "true", "yes", "on")

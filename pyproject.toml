@@ -27,6 +27,7 @@ dependencies = [
     "python-decouple>=3.8",
     "redis>=5.2.1",
     "requests>=2.32.5",
+    "strawberry-graphql[django]>=0.287.0",
 ]
 
 [dependency-groups]
@@ -38,3 +39,11 @@ dev = [
     "ruff>=0.12.11",
     "watchfiles>=0.24.0",
 ]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "realtime.settings"
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+testpaths = ["tests"]
