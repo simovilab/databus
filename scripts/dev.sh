@@ -59,7 +59,7 @@ if [ ! -d "gtfs" ] || [ -z "$(ls -A gtfs 2>/dev/null)" ]; then
     fi
 fi
 
-COMPOSE_FILE=docker-compose.dev.yml
+COMPOSE_FILE=Docker/docker-compose.dev.yml
 echo -e "${BLUE}🔧 Using compose file: ${COMPOSE_FILE}${NC}"
 docker compose -f ${COMPOSE_FILE} up --build -d
 

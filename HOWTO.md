@@ -93,7 +93,7 @@ http://localhost:8000/
 
 - Verify that Docker is running correctly.
 - Ensure that the `.env` file is present and properly configured.
-- If changes are made to the `Dockerfile` or dependencies, run:
+- If changes are made to the `Docker/Dockerfile` or dependencies, run:
 
 ```bash
 docker compose down

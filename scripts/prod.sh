@@ -31,7 +31,7 @@ if grep -q "django-insecure-CHANGE-THIS-IN-PRODUCTION" .env.prod; then
   echo -e "${RED}⚠️  WARNING: Default SECRET_KEY in .env.prod${NC}";
 fi
 
-COMPOSE_FILE=docker-compose.prod.yml
+COMPOSE_FILE=Docker/docker-compose.prod.yml
 echo -e "${BLUE}🔧 Using compose file: ${COMPOSE_FILE}${NC}"
 docker compose -f ${COMPOSE_FILE} up --build -d
 

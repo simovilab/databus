@@ -57,27 +57,27 @@ celery -A realtime beat --scheduler django_celery_beat.schedulers:DatabaseSchedu
 
 ```bash
 # Database migrations
-docker compose -f docker-compose.dev.yml exec web uv run python manage.py makemigrations
-docker compose -f docker-compose.dev.yml exec web uv run python manage.py migrate
+docker compose -f Docker/docker-compose.dev.yml exec web uv run python manage.py makemigrations
+docker compose -f Docker/docker-compose.dev.yml exec web uv run python manage.py migrate
 
 # Non-Docker:
 python manage.py makemigrations
 python manage.py migrate
 
 # Create superuser
-docker compose -f docker-compose.dev.yml exec web uv run python manage.py createsuperuser
+docker compose -f Docker/docker-compose.dev.yml exec web uv run python manage.py createsuperuser
 # Non-Docker: python manage.py createsuperuser
 
 # Django shell
-docker compose -f docker-compose.dev.yml exec web uv run python manage.py shell
+docker compose -f Docker/docker-compose.dev.yml exec web uv run python manage.py shell
 # Non-Docker: python manage.py shell
 
 # View logs
-docker compose -f docker-compose.dev.yml logs -f
-docker compose -f docker-compose.dev.yml logs -f web  # Web container only
+docker compose -f Docker/docker-compose.dev.yml logs -f
+docker compose -f Docker/docker-compose.dev.yml logs -f web  # Web container only
 
 # Stop environment
-docker compose -f docker-compose.dev.yml down
+docker compose -f Docker/docker-compose.dev.yml down
 
 # Custom management command
 python manage.py update_foreign_keys  # Updates FK relationships for GTFS models
