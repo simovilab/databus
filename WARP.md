@@ -187,7 +187,7 @@ The project consists of four main Django apps:
 
 ## Environment Configuration
 
-Required environment variables (see `.env.local.example`):
+Required environment variables:
 
 - `SECRET_KEY`: Django secret key
 - `DEBUG`: Boolean for debug mode
@@ -197,10 +197,9 @@ Required environment variables (see `.env.local.example`):
 - For macOS local development: `GDAL_LIBRARY_PATH`, `GEOS_LIBRARY_PATH`
 
 **Files:**
-- `.env`: Base configuration
-- `.env.dev`: Development overrides (DEBUG=True)
-- `.env.local`: Local secrets (not in git)
-- `.env.prod`: Production settings
+- `.env`: Local configuration with secrets (not in git)
+- `.env.dev`: Development-specific overrides (tracked in git)
+- `.env.prod`: Production-specific overrides (tracked in git)
 
 ## API Endpoints
 

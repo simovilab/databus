@@ -28,9 +28,8 @@ for f in .env .env.prod; do
 done
 
 if grep -q "django-insecure-CHANGE-THIS-IN-PRODUCTION" .env.prod; then
-  echo -e "${RED}⚠️  WARNING: Default SECRET_KEY in .env.prod${NC}"; fi
-
-[ -f .env.local ] || echo -e "${YELLOW}⚠️  Optional .env.local not present${NC}"
+  echo -e "${RED}⚠️  WARNING: Default SECRET_KEY in .env.prod${NC}";
+fi
 
 COMPOSE_FILE=docker-compose.prod.yml
 echo -e "${BLUE}🔧 Using compose file: ${COMPOSE_FILE}${NC}"

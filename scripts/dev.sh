@@ -45,16 +45,6 @@ ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,*.ngrok.io,*.localhost
 EOF
 fi
 
-if [ ! -f ".env.local" ]; then
-    if [ -f .env.local.example ]; then
-        echo -e "${YELLOW}⚠️  Warning: .env.local file not found!${NC}"
-        echo "Creating .env.local from example..."
-        cp .env.local.example .env.local
-    else
-        echo -e "${YELLOW}⚠️  Warning: .env.local file not found and no example present (skipping creation).${NC}"
-    fi
-fi
-
 echo -e "${BLUE}🔧 Building development environment...${NC}"
 
 # Try to add the GTFS submodule if not present

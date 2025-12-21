@@ -40,13 +40,11 @@ git clone https://github.com/simovilab/databus.git
 
 ### 2. Create Environment Variables File
 
-Before starting the environment, you need to create a `.env.local` file at the root of the project. This file contains sensitive variables such as secret keys and database credentials.
+Before starting the environment, you need to create a `.env` file at the root of the project. This file contains sensitive variables such as secret keys and database credentials.
 
 > [!IMPORTANT]
-> The `.env.local` file **must not be uploaded** to the repository. Request the content from another project collaborator.
+> The `.env.` file **must not be uploaded** to the repository. Request the content from another project collaborator.
 
-> [!NOTE]
-> The file [`.env.local.example`](.env.example) contains the fields that need to be filled in.
 
 ### 3. Grant Permissions to Scripts
 
@@ -94,7 +92,7 @@ http://localhost:8000/
 ### The Container Does Not Start or Fails During Installation
 
 - Verify that Docker is running correctly.
-- Ensure that the `.env.local` file is present and properly configured.
+- Ensure that the `.env` file is present and properly configured.
 - If changes are made to the `Dockerfile` or dependencies, run:
 
 ```bash
