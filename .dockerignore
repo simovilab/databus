@@ -3,9 +3,7 @@
 .gitignore
 .github
 
-# Docker
-Dockerfile
-.dockerignore
+# Docker (build context is now parent dir, so Docker/ files should be included)
 
 # Python
 __pycache__/

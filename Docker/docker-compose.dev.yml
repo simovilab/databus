@@ -1,28 +1,32 @@
+name: databus-dev
 services:
   web:
     build:
-      context: .
-      dockerfile: Dockerfile
-    entrypoint: ["/app/docker-entrypoint.sh"]
+      context: ..
+      dockerfile: Docker/Dockerfile
+      target: dev
+    entrypoint: ["/app/Docker/docker-entrypoint.sh"]
     command: ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports:
       - "8000:8000"
     env_file:
-      - .env
-      - .env.dev
+      - ../.env
+      - ../.env.dev
     environment:
-      # Fallbacks if not set in .env
+      # DEBUG comes from .env.dev (.env sets False, .env.dev overrides to True)
       - DEBUG=${DEBUG:-1}
-      - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=${DB_NAME:-realtime}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - RUN_MAKEMIGRATIONS=0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RUN_MAKEMIGRATIONS=1
+    volumes:
+      - ..:/app
     depends_on:
       db:
         condition: service_healthy
@@ -31,25 +35,29 @@ services:
 
   worker:
     build:
-      context: .
-      dockerfile: Dockerfile
-    entrypoint: ["/app/docker-entrypoint.sh"]
+      context: ..
+      dockerfile: Docker/Dockerfile
+      target: dev
+    entrypoint: ["/app/Docker/docker-entrypoint.sh"]
     command: ["uv", "run", "celery", "-A", "realtime", "worker", "-l", "info"]
     env_file:
-      - .env
-      - .env.dev
+      - ../.env
+      - ../.env.dev
     environment:
+      # DEBUG comes from .env.dev
       - DEBUG=${DEBUG:-1}
-      - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=${DB_NAME:-realtime}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - MIGRATE_ON_CELERY=0
+    volumes:
+      - ..:/app
     depends_on:
       db:
         condition: service_healthy
@@ -58,9 +66,10 @@ services:
 
   beat:
     build:
-      context: .
-      dockerfile: Dockerfile
-    entrypoint: ["/app/docker-entrypoint.sh"]
+      context: ..
+      dockerfile: Docker/Dockerfile
+      target: dev
+    entrypoint: ["/app/Docker/docker-entrypoint.sh"]
     command:
       [
         "uv",
@@ -74,20 +83,23 @@ services:
         "--loglevel=info",
       ]
     env_file:
-      - .env
-      - .env.dev
+      - ../.env
+      - ../.env.dev
     environment:
+      # DEBUG comes from .env.dev
       - DEBUG=${DEBUG:-1}
-      - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - DB_NAME=${DB_NAME:-realtime}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - MIGRATE_ON_CELERY=0
+    volumes:
+      - ..:/app
     depends_on:
       db:
         condition: service_healthy

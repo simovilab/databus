@@ -1,5 +1,5 @@
 # Multi-stage build for Django app with uv
-FROM python:3.14-slim as base
+FROM python:3.14-slim AS base
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -32,33 +32,32 @@ COPY pyproject.toml uv.lock ./
 # Dependencies will be installed at runtime to avoid permission issues
 
 # ---- Development stage
-FROM base as dev
+FROM base AS dev
 # -------------------
 
 # Copy source code
 COPY --chown=app:app . .
 
 # Ensure entrypoint script executable
-RUN chmod +x /app/docker-entrypoint.sh
+RUN chmod +x /app/Docker/docker-entrypoint.sh
 
 USER app
 
 # Expose port for Django development server
 EXPOSE 8000
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["/app/Docker/docker-entrypoint.sh"]
 CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
 
 # ---- Production stage
-FROM base as prod
+FROM base AS prod
 # ------------------
 
 # Copy source code
 COPY --chown=app:app . .
 
 # Ensure entrypoint script executable
-RUN chmod +x /app/docker-entrypoint.sh
-
+RUN chmod +x /app/Docker/docker-entrypoint.sh
 # Create static files and media directories
 RUN mkdir -p /app/staticfiles /app/media && \
     chown -R app:app /app/staticfiles /app/media
@@ -76,5 +75,5 @@ RUN uv sync --frozen --no-dev
 # Expose port for ASGI server
 EXPOSE 8000
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["/app/Docker/docker-entrypoint.sh"]
 CMD ["uv", "run", "daphne", "-b", "0.0.0.0", "-p", "8000", "realtime.asgi:application"]
