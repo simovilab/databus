@@ -59,13 +59,13 @@ if [ ! -d "gtfs" ] || [ -z "$(ls -A gtfs 2>/dev/null)" ]; then
     fi
 fi
 
-COMPOSE_FILE=Docker/docker-compose.dev.yml
+COMPOSE_FILE=Docker/compose.dev.yml
 echo -e "${BLUE}🔧 Using compose file: ${COMPOSE_FILE}${NC}"
 docker compose -f ${COMPOSE_FILE} up --build -d
 
 echo ""
 echo -e "${YELLOW}⏳ Waiting for services to be ready...${NC}"
-sleep 5
+sleep 30  # Wait longer due to web migrations and initial setup
 
 # Check if services are running
 echo -e "${BLUE}🏥 Checking service status...${NC}"
