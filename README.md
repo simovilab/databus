@@ -90,6 +90,17 @@ The application will be available at `http://localhost:8000`
 | `/admin/`           | Django admin interface                         |
 | `/feed/`            | GTFS feed endpoints                            |
 
+## 📚 Documentation
+
+- **[HOWTO.md](HOWTO.md)** - Complete guide for setting up a development environment with Docker
+- **[docs/development.md](docs/development.md)** - Functional development notes and data specifications (Spanish)
+- **[docs/deployment.md](docs/deployment.md)** - Production deployment with Celery and systemd
+- **[docs/api.md](docs/api.md)** - API specification and data formats
+- **[docs/obe.md](docs/obe.md)** - On-board equipment specifications
+- **[WARP.md](WARP.md)** - Development guidance for Warp terminal users
+
+For the full documentation site, run `mkdocs serve` and visit http://localhost:8000
+
 ## 🛣️ Roadmap
 
 Where is this going? Check SIMOVI's [roadmap](https://github.com/simovilab/context/blob/main/roadmap.md).
