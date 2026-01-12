@@ -65,7 +65,7 @@ docker compose -f ${COMPOSE_FILE} up --build -d
 
 echo ""
 echo -e "${YELLOW}⏳ Waiting for services to be ready...${NC}"
-sleep 30  # Wait longer due to web migrations and initial setup
+sleep 60  # Wait longer due to web migrations and initial setup
 
 # Check if services are running
 echo -e "${BLUE}🏥 Checking service status...${NC}"
@@ -77,7 +77,6 @@ fi
 
 
 # Celery migrations are applied by the web service; worker/beat will skip.
-
 
 echo ""
 echo -e "${GREEN}🌐 Development URLs:${NC}"
