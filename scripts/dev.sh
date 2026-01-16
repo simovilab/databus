@@ -95,4 +95,4 @@ echo "  Migrations: docker compose -f ${COMPOSE_FILE} exec web uv run python man
 echo "  Superuser: docker compose -f ${COMPOSE_FILE} exec web uv run python manage.py createsuperuser"
 echo "  Shell: docker compose -f ${COMPOSE_FILE} exec web uv run python manage.py shell"
 echo ""
-echo -e "${RED}🛑 To stop: docker compose -f ${COMPOSE_FILE} down${NC}"
+echo -e "${GREEN}🛑 To stop: docker compose -f ${COMPOSE_FILE} down${NC}"

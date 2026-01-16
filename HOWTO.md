@@ -45,7 +45,6 @@ Before starting the environment, you need to create a `.env` file at the root of
 > [!IMPORTANT]
 > The `.env.` file **must not be uploaded** to the repository. Request the content from another project collaborator.
 
-
 ### 3. Grant Permissions to Scripts
 
 Ensure the scripts are executable:
@@ -80,9 +79,18 @@ Once everything is running, access the browser with the following address, which
 http://localhost:8000/
 ```
 
+## Load fixtures (Optional)
+
+bUCR GTFS data can be loaded with the following command:
+
+```bash
+docker compose -f Docker/compose.dev.yml exec web uv run python manage.py loaddata gtfs.json
+```
+
 ## Common Issues
 
 ### Permission Denied in the Docker Console
+
 - Restart the docker container with
 
 ```bash

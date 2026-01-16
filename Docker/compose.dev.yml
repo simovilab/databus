@@ -17,7 +17,7 @@ services:
       - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
-      - DB_NAME=${DB_NAME:-realtime}
+      - DB_NAME=${DB_NAME:-databus}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-}
       - DB_HOST=db
@@ -109,13 +109,13 @@ services:
   db:
     image: postgis/postgis:15-3.3
     environment:
-      - POSTGRES_DB=${DB_NAME:-realtime}
+      - POSTGRES_DB=${DB_NAME:-databus}
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}", "-d", "${DB_NAME:-realtime}"]
+      test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}", "-d", "${DB_NAME:-databus}"]
       interval: 10s
       timeout: 5s
       retries: 5
