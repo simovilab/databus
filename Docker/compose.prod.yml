@@ -1,32 +1,22 @@
 name: databus-prod
 services:
-  app:
+  web:
     build:
       context: ..
       dockerfile: Docker/Dockerfile
       target: prod
-    entrypoint: ["/app/Docker/docker-entrypoint.sh"]
+    ports:
+      - "8000:8000"
     env_file:
       - ../.env
       - ../.env.prod
+    volumes:
+      - static:/app/staticfiles
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - static:/app/staticfiles
-
-  nginx:
-    image: nginx:1.27-alpine
-    depends_on:
-      app:
-        condition: service_started
-    ports:
-      - "8000:80"
-    volumes:
-      - ../deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - static:/var/www/static:ro
 
   worker:
     build:
@@ -72,15 +62,14 @@ services:
         condition: service_healthy
 
   db:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:15-3.3
     env_file:
       - ../.env
       - ../.env.prod
     environment:
-      # Ensure the application database is created on first initialization
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME:-databus}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -90,7 +79,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:8-alpine
+    image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data

@@ -5,26 +5,11 @@ services:
       context: ..
       dockerfile: Docker/Dockerfile
       target: dev
-    entrypoint: ["/app/Docker/docker-entrypoint.sh"]
-    command: ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports:
       - "8000:8000"
     env_file:
       - ../.env
       - ../.env.dev
-    environment:
-      # DEBUG comes from .env.dev (.env sets False, .env.dev overrides to True)
-      - DEBUG=${DEBUG:-1}
-      - SECRET_KEY=${SECRET_KEY:-dev-secret}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
-      - DB_NAME=${DB_NAME:-databus}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-}
-      - DB_HOST=db
-      - DB_PORT=5432
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - RUN_MAKEMIGRATIONS=1
     volumes:
       - ..:/app
     depends_on:

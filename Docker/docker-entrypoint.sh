@@ -107,14 +107,10 @@ else
 
     log "Database is ready!"
 
-    # Optionally create new migration files (disabled by default to prevent conflicts)
-    if [[ "${RUN_MAKEMIGRATIONS:-0}" == "1" || "${RUN_MAKEMIGRATIONS:-false}" == "true" ]]; then
-        APPS_TO_MIGRATE=("website" "gtfs" "feed" "alerts" "api")
-        log "RUN_MAKEMIGRATIONS enabled. Creating migrations for: ${APPS_TO_MIGRATE[*]}"
-        uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
-    else
-        log "Skipping makemigrations (RUN_MAKEMIGRATIONS=${RUN_MAKEMIGRATIONS:-0})"
-    fi
+    # Make migrations
+    APPS_TO_MIGRATE=("website" "gtfs" "feed" "api")
+    log "RUN_MAKEMIGRATIONS enabled. Creating migrations for: ${APPS_TO_MIGRATE[*]}"
+    uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
 
     # Run database migrations
     log "Running database migrations..."
