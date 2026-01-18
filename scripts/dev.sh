@@ -45,7 +45,7 @@ ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,*.ngrok.io,*.localhost
 EOF
 fi
 
-echo -e "${BLUE}🔧 Building development environment...${NC}"
+echo -e "${GREEN}🔧 Building development environment...${NC}"
 
 # Try to add the GTFS submodule if not present
 if [ ! -d "gtfs" ] || [ -z "$(ls -A gtfs 2>/dev/null)" ]; then
@@ -69,10 +69,10 @@ sleep 60  # Wait longer due to web migrations and initial setup
 
 # Check if services are running
 echo -e "${BLUE}🏥 Checking service status...${NC}"
-if docker compose ps | grep -q "Up"; then
+if docker compose -f ${COMPOSE_FILE} ps | grep -q "Up"; then
     echo -e "${GREEN}✅ Development environment started successfully!${NC}"
 else
-    echo -e "${RED}⚠️  Some services may not be running properly. Check logs for details.${NC}"
+    echo -e "${RED}⚠️ Some services may not be running properly. Check logs for details.${NC}"
 fi
 
 
