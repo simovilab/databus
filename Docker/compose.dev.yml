@@ -33,7 +33,7 @@ services:
       - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
-      - DB_NAME=${DB_NAME:-realtime}
+      - DB_NAME=${DB_NAME:-databus}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-}
       - DB_HOST=db
@@ -75,7 +75,7 @@ services:
       - DEBUG=${DEBUG:-1}
       - SECRET_KEY=${SECRET_KEY:-dev-secret}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
-      - DB_NAME=${DB_NAME:-realtime}
+      - DB_NAME=${DB_NAME:-databus}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-}
       - DB_HOST=db
