@@ -9,6 +9,20 @@ from .models import Journey, Progression, Position, Progression, Occupancy
 from .fake_stop_times import fake_stop_times
 
 
+def get_feed_version():
+    # TODO: Implement a method to get the current feed version, e.g., from a database
+    return "1.0.0"
+
+
+def get_entity_id(vehicle_id):
+    # TODO: Implement a method to get a unique entity ID based on vehicle ID or trip_id + schedule_relationship
+    return vehicle_id
+
+
+def get_timestamp(timestamp):
+    return int(timestamp.timestamp())
+
+
 @shared_task
 def build_vehicle_positions():
     """
@@ -132,22 +146,27 @@ def build_trip_updates():
     feed_message["header"]["gtfs_realtime_version"] = "2.0"
     feed_message["header"]["incrementality"] = "FULL_DATASET"
     feed_message["header"]["timestamp"] = int(datetime.now().timestamp())
+    feed_message["header"]["feed_version"] = get_feed_version()
 
     # Feed message entity
     feed_message["entity"] = []
 
+    # TODO: get all journeys in progress from Redis cache: r.smembers("journeys:in_progress")
     journeys = Journey.objects.filter(journey_status="IN_PROGRESS")
 
     for journey in journeys:
-        vehicle = journey.equipment.vehicle
-        position = Position.objects.filter(journey=journey).latest("timestamp")
+        vehicle = journey.vehicle
+        # TODO: get latest position from Redis cache: r.hgetall(f"vehicle:{vehicle.id}:position")
+        position = Position.objects.filter(vehicle=vehicle).latest("timestamp")
+        # TODO: get latest progression from Redis cache: r.hgetall(f"vehicle:{vehicle.id}:progression")
         progression = Progression.objects.filter(journey=journey).latest("timestamp")
+        # journey = r.hgetall(journey)
         # Entity
         entity = {}
-        entity["id"] = f"bus-{vehicle.id}"
+        entity["id"] = get_entity_id(vehicle.id)
         entity["trip_update"] = {}
         # Timestamp
-        entity["trip_update"]["timestamp"] = int(position.timestamp.timestamp())
+        entity["trip_update"]["timestamp"] = get_timestamp(position.timestamp)
         # Trip
         entity["trip_update"]["trip"] = {}
         entity["trip_update"]["trip"]["trip_id"] = journey.trip_id
@@ -196,7 +215,7 @@ def build_trip_updates():
         },
     )
 
-    return f"Feed TripUpdate built."
+    return "Feed TripUpdate built."
 
 
 @shared_task
