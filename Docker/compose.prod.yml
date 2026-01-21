@@ -1,0 +1,95 @@
+name: databus-prod
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+      target: prod
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+      - ../.env.prod
+    volumes:
+      - static:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+      target: prod
+    entrypoint: ["/app/Docker/docker-entrypoint.sh"]
+    command: ["uv", "run", "celery", "-A", "realtime", "worker", "-l", "info"]
+    env_file:
+      - ../.env
+      - ../.env.prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+      target: prod
+    entrypoint: ["/app/Docker/docker-entrypoint.sh"]
+    command:
+      [
+        "uv",
+        "run",
+        "celery",
+        "-A",
+        "realtime",
+        "beat",
+        "--scheduler",
+        "django_celery_beat.schedulers:DatabaseScheduler",
+        "--loglevel=info",
+      ]
+    env_file:
+      - ../.env
+      - ../.env.prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgis/postgis:15-3.3
+    env_file:
+      - ../.env
+      - ../.env.prod
+    environment:
+      - POSTGRES_DB=${DB_NAME:-databus}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  static:

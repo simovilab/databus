@@ -1,5 +1,6 @@
 #!/bin/bash
 # Development environment startup script for Databus (container)
+# Use of emojis is intentional, requested by PO to make the script more engaging
 
 set -e  # Exit on any error
 
@@ -44,17 +45,7 @@ ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,*.ngrok.io,*.localhost
 EOF
 fi
 
-if [ ! -f ".env.local" ]; then
-    if [ -f .env.local.example ]; then
-        echo -e "${YELLOW}⚠️  Warning: .env.local file not found!${NC}"
-        echo "Creating .env.local from example..."
-        cp .env.local.example .env.local
-    else
-        echo -e "${YELLOW}⚠️  Warning: .env.local file not found and no example present (skipping creation).${NC}"
-    fi
-fi
-
-echo -e "${BLUE}🔧 Building development environment...${NC}"
+echo -e "${GREEN}🔧 Building development environment...${NC}"
 
 # Try to add the GTFS submodule if not present
 if [ ! -d "gtfs" ] || [ -z "$(ls -A gtfs 2>/dev/null)" ]; then
@@ -68,27 +59,24 @@ if [ ! -d "gtfs" ] || [ -z "$(ls -A gtfs 2>/dev/null)" ]; then
     fi
 fi
 
-COMPOSE_FILE=docker-compose.dev.yml
+COMPOSE_FILE=Docker/compose.dev.yml
 echo -e "${BLUE}🔧 Using compose file: ${COMPOSE_FILE}${NC}"
 docker compose -f ${COMPOSE_FILE} up --build -d
 
 echo ""
 echo -e "${YELLOW}⏳ Waiting for services to be ready...${NC}"
-sleep 5
+sleep 60  # Wait longer due to web migrations and initial setup
 
 # Check if services are running
 echo -e "${BLUE}🏥 Checking service status...${NC}"
-if docker compose ps | grep -q "Up"; then
+if docker compose -f ${COMPOSE_FILE} ps | grep -q "Up"; then
     echo -e "${GREEN}✅ Development environment started successfully!${NC}"
 else
-    echo -e "${RED}⚠️  Some services may not be running properly. Check logs for details.${NC}"
+    echo -e "${RED}⚠️ Some services may not be running properly. Check logs for details.${NC}"
 fi
 
 
-echo -e "${YELLOW}⚠️  Applying fake migration for django_celery_beat (only if necessary)...${NC}"
-docker compose -f ${COMPOSE_FILE} exec web uv run python manage.py migrate django_celery_beat --fake || \
-     echo -e "${YELLOW}⚠️  Fake migration failed or was not necessary.${NC}"
-
+# Celery migrations are applied by the web service; worker/beat will skip.
 
 echo ""
 echo -e "${GREEN}🌐 Development URLs:${NC}"
@@ -107,4 +95,4 @@ echo "  Migrations: docker compose -f ${COMPOSE_FILE} exec web uv run python man
 echo "  Superuser: docker compose -f ${COMPOSE_FILE} exec web uv run python manage.py createsuperuser"
 echo "  Shell: docker compose -f ${COMPOSE_FILE} exec web uv run python manage.py shell"
 echo ""
-echo -e "${RED}🛑 To stop: docker compose -f ${COMPOSE_FILE} down${NC}"
+echo -e "${GREEN}🛑 To stop: docker compose -f ${COMPOSE_FILE} down${NC}"

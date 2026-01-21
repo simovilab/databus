@@ -140,7 +140,7 @@ dump.rdb
 
 # Environments
 .env
-.env.local
+.env.backup
 .venv
 env/
 venv/

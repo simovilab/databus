@@ -1,5 +1,5 @@
 # Multi-stage build for Django app with uv
-FROM python:3.12-slim as base
+FROM python:3.14-slim AS base
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1 \
+ENV ENTRYPOINT_PATH="/app/Docker/docker-entrypoint.sh" \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
@@ -31,50 +32,31 @@ COPY pyproject.toml uv.lock ./
 
 # Dependencies will be installed at runtime to avoid permission issues
 
-# ---- Development stage
-FROM base as dev
-# -------------------
-
 # Copy source code
 COPY --chown=app:app . .
 
-# Ensure entrypoint script executable
-RUN chmod +x /app/docker-entrypoint.sh
+# Ensure entrypoint script is executable
+RUN chmod +x $ENTRYPOINT_PATH
 
+# Switch to app user before installing dependencies to avoid permission issues
 USER app
 
 # Expose port for Django development server
 EXPOSE 8000
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+# ---- Development stage
+FROM base AS dev
+# -------------------
+
+ENTRYPOINT ["/bin/sh", "-c", "exec \"${ENTRYPOINT_PATH}\" \"$@\"", "--"]
 CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
 
 # ---- Production stage
-FROM base as prod
+FROM base AS prod
 # ------------------
-
-# Copy source code
-COPY --chown=app:app . .
-
-# Ensure entrypoint script executable
-RUN chmod +x /app/docker-entrypoint.sh
-
-# Create static files and media directories
-RUN mkdir -p /app/staticfiles /app/media && \
-    chown -R app:app /app/staticfiles /app/media
-
-# Clean up any existing venv and set proper permissions
-RUN rm -rf /app/.venv && \
-    chown -R app:app /app
-
-# Switch to app user before installing dependencies to avoid permission issues
-USER app
 
 # Install dependencies in production mode
 RUN uv sync --frozen --no-dev
 
-# Expose port for ASGI server
-EXPOSE 8000
-
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "-c", "exec \"${ENTRYPOINT_PATH}\" \"$@\"", "--"]
 CMD ["uv", "run", "daphne", "-b", "0.0.0.0", "-p", "8000", "realtime.asgi:application"]

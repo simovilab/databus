@@ -28,11 +28,10 @@ for f in .env .env.prod; do
 done
 
 if grep -q "django-insecure-CHANGE-THIS-IN-PRODUCTION" .env.prod; then
-  echo -e "${RED}⚠️  WARNING: Default SECRET_KEY in .env.prod${NC}"; fi
+  echo -e "${RED}⚠️  WARNING: Default SECRET_KEY in .env.prod${NC}";
+fi
 
-[ -f .env.local ] || echo -e "${YELLOW}⚠️  Optional .env.local not present${NC}"
-
-COMPOSE_FILE=docker-compose.prod.yml
+COMPOSE_FILE=Docker/compose.prod.yml
 echo -e "${BLUE}🔧 Using compose file: ${COMPOSE_FILE}${NC}"
 docker compose -f ${COMPOSE_FILE} up --build -d
 
@@ -43,7 +42,7 @@ if docker compose -f ${COMPOSE_FILE} ps | grep -q Up; then
 echo -e "${GREEN}🌐 Production URLs:${NC}"
 echo "  App: http://localhost:8000" 
 echo ""
-echo -e "${YELLOW}� Useful commands:${NC}"
+echo -e "${YELLOW}✅ Useful commands:${NC}"
 echo "  Logs: docker compose -f ${COMPOSE_FILE} logs -f"
 echo "  App logs: docker compose -f ${COMPOSE_FILE} logs app"
 echo "  Worker logs: docker compose -f ${COMPOSE_FILE} logs worker"
@@ -51,4 +50,4 @@ echo "  Exec shell: docker compose -f ${COMPOSE_FILE} exec app bash"
 echo "  Migrations (re-run): docker compose -f ${COMPOSE_FILE} exec app uv run python manage.py migrate"
 echo "  Create superuser: docker compose -f ${COMPOSE_FILE} exec app uv run python manage.py createsuperuser"
 echo ""
-echo -e "${RED}🛑 To stop: docker compose -f ${COMPOSE_FILE} down${NC}"
+echo -e "${GREEN}🛑 To stop: docker compose -f ${COMPOSE_FILE} down${NC}"
