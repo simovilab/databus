@@ -68,7 +68,7 @@
             "software_version": "v2.4",
             "provides_vehicle": true,
             "provides_operator": true,
-            "provides_journey": true,
+            "provides_run": true,
             "provides_position": true,
             "provides_progression": true,
             "provides_occupancy": true,
@@ -95,7 +95,7 @@
             "software_version": "v1.2",
             "provides_vehicle": true,
             "provides_operator": true,
-            "provides_journey": true,
+            "provides_run": true,
             "provides_position": true,
             "provides_progression": true,
             "provides_occupancy": true,
@@ -143,7 +143,7 @@
         }
     },
     {
-        "model": "feed.journey",
+        "model": "feed.run",
         "pk": 2,
         "fields": {
             "equipment": "2d01a00e-6287-4bfe-8a2b-7bc8a4e2aa5c",
@@ -156,11 +156,11 @@
             "start_date": "2024-08-29",
             "start_time": "13:30:06",
             "schedule_relationship": "SCHEDULED",
-            "journey_status": "IN_PROGRESS"
+            "run_status": "IN_PROGRESS"
         }
     },
     {
-        "model": "feed.journey",
+        "model": "feed.run",
         "pk": 3,
         "fields": {
             "equipment": "16736b9e-43d6-49f0-a269-6f71573d7730",
@@ -173,14 +173,14 @@
             "start_date": "2024-08-29",
             "start_time": "13:35:12",
             "schedule_relationship": "SCHEDULED",
-            "journey_status": "IN_PROGRESS"
+            "run_status": "IN_PROGRESS"
         }
     },
     {
         "model": "feed.position",
         "pk": 2,
         "fields": {
-            "journey": 2,
+            "run": 2,
             "timestamp": "2024-08-29T19:35:48Z",
             "point": "SRID=4326;POINT (-84.04555530733563 9.93540698388418)",
             "altitude": null,
@@ -193,7 +193,7 @@
         "model": "feed.position",
         "pk": 3,
         "fields": {
-            "journey": 3,
+            "run": 3,
             "timestamp": "2024-08-29T19:35:52Z",
             "point": "SRID=4326;POINT (-84.05215754678477 9.935495431066292)",
             "altitude": null,
@@ -206,7 +206,7 @@
         "model": "feed.progression",
         "pk": 2,
         "fields": {
-            "journey": 2,
+            "run": 2,
             "timestamp": "2024-08-29T20:03:29.055Z",
             "current_stop_sequence": 3,
             "stop_id": "bUCR_0_04",
@@ -218,7 +218,7 @@
         "model": "feed.progression",
         "pk": 3,
         "fields": {
-            "journey": 3,
+            "run": 3,
             "timestamp": "2024-08-29T20:03:57.208Z",
             "current_stop_sequence": 1,
             "stop_id": "bUCR_0_04",
@@ -230,7 +230,7 @@
         "model": "feed.occupancy",
         "pk": 2,
         "fields": {
-            "journey": 2,
+            "run": 2,
             "timestamp": "2024-08-29T20:04:44.101Z",
             "occupancy_status": "CRUSHED_STANDING_ROOM_ONLY",
             "occupancy_percentage": 90,
@@ -242,7 +242,7 @@
         "model": "feed.occupancy",
         "pk": 3,
         "fields": {
-            "journey": 3,
+            "run": 3,
             "timestamp": "2024-08-29T20:05:09.166Z",
             "occupancy_status": "MANY_SEATS_AVAILABLE",
             "occupancy_percentage": 60,

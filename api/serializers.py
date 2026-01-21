@@ -7,7 +7,7 @@ from feed.models import (
     Vehicle,
     Equipment,
     EquipmentLog,
-    Journey,
+    Run,
     Position,
     Progression,
     Occupancy,
@@ -100,13 +100,13 @@ class EquipmentLogSerializer(serializers.HyperlinkedModelSerializer):
         ordering = ["id"]
 
 
-class JourneySerializer(serializers.HyperlinkedModelSerializer):
+class RunSerializer(serializers.HyperlinkedModelSerializer):
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     operator = serializers.PrimaryKeyRelatedField(queryset=Operator.objects.all())
 
     class Meta:
-        model = Journey
+        model = Run
         fields = "__all__"
         ordering = ["id"]
 
@@ -306,7 +306,7 @@ class WhichShapesSerializer(serializers.Serializer):
 class FindTripsSerializer(serializers.Serializer):
     trip_id = serializers.CharField()
     trip_time = serializers.TimeField()
-    journey_status = serializers.CharField()
+    run_status = serializers.CharField()
     direction_id = serializers.IntegerField()
     trip_headsign = serializers.CharField()
 

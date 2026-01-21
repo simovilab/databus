@@ -130,7 +130,7 @@ class Equipment(models.Model):
     # Data provided
     provides_vehicle = models.BooleanField(default=False)
     provides_operator = models.BooleanField(default=False)
-    provides_journey = models.BooleanField(default=False)
+    provides_run = models.BooleanField(default=False)
     provides_position = models.BooleanField(default=False)
     provides_progression = models.BooleanField(default=False)
     provides_occupancy = models.BooleanField(default=False)
@@ -163,7 +163,7 @@ class Equipment(models.Model):
             app_version=self.app_version,
             provides_vehicle=self.provides_vehicle,
             provides_operator=self.provides_operator,
-            provides_journey=self.provides_journey,
+            provides_run=self.provides_run,
             provides_position=self.provides_position,
             provides_progression=self.provides_progression,
             provides_occupancy=self.provides_occupancy,
@@ -198,7 +198,7 @@ class EquipmentLog(models.Model):
     # Data provided
     provides_vehicle = models.BooleanField(default=False)
     provides_operator = models.BooleanField(default=False)
-    provides_journey = models.BooleanField(default=False)
+    provides_run = models.BooleanField(default=False)
     provides_position = models.BooleanField(default=False)
     provides_progression = models.BooleanField(default=False)
     provides_occupancy = models.BooleanField(default=False)
@@ -221,15 +221,15 @@ class EquipmentLog(models.Model):
         return f"{self.data_provider}: {self.brand} {self.model} ({self.updated_at})"
 
 
-class Journey(models.Model):
-    """A journey is an instance of GTFS trip."""
+class Run(models.Model):
+    """A run is an instance of GTFS trip."""
 
     id = models.AutoField(primary_key=True)
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     operator = models.ForeignKey(
         Operator, on_delete=models.SET_NULL, blank=True, null=True
     )
-    # Journey information
+    # Run information
     route_id = models.CharField(max_length=100, blank=True, null=True)
     trip_id = models.CharField(max_length=100, blank=True, null=True)
     direction_id = models.PositiveSmallIntegerField(blank=True, null=True)
@@ -249,7 +249,7 @@ class Journey(models.Model):
             ("DELETED", "Borrado"),
         ],
     )
-    journey_status = models.CharField(
+    run_status = models.CharField(
         max_length=40,
         blank=True,
         null=True,

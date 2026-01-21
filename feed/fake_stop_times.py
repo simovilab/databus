@@ -54,11 +54,11 @@ def _generate_stop_entry(
     }
 
 
-def fake_stop_times(journey, progression) -> list[dict[str, Any]]:
-    """Generate fake stop times for the given journey.
+def fake_stop_times(run, progression) -> list[dict[str, Any]]:
+    """Generate fake stop times for the given run.
 
     Parameters:
-        journey:
+        run:
         progression: An object containing current stop sequence and status.
 
     Returns:
@@ -75,8 +75,8 @@ def fake_stop_times(journey, progression) -> list[dict[str, Any]]:
     route_stops = _load_route_stops(csv_file_path=_CSV_FILE_PATH)
 
     filtered_stops = route_stops[
-        (route_stops["route_id"] == journey.route_id)
-        & (route_stops["shape_id"] == journey.shape_id)
+        (route_stops["route_id"] == run.route_id)
+        & (route_stops["shape_id"] == run.shape_id)
     ]
 
     if filtered_stops.empty:

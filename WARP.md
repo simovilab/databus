@@ -28,6 +28,7 @@ python manage.py createsuperuser
 ### Running the Application
 
 **Docker (Development):**
+
 ```bash
 ./scripts/dev.sh  # Starts all services (web, worker, beat, db, redis)
 
@@ -39,6 +40,7 @@ python manage.py createsuperuser
 ```
 
 **Non-Docker (Development):**
+
 ```bash
 # Terminal 1: Django server
 python manage.py runserver
@@ -125,7 +127,7 @@ The project consists of four main Django apps:
 
 2. **`feed`** (Real-time Feed Generation)
    - Handles real-time vehicle data collection and GTFS Realtime feed generation
-   - Models: `Company`, `Operator`, `DataProvider`, `Vehicle`, `Equipment`, `Journey`, `Position`, `Progression`, `Occupancy`
+   - Models: `Company`, `Operator`, `DataProvider`, `Vehicle`, `Equipment`, `Run`, `Position`, `Progression`, `Occupancy`
    - Celery tasks (`feed/tasks.py`):
      - `build_vehicle_positions()`: Creates VehiclePositions FeedMessage (.pb and .json)
      - `build_trip_updates()`: Creates TripUpdates FeedMessage (.pb and .json)
@@ -134,7 +136,7 @@ The project consists of four main Django apps:
 
 3. **`api`** (RESTful API)
    - Django REST Framework API endpoints for all GTFS and real-time data
-   - ViewSets for: agencies, stops, routes, trips, vehicles, journeys, positions, etc.
+   - ViewSets for: agencies, stops, routes, trips, vehicles, runs, positions, etc.
    - Token-based authentication (DRF TokenAuthentication)
    - OpenAPI schema via drf-spectacular
    - Endpoints at `/api/`
@@ -148,6 +150,7 @@ The project consists of four main Django apps:
 **Multi-Tenant Support:** The `GTFSProvider` model enables serving multiple transit agencies from a single deployment. Each feed is associated with a provider.
 
 **Real-time Data Flow:**
+
 1. Vehicles send telemetry data via API endpoints (authenticated)
 2. Data stored in database models: `Position`, `Progression`, `Occupancy`
 3. Celery periodic tasks build GTFS Realtime FeedMessages (protobuf)
@@ -155,6 +158,7 @@ The project consists of four main Django apps:
 5. WebSocket channels push status updates to connected clients
 
 **GTFS Realtime Implementation:**
+
 - Supports two of three GTFS Realtime entity types:
   - **VehiclePositions**: Real-time vehicle location, speed, bearing, occupancy
   - **TripUpdates**: Predicted arrival/departure times for stops
@@ -165,6 +169,7 @@ The project consists of four main Django apps:
 **Geospatial Support:** Uses PostGIS for location-based queries. Models with geometry fields: `Stop.stop_point`, `Shape.point`, `Position.point`.
 
 **Background Processing:** Celery with Redis broker handles:
+
 - Periodic GTFS Realtime feed generation
 - Data validation
 - Long-running imports/exports
@@ -173,15 +178,17 @@ The project consists of four main Django apps:
 ### Database Models
 
 **GTFS Schedule hierarchy:**
+
 - `Feed` → `Agency` → `Route` → `Trip` → `StopTime`
 - `Stop`, `Calendar`, `Shape` are referenced by trips and routes
 
 **Real-time hierarchy:**
+
 - `Company` (wraps GTFS Agency)
 - `Vehicle` → belongs to `Company`
 - `Equipment` → tracks vehicle hardware/software
-- `Journey` → represents a vehicle's active trip assignment
-- `Position`, `Progression`, `Occupancy` → telemetry data linked to vehicle/journey
+- `Run` → represents a vehicle's active trip assignment
+- `Position`, `Progression`, `Occupancy` → telemetry data linked to vehicle/run
 
 **Important**: The `gtfs` app is a Git submodule. Initialize with `git submodule update --init --recursive`.
 
@@ -197,20 +204,21 @@ Required environment variables:
 - For macOS local development: `GDAL_LIBRARY_PATH`, `GEOS_LIBRARY_PATH`
 
 **Files:**
+
 - `.env`: Local configuration with secrets (not in git)
 - `.env.dev`: Development-specific overrides (tracked in git)
 - `.env.prod`: Production-specific overrides (tracked in git)
 
 ## API Endpoints
 
-| Endpoint | Description |
-|----------|-------------|
-| `/api/` | REST API root |
-| `/api/docs/` | Interactive API documentation (ReDoc) |
-| `/api/docs/schema/` | OpenAPI schema |
-| `/admin/` | Django admin interface |
-| `/feed/` | GTFS feed endpoints |
-| `/gtfs/` | GTFS Schedule data endpoints |
+| Endpoint            | Description                           |
+| ------------------- | ------------------------------------- |
+| `/api/`             | REST API root                         |
+| `/api/docs/`        | Interactive API documentation (ReDoc) |
+| `/api/docs/schema/` | OpenAPI schema                        |
+| `/admin/`           | Django admin interface                |
+| `/feed/`            | GTFS feed endpoints                   |
+| `/gtfs/`            | GTFS Schedule data endpoints          |
 
 ## Important Notes
 
@@ -226,6 +234,7 @@ Required environment variables:
 Production uses systemd services for Celery worker, Celery beat, and Daphne. See `docs/deployment.md` for complete systemd configuration details.
 
 Key production services:
+
 - Gunicorn (WSGI) for HTTP
 - Daphne (ASGI) for WebSockets
 - Celery worker
@@ -235,6 +244,7 @@ Key production services:
 ## Documentation
 
 Additional documentation in `docs/`:
+
 - `development.md`: Detailed functional development notes (Spanish)
 - `deployment.md`: Production deployment with systemd
 - `api.md`: API specification details

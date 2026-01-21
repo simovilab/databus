@@ -102,9 +102,9 @@ class OperatorViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
-class JourneyViewSet(viewsets.ModelViewSet):
-    queryset = Journey.objects.all()
-    serializer_class = JourneySerializer
+class RunViewSet(viewsets.ModelViewSet):
+    queryset = Run.objects.all()
+    serializer_class = RunSerializer
     authentication_classes = [TokenAuthentication]
 
     def create(self, request):
@@ -422,24 +422,24 @@ class FindTripsView(APIView):
                 .first()
             )
             if this_trip:
-                this_journey_status = (
-                    Journey.objects.filter(
+                this_run_status = (
+                    Run.objects.filter(
                         trip_id=trip.trip_id,
                         start_date=datetime.now().date(),
-                        # TODO: check the criteria for selecting the journeys
+                        # TODO: check the criteria for selecting the runs
                     )
-                    .values("journey_status")
+                    .values("run_status")
                     .first()
                 )
-                if this_journey_status:
-                    journey_status = this_journey_status["journey_status"]
+                if this_run_status:
+                    run_status = this_run_status["run_status"]
                 else:
-                    journey_status = "UNKNOWN"
+                    run_status = "UNKNOWN"
                 selected_trips.append(
                     {
                         "trip_id": this_trip["trip_id"],
                         "trip_time": this_trip["trip_time"],
-                        "journey_status": journey_status,
+                        "run_status": run_status,
                         "direction_id": trip.direction_id,
                         "trip_headsign": trip.trip_headsign,
                     }

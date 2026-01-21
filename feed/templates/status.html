@@ -30,7 +30,7 @@
                     </tr>
                     <tr>
                         <td class="text-end">Viajes en progreso:</td>
-                        <td class="text-start"><span id="journeys" class="fw-bold"></span></td>
+                        <td class="text-start"><span id="runs" class="fw-bold"></span></td>
                     </tr>
                 </table>
             </div>
@@ -57,7 +57,7 @@
             const json = JSON.parse(event.data);
             const data = json['message'];
             document.getElementById('last_update').textContent = data['last_update'];
-            document.getElementById('journeys').textContent = data['journeys'];
+            document.getElementById('runs').textContent = data['runs'];
         };
     </script>
 

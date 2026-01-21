@@ -113,10 +113,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OperatorResponse'
-  /journey:
+  /run:
     post:
       summary: Datos del viaje actual
-      description: "Publica datos del viaje actual del vehículo, como el identificador del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación con el horario. Un `journey` es una instancia de un `trip`.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio de un nuevo viaje"
+      description: "Publica datos del viaje actual del vehículo, como el identificador del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación con el horario. Un `run` es una instancia de un `trip`.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio de un nuevo viaje"
       tags:
         - Trip
       requestBody:
@@ -124,18 +124,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Journey'
+              $ref: '#/components/schemas/Run'
       responses:
         '201':
           description: Registro creado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JourneyResponse'
-  /journey/{journey_id}:
+                $ref: '#/components/schemas/RunResponse'
+  /run/{run_id}:
     parameters:
       - in: path
-        name: journey_id
+        name: run_id
         required: true
         description: Identificador único de un viaje particular
         schema:
@@ -152,7 +152,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Journey'
+              $ref: '#/components/schemas/Run'
       responses:
         '200':
           description: OK
@@ -581,7 +581,7 @@ components:
               type: boolean
               example: true
               default: false
-            journey:
+            run:
               description: Proporciona datos del viaje
               type: boolean
               example: true
@@ -658,7 +658,7 @@ components:
           description: Hora de salida del viaje
           type: string
           example: '07:15:00'
-    Journey:
+    Run:
       type: object
       properties:
         equipment_id:
@@ -697,16 +697,16 @@ components:
           description: Relación con el horario
           type: string
           enum: ['SCHEDULED', 'ADDED', 'UNSCHEDULED', 'CANCELED', 'DUPLICATED', 'DELETED']
-        journey_status:
+        run_status:
           description: Estado del viaje
           type: string
           enum: ['IN_PROGRESS', 'COMPLETED', 'INTERRUPTED']
           default: 'IN_PROGRESS'
           example: 'IN_PROGRESS'
-    JourneyResponse:
+    RunResponse:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador único del viaje particular, generado automáticamente en el servidor
           type: number
           format: integer
@@ -714,7 +714,7 @@ components:
     Position:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -755,14 +755,14 @@ components:
           format: float
           example: 12345.6
       required:
-        - journey_id
+        - run_id
         - timestamp
         - latitude
         - longitude
     Progression:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -793,7 +793,7 @@ components:
     Occupancy:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -819,7 +819,7 @@ components:
     Conditions:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -863,7 +863,7 @@ components:
     Emissions:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -891,7 +891,7 @@ components:
     Traveler:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -912,7 +912,7 @@ components:
     Authorization:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -924,7 +924,7 @@ components:
     AuthorizationResponse:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -940,7 +940,7 @@ components:
     Fare:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -970,7 +970,7 @@ components:
     Transfer:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
@@ -982,7 +982,7 @@ components:
     TransferResponse:
       type: object
       properties:
-        journey_id:
+        run_id:
           description: Identificador del viaje actual
           type: number
           format: integer
