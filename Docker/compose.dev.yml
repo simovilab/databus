@@ -18,7 +18,57 @@ services:
       redis:
         condition: service_healthy
 
-  worker:
+  db:
+    image: postgis/postgis:15-3.3
+    environment:
+      - POSTGRES_DB=${DB_NAME:-databus}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}", "-d", "${DB_NAME:-databus}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  imdb:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  broker:
+    image: rabbitmq:management
+    ports:
+      - "5672:5672" # AMQP port
+      - "1883:1883" # MQTT port
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin}
+    volumes:
+      - ./config/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins
+      - ./config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  orchestration:
+    image: prefecthq/prefect:3-latest
+    ports:
+      - "4200:4200" # Prefect UI
+    command: prefect server start
+
+  tasks:
     build:
       context: ..
       dockerfile: Docker/Dockerfile
@@ -49,7 +99,7 @@ services:
       redis:
         condition: service_healthy
 
-  beat:
+  scheduler:
     build:
       context: ..
       dockerfile: Docker/Dockerfile
@@ -90,31 +140,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-
-  db:
-    image: postgis/postgis:15-3.3
-    environment:
-      - POSTGRES_DB=${DB_NAME:-databus}
-      - POSTGRES_USER=${DB_USER:-postgres}
-      - POSTGRES_HOST_AUTH_METHOD=trust
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}", "-d", "${DB_NAME:-databus}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   postgres_data:
