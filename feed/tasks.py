@@ -1,12 +1,31 @@
+import os
 from celery import shared_task
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import json
+import redis
 from datetime import datetime
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
 from .models import Run, Progression, Position, Progression, Occupancy
 from .fake_stop_times import fake_stop_times
+
+
+_redis = None
+
+
+def get_redis():
+    global _redis
+    if _redis is None:
+        _redis = redis.Redis(
+            host=os.environ.get(
+                "REDIS_HOST", "imdb"
+            ),  # use compose service name, not localhost
+            port=int(os.environ.get("REDIS_PORT", "6379")),
+            db=int(os.environ.get("REDIS_DB", "0")),
+            decode_responses=True,
+        )
+    return _redis
 
 
 def get_feed_version():
@@ -140,6 +159,8 @@ def build_vehicle_positions():
 
 @shared_task
 def build_trip_updates():
+    r = get_redis()
+
     # Feed message dictionary
     feed_message = {}
 
@@ -153,16 +174,16 @@ def build_trip_updates():
     # Feed message entity
     feed_message["entity"] = []
 
-    # TODO: get all runs in progress from Redis cache: r.smembers("runs:in_progress")
-    runs = Run.objects.filter(run_status="IN_PROGRESS")
+    # Get all in-progress runs
+    runs = r.smembers("runs:in_progress")
 
     for run in runs:
-        vehicle = run.vehicle
+        run = r.hgetall(run)
+        vehicle = run["vehicle"]
         # TODO: get latest position from Redis cache: r.hgetall(f"vehicle:{vehicle.id}:position")
-        position = Position.objects.filter(vehicle=vehicle).latest("timestamp")
+        position = r.hgetall(f"vehicle:{vehicle['id']}:position")
         # TODO: get latest progression from Redis cache: r.hgetall(f"vehicle:{vehicle.id}:progression")
-        progression = Progression.objects.filter(run=run).latest("timestamp")
-        # run = r.hgetall(run)
+        progression = r.hgetall(f"vehicle:{vehicle['id']}:progression")
         # Entity
         entity = {}
         entity["id"] = get_entity_id(vehicle.id)
