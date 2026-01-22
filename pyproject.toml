@@ -23,6 +23,7 @@ dependencies = [
     "mkdocs-material>=9.6.18",
     "pandas>=2.3.3",
     "pillow>=11.3.0",
+    "prefect>=3.6.12",
     "psycopg2-binary>=2.9.11",
     "python-decouple>=3.8",
     "redis>=6.4.0",
