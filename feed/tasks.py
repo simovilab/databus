@@ -8,7 +8,7 @@ from datetime import datetime
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
 from .models import Run, Progression, Position, Progression, Occupancy
-from .fake_stop_times import fake_stop_times
+from .fake_stop_times import build_stop_time_updates
 
 
 _redis = None
@@ -38,10 +38,6 @@ def get_entity_id(vehicle_id):
     return vehicle_id
 
 
-def parse_timestamp(timestamp):
-    return int(timestamp.timestamp())
-
-
 def get_current_timestamp():
     return int(datetime.now().timestamp())
 
@@ -50,6 +46,8 @@ def get_current_timestamp():
 def build_vehicle_positions():
     """
     Build the VehiclePosition feed message."""
+
+    r = get_redis()
 
     # Feed message dictionary
     feed_message = {}
@@ -64,10 +62,12 @@ def build_vehicle_positions():
     # Feed message entity
     feed_message["entity"] = []
 
-    runs = Run.objects.filter(run_status="IN_PROGRESS")
+    runs_in_progress = r.smembers("runs:in_progress")
 
-    for run in runs:
-        vehicle = run.vehicle
+    for run_id in runs_in_progress:
+        run = r.getall(run_id)
+        vehicle_id = run["vehicle"]
+        vehicle = r.hgetall(f"vehicle:{vehicle_id}:data")
 
         # Get position object
         positions = Position.objects.filter(vehicle=vehicle, is_new=True)
@@ -112,8 +112,8 @@ def build_vehicle_positions():
         entity["vehicle"]["trip"]["trip_id"] = run.trip_id
         entity["vehicle"]["trip"]["route_id"] = run.route_id
         entity["vehicle"]["trip"]["direction_id"] = run.direction_id
-        entity["vehicle"]["trip"]["start_time"] = _format_time(run.start_time)
-        entity["vehicle"]["trip"]["start_date"] = run.start_date.strftime("%Y%m%d")
+        entity["vehicle"]["trip"]["start_time"] = run.start_time
+        entity["vehicle"]["trip"]["start_date"] = run.start_date
         entity["vehicle"]["trip"]["schedule_relationship"] = run.schedule_relationship
         # Vehicle
         entity["vehicle"]["vehicle"] = {}
@@ -175,40 +175,60 @@ def build_trip_updates():
     feed_message["entity"] = []
 
     # Get all in-progress runs
-    runs = r.smembers("runs:in_progress")
+    runs_in_progress = r.smembers("runs:in_progress")
 
-    for run in runs:
-        run = r.hgetall(run)
-        vehicle = run["vehicle"]
-        # TODO: get latest position from Redis cache: r.hgetall(f"vehicle:{vehicle.id}:position")
-        position = r.hgetall(f"vehicle:{vehicle['id']}:position")
-        # TODO: get latest progression from Redis cache: r.hgetall(f"vehicle:{vehicle.id}:progression")
-        progression = r.hgetall(f"vehicle:{vehicle['id']}:progression")
-        # Entity
+    for run_id in runs_in_progress:
+        run = r.hgetall(run_id)
+        vehicle_id = run["vehicle"]
+        vehicle = r.hgetall(f"vehicle:{vehicle_id}:data")
+        position = r.hgetall(f"vehicle:{vehicle_id}:position")
+        progression = r.hgetall(f"vehicle:{vehicle_id}:progression")
+
+        # Delete run, vehicle, position and progression in Redis
+        r.delete(run_id)
+        r.delete(f"vehicle:{vehicle_id}:data")
+        r.delete(f"vehicle:{vehicle_id}:position")
+        r.delete(f"vehicle:{vehicle_id}:progression")
+
         entity = {}
-        entity["id"] = get_entity_id(vehicle.id)
+        entity["id"] = get_entity_id(vehicle["id"])
         entity["trip_update"] = {}
-        # Timestamp
-        entity["trip_update"]["timestamp"] = parse_timestamp(position.timestamp)
-        # Trip
+        entity["trip_update"]["timestamp"] = int(position["timestamp"])
         entity["trip_update"]["trip"] = {}
-        entity["trip_update"]["trip"]["trip_id"] = run.trip_id
-        entity["trip_update"]["trip"]["route_id"] = run.route_id
-        entity["trip_update"]["trip"]["direction_id"] = run.direction_id
-        entity["trip_update"]["trip"]["start_time"] = _format_time(run.start_time)
-        entity["trip_update"]["trip"]["start_date"] = run.start_date.strftime("%Y%m%d")
-        entity["trip_update"]["trip"]["schedule_relationship"] = (
-            run.schedule_relationship
-        )
-        # Vehicle
+        entity["trip_update"]["trip"]["trip_id"] = run["trip_id"]
+        entity["trip_update"]["trip"]["route_id"] = run["route_id"]
+        entity["trip_update"]["trip"]["direction_id"] = run["direction_id"]
+        entity["trip_update"]["trip"]["start_time"] = run["start_time"]
+        entity["trip_update"]["trip"]["start_date"] = run["start_date"]
+        entity["trip_update"]["trip"]["schedule_relationship"] = run[
+            "schedule_relationship"
+        ]
         entity["trip_update"]["vehicle"] = {}
-        entity["trip_update"]["vehicle"]["id"] = vehicle.id
-        entity["trip_update"]["vehicle"]["label"] = vehicle.label
-        entity["trip_update"]["vehicle"]["license_plate"] = vehicle.license_plate
-        # Stop time update
-        entity["trip_update"]["stop_time_update"] = fake_stop_times(
-            run=run, progression=progression
+        entity["trip_update"]["vehicle"]["id"] = vehicle["id"]
+        entity["trip_update"]["vehicle"]["label"] = vehicle["label"]
+        entity["trip_update"]["vehicle"]["license_plate"] = vehicle["license_plate"]
+        entity["trip_update"]["vehicle"]["wheelchair_accessible"] = vehicle[
+            "wheelchair_accessible"
+        ]
+
+        entity["trip_update"]["stop_time_update"] = []
+        stop_time_updates = build_stop_time_updates(
+            run=run, position=position, progression=progression
         )
+        for update in stop_time_updates:
+            stop_time_update = {}
+            stop_time_update["stop_sequence"] = update["stop_sequence"]
+            stop_time_update["stop_id"] = update["stop_id"]
+            stop_time_update["arrival"] = {}
+            stop_time_update["arrival"]["time"] = update["eta_posix"]
+            stop_time_update["arrival"]["uncertainty"] = update["uncertainty"]
+            stop_time_update["departure"] = {}
+            stop_time_update["departure"]["time"] = update["eta_posix"]
+            stop_time_update["departure"]["uncertainty"] = update["uncertainty"]
+
+            # Append stop time update to stop time updates
+            entity["trip_update"]["stop_time_update"].append(stop_time_update)
+
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
@@ -226,7 +246,7 @@ def build_trip_updates():
     # Send status update to WebSocket
     message = {}
     message["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    message["runs"] = len(runs)
+    message["runs"] = len(runs_in_progress)
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         "status",
@@ -243,18 +263,3 @@ def build_trip_updates():
 def build_alerts():
     print("Building feed Alert...")
     return "Feed ServiceAlert built"
-
-
-def _format_time(time) -> str:
-    """Format start time into a string in HH:MM:SS format.
-
-    Args:
-        start_time: The start time.
-
-    Returns:
-        str: The formatted start time as a string.
-    """
-    total_seconds = int(time.total_seconds())
-    hours, remainder = divmod(total_seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    return f"{hours:02}:{minutes:02}:{seconds:02}"

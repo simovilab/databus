@@ -54,7 +54,7 @@ def _generate_stop_entry(
     }
 
 
-def fake_stop_times(run, progression) -> list[dict[str, Any]]:
+def build_stop_time_updates(run, progression) -> list[dict[str, Any]]:
     """Generate fake stop times for the given run.
 
     Parameters:

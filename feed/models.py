@@ -258,6 +258,7 @@ class Run(models.Model):
             ("COMPLETED", "Completado"),
             ("INTERRUPTED", "Interrumpido"),
         ],
+        # default="IN_PROGRESS",
     )
 
     def __str__(self):
