@@ -1,51 +1,57 @@
+#!/usr/bin/env python
+"""
+Test script for GTFS-RT feed builders (VehiclePositions and TripUpdates).
+This script mimics the actual builder functions using Redis seed data.
+
+Usage:
+    1. Run redis_seed_data.py to populate Redis with test data
+    2. Run this script with --type vp or --type tu to test the builders
+
+Examples:
+    python scripts/test_feed_builder.py --type vp
+    python scripts/test_feed_builder.py --type tu
+"""
+
+from __future__ import annotations
+
 import os
-from celery import shared_task
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+import sys
 import json
-import redis
+import argparse
 from datetime import datetime
-from google.transit import gtfs_realtime_pb2 as gtfs_rt
-from google.protobuf import json_format
-from .fake_stop_times import build_stop_time_updates
+from typing import Any, Dict
+
+import redis
+
+# Import mock stop time updates builder
+from mock_stop_time_updates import build_stop_time_updates
 
 
-_redis = None
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 
-def get_redis():
-    global _redis
-    if _redis is None:
-        _redis = redis.Redis(
-            host=os.environ.get(
-                "REDIS_HOST", "imdb"
-            ),  # use compose service name, not localhost
-            port=int(os.environ.get("REDIS_PORT", "6379")),
-            db=int(os.environ.get("REDIS_DB", "0")),
-            decode_responses=True,
-        )
-    return _redis
+def get_redis() -> redis.Redis:
+    """Get Redis client with decode_responses=True."""
+    return redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        db=REDIS_DB,
+        decode_responses=True,
+    )
 
 
-def get_feed_version():
-    # TODO: Implement a method to get the current feed version, e.g., from a database
-    return "1.0.0"
-
-
-def get_entity_id(vehicle_id):
-    # TODO: Implement a method to get a unique entity ID based on vehicle ID or trip_id + schedule_relationship
-    return vehicle_id
-
-
-def get_current_timestamp():
+def get_current_timestamp() -> int:
+    """Get current Unix timestamp."""
     return int(datetime.now().timestamp())
 
 
-@shared_task
-def build_vehicle_positions():
+def build_vehicle_positions_test() -> Dict[str, Any]:
     """
-    Build the VehiclePosition feed message."""
-
+    Test version of build_vehicle_positions() that mimics the actual function.
+    Uses the consume-and-delete pattern from Redis.
+    """
     r = get_redis()
 
     # Feed message dictionary
@@ -56,7 +62,7 @@ def build_vehicle_positions():
     feed_message["header"]["gtfs_realtime_version"] = "2.0"
     feed_message["header"]["incrementality"] = "FULL_DATASET"
     feed_message["header"]["timestamp"] = get_current_timestamp()
-    feed_message["header"]["feed_version"] = get_feed_version()
+    feed_message["header"]["feed_version"] = "1.0.0"
 
     # Feed message entity
     feed_message["entity"] = []
@@ -73,7 +79,12 @@ def build_vehicle_positions():
         occupancy = r.hgetall(f"vehicle:{vehicle_id}:occupancy")
 
         if not position and not progression and not occupancy:
+            # TODO: Log this event, create strategy to clean up stale runs
             continue
+        else:
+            r.delete(f"vehicle:{vehicle_id}:position")
+            r.delete(f"vehicle:{vehicle_id}:progression")
+            r.delete(f"vehicle:{vehicle_id}:occupancy")
 
         entity = {}
         entity["id"] = f"{vehicle['id']}"
@@ -128,22 +139,15 @@ def build_vehicle_positions():
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
-    # Create and save JSON
-    feed_message_json = json.dumps(feed_message)
-    with open("feed/files/vehicle_positions.json", "w") as f:
-        f.write(feed_message_json)
-
-    # Create and save Protobuf
-    feed_message_json = json.loads(feed_message_json)
-    feed_message_pb = json_format.ParseDict(feed_message_json, gtfs_rt.FeedMessage())
-    with open("feed/files/vehicle_positions.pb", "wb") as f:
-        f.write(feed_message_pb.SerializeToString())
-
-    return "FeedMessage VehiclePosition built successfully"
+    return feed_message
 
 
-@shared_task
-def build_trip_updates():
+def build_trip_updates_test() -> Dict[str, Any]:
+    """
+    Test version of build_trip_updates() that mimics the actual function.
+    Uses the consume-and-delete pattern from Redis.
+    Includes mock stop_time_updates.
+    """
     r = get_redis()
 
     # Feed message dictionary
@@ -154,7 +158,7 @@ def build_trip_updates():
     feed_message["header"]["gtfs_realtime_version"] = "2.0"
     feed_message["header"]["incrementality"] = "FULL_DATASET"
     feed_message["header"]["timestamp"] = get_current_timestamp()
-    feed_message["header"]["feed_version"] = get_feed_version()
+    feed_message["header"]["feed_version"] = "1.0.0"
 
     # Feed message entity
     feed_message["entity"] = []
@@ -173,7 +177,7 @@ def build_trip_updates():
             continue
 
         entity = {}
-        entity["id"] = get_entity_id(vehicle["id"])
+        entity["id"] = f"{vehicle['id']}"
         entity["trip_update"] = {}
         entity["trip_update"]["timestamp"] = int(position["timestamp"])
         entity["trip_update"]["trip"] = {}
@@ -214,34 +218,105 @@ def build_trip_updates():
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
-    # Create and save JSON
-    feed_message_json = json.dumps(feed_message)
-    with open("feed/files/trip_updates.json", "w") as f:
-        f.write(feed_message_json)
+    return feed_message
 
-    # Create and save Protobuf
-    feed_message_json = json.loads(feed_message_json)
-    feed_message_pb = json_format.ParseDict(feed_message_json, gtfs_rt.FeedMessage())
-    with open("feed/files/trip_updates.pb", "wb") as f:
-        f.write(feed_message_pb.SerializeToString())
 
-    # Send status update to WebSocket
-    message = {}
-    message["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    message["runs"] = len(runs_in_progress)
-    channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        "status",
-        {
-            "type": "status_message",
-            "message": message,
-        },
+def check_redis_data():
+    """Check what data is currently in Redis."""
+    r = get_redis()
+    runs = r.smembers("runs:in_progress")
+    print(f"\n{'=' * 80}")
+    print(f"Redis Status Check")
+    print(f"{'=' * 80}")
+    print(f"Runs in progress: {len(runs)}")
+    for run_id in runs:
+        print(f"  - {run_id}")
+    print(f"{'=' * 80}\n")
+    return len(runs) > 0
+
+
+def main():
+    """Main test function."""
+    parser = argparse.ArgumentParser(
+        description="Test GTFS-RT feed builders",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python scripts/test_feed_builder.py --type vp    # Test VehiclePositions
+  python scripts/test_feed_builder.py --type tu    # Test TripUpdates
+        """,
+    )
+    parser.add_argument(
+        "--type",
+        choices=["vp", "tu"],
+        required=True,
+        help="Feed type to test: 'vp' for VehiclePositions, 'tu' for TripUpdates",
     )
 
-    return "Feed TripUpdate built."
+    args = parser.parse_args()
+
+    print(f"\n{'=' * 80}")
+    print(f"GTFS-RT Feed Builder Test")
+    print(f"{'=' * 80}")
+    print(f"Redis: {REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
+    print(f"Feed Type: {'VehiclePositions' if args.type == 'vp' else 'TripUpdates'}")
+
+    # Check if we have data in Redis
+    has_data = check_redis_data()
+
+    if not has_data:
+        print("\n⚠️  No data found in Redis!")
+        print("Please run: python scripts/redis_seed_data.py")
+        sys.exit(1)
+
+    if args.type == "vp":
+        # Test VehiclePositions
+        print(f"\n{'=' * 80}")
+        print("Testing VehiclePositions Builder")
+        print(f"{'=' * 80}")
+        vp_feed = build_vehicle_positions_test()
+        print(f"\n✓ Built VP feed with {len(vp_feed['entity'])} entities")
+
+        # Save VehiclePositions to file
+        vp_output = "scripts/test_vehicle_positions.json"
+        with open(vp_output, "w") as f:
+            json.dump(vp_feed, f, indent=2)
+        print(f"✓ Saved to {vp_output}")
+
+        # Show VP sample
+        if vp_feed["entity"]:
+            print(f"\nSample VehiclePosition entity:")
+            print(json.dumps(vp_feed["entity"][0], indent=2))
+
+        print(f"\n{'=' * 80}")
+        print("⚠️  WARNING: Redis data has been consumed!")
+        print("Re-seed Redis before testing again")
+        print(f"{'=' * 80}")
+
+    elif args.type == "tu":
+        # Test TripUpdates
+        print(f"\n{'=' * 80}")
+        print("Testing TripUpdates Builder")
+        print(f"{'=' * 80}")
+        tu_feed = build_trip_updates_test()
+        print(f"\n✓ Built TU feed with {len(tu_feed['entity'])} entities")
+
+        # Save TripUpdates to file
+        tu_output = "scripts/test_trip_updates.json"
+        with open(tu_output, "w") as f:
+            json.dump(tu_feed, f, indent=2)
+        print(f"✓ Saved to {tu_output}")
+
+        # Show TU sample
+        if tu_feed["entity"]:
+            print(f"\nSample TripUpdate entity:")
+            print(json.dumps(tu_feed["entity"][0], indent=2))
+
+        print(f"\n{'=' * 80}")
+        print("⚠️  WARNING: Redis data has been consumed!")
+        print("Re-seed Redis before testing again")
+        print(f"{'=' * 80}")
 
 
-@shared_task
-def build_alerts():
-    print("Building feed Alert...")
-    return "Feed ServiceAlert built"
+if __name__ == "__main__":
+    main()
