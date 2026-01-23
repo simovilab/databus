@@ -72,54 +72,59 @@ def build_vehicle_positions():
         progression = r.hgetall(f"vehicle:{vehicle_id}:progression")
         occupancy = r.hgetall(f"vehicle:{vehicle_id}:occupancy")
 
-        # Delete run, vehicle, position, progression, and occupancy in Redis
-        r.delete(run_id)
-        r.delete(f"vehicle:{vehicle_id}:data")
-        r.delete(f"vehicle:{vehicle_id}:position")
-        r.delete(f"vehicle:{vehicle_id}:progression")
-        r.delete(f"vehicle:{vehicle_id}:occupancy")
-
         if not position and not progression and not occupancy:
-            # TODO: Log this event, create strategy to clean up stale runs
             continue
 
-        # Build entity
         entity = {}
         entity["id"] = f"{vehicle['id']}"
         entity["vehicle"] = {}
-        # Timestamp
         entity["vehicle"]["timestamp"] = int(position["timestamp"])
-        # Trip
         entity["vehicle"]["trip"] = {}
         entity["vehicle"]["trip"]["trip_id"] = run["trip_id"]
         entity["vehicle"]["trip"]["route_id"] = run["route_id"]
         entity["vehicle"]["trip"]["direction_id"] = run["direction_id"]
         entity["vehicle"]["trip"]["start_time"] = run["start_time"]
         entity["vehicle"]["trip"]["start_date"] = run["start_date"]
-        entity["vehicle"]["trip"]["schedule_relationship"] = run["schedule_relationship"]
-        # Vehicle
+        entity["vehicle"]["trip"]["schedule_relationship"] = run[
+            "schedule_relationship"
+        ]
         entity["vehicle"]["vehicle"] = {}
         entity["vehicle"]["vehicle"]["id"] = vehicle["id"]
         entity["vehicle"]["vehicle"]["label"] = vehicle["label"]
         entity["vehicle"]["vehicle"]["license_plate"] = vehicle["license_plate"]
-        # Position
+        if vehicle.get("wheelchair_accessible"):
+            entity["vehicle"]["vehicle"]["wheelchair_accessible"] = vehicle[
+                "wheelchair_accessible"
+            ]
         if position:
             entity["vehicle"]["position"] = {}
             entity["vehicle"]["position"]["latitude"] = position["latitude"]
             entity["vehicle"]["position"]["longitude"] = position["longitude"]
-            entity["vehicle"]["position"]["bearing"] = position["bearing"]
-            entity["vehicle"]["position"]["odometer"] = position["odometer"]
-            entity["vehicle"]["position"]["speed"] = position["speed"]
-        # Progression
+            if position.get("bearing"):
+                entity["vehicle"]["position"]["bearing"] = position["bearing"]
+            if position.get("odometer"):
+                entity["vehicle"]["position"]["odometer"] = position["odometer"]
+            if position.get("speed"):
+                entity["vehicle"]["position"]["speed"] = position["speed"]
         if progression:
-            entity["vehicle"]["current_stop_sequence"] = progression["current_stop_sequence"]
-            entity["vehicle"]["stop_id"] = progression["stop_id"]
-            entity["vehicle"]["current_status"] = progression["current_status"]
-            entity["vehicle"]["congestion_level"] = progression["congestion_level"]
-        # Occupancy
+            if progression.get("current_stop_sequence"):
+                entity["vehicle"]["current_stop_sequence"] = progression[
+                    "current_stop_sequence"
+                ]
+            if progression.get("stop_id"):
+                entity["vehicle"]["stop_id"] = progression["stop_id"]
+            if progression.get("current_status"):
+                entity["vehicle"]["current_status"] = progression["current_status"]
+            if progression.get("congestion_level"):
+                entity["vehicle"]["congestion_level"] = progression["congestion_level"]
         if occupancy:
-            entity["vehicle"]["occupancy_status"] = occupancy["occupancy_status"]
-            entity["vehicle"]["occupancy_percentage"] = occupancy["occupancy_percentage"]
+            if occupancy.get("occupancy_status"):
+                entity["vehicle"]["occupancy_status"] = occupancy["occupancy_status"]
+            if occupancy.get("occupancy_percentage"):
+                entity["vehicle"]["occupancy_percentage"] = occupancy[
+                    "occupancy_percentage"
+                ]
+
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
@@ -164,11 +169,8 @@ def build_trip_updates():
         position = r.hgetall(f"vehicle:{vehicle_id}:position")
         progression = r.hgetall(f"vehicle:{vehicle_id}:progression")
 
-        # Delete run, vehicle, position and progression in Redis
-        r.delete(run_id)
-        r.delete(f"vehicle:{vehicle_id}:data")
-        r.delete(f"vehicle:{vehicle_id}:position")
-        r.delete(f"vehicle:{vehicle_id}:progression")
+        if not position and not progression:
+            continue
 
         entity = {}
         entity["id"] = get_entity_id(vehicle["id"])
@@ -187,10 +189,10 @@ def build_trip_updates():
         entity["trip_update"]["vehicle"]["id"] = vehicle["id"]
         entity["trip_update"]["vehicle"]["label"] = vehicle["label"]
         entity["trip_update"]["vehicle"]["license_plate"] = vehicle["license_plate"]
-        entity["trip_update"]["vehicle"]["wheelchair_accessible"] = vehicle[
-            "wheelchair_accessible"
-        ]
-
+        if vehicle.get("wheelchair_accessible"):
+            entity["trip_update"]["vehicle"]["wheelchair_accessible"] = vehicle[
+                "wheelchair_accessible"
+            ]
         entity["trip_update"]["stop_time_update"] = []
         stop_time_updates = build_stop_time_updates(
             run=run, position=position, progression=progression
