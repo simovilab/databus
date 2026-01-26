@@ -1,5 +1,5 @@
 def main():
-    print("Hello from databus!")
+    print("Hello from analytics!")
 
 
 if __name__ == "__main__":

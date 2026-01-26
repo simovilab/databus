@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Set environment variables
-ENV ENTRYPOINT_PATH="/app/Docker/docker-entrypoint.sh" \
+ENV ENTRYPOINT_PATH="/app/docker-entrypoint.sh" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \

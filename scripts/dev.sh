@@ -48,8 +48,8 @@ fi
 echo -e "${GREEN}🔧 Building development environment...${NC}"
 
 # Try to add the GTFS submodule if not present
-if [ ! -d "gtfs" ] || [ -z "$(ls -A gtfs 2>/dev/null)" ]; then
-    echo -e "${YELLOW}📦 Initializing GTFS submodule (django-app-gtfs)...${NC}"
+if [ ! -d "backend/gtfs" ] || [ -z "$(ls -A backend/gtfs 2>/dev/null)" ]; then
+    echo -e "${YELLOW}📦 Initializing GTFS submodule (backend/gtfs)...${NC}"
     if git submodule update --init --recursive; then
         echo -e "${GREEN} GTFS submodule ready.${NC}"
     else
@@ -59,7 +59,7 @@ if [ ! -d "gtfs" ] || [ -z "$(ls -A gtfs 2>/dev/null)" ]; then
     fi
 fi
 
-COMPOSE_FILE=Docker/compose.dev.yml
+COMPOSE_FILE=compose.dev.yml
 echo -e "${BLUE}🔧 Using compose file: ${COMPOSE_FILE}${NC}"
 docker compose -f ${COMPOSE_FILE} up --build -d
 

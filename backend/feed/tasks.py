@@ -18,7 +18,7 @@ def get_redis():
     if _redis is None:
         _redis = redis.Redis(
             host=os.environ.get(
-                "REDIS_HOST", "imdb"
+                "REDIS_HOST", "state"
             ),  # use compose service name, not localhost
             port=int(os.environ.get("REDIS_PORT", "6379")),
             db=int(os.environ.get("REDIS_DB", "0")),

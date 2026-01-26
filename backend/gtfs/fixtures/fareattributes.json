@@ -1,0 +1,16 @@
+[
+    {
+        "model": "gtfs.FareAttribute",
+        "pk": 1,
+        "fields": {
+            "feed": "1234",
+            "fare_id": "no_tarifa",
+            "price": "0",
+            "currency_type": "CRC",
+            "payment_method": "0",
+            "transfers": "0",
+            "agency_id": "UCR",
+            "transfer_duration": ""
+        }
+    }
+]

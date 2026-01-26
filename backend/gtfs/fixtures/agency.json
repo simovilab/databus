@@ -1,0 +1,17 @@
+[
+    {
+        "model": "gtfs.agency",
+        "pk": 1,
+        "fields": {
+            "feed": "1234",
+            "agency_id": "UCR",
+            "agency_name": "Universidad de Costa Rica",
+            "agency_url": "https://bus.ucr.ac.cr/",
+            "agency_timezone": "America/Costa_Rica",
+            "agency_lang": "es",
+            "agency_phone": "25113652",
+            "agency_fare_url": "https://bus.ucr.ac.cr/#tarifas",
+            "agency_email": "bus@ucr.ac.cr"
+        }
+    }
+]
