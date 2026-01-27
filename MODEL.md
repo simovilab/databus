@@ -11,36 +11,48 @@
 
 ```mermaid
 flowchart TD
-    API[API]
-    MQTT[MQTT]
     subgraph Ingestion
-        broker((broker))
-        backend((backend))
+        direction TB
+        api[API]
+        mqtt[MQTT]
+        mqtt-broker(("mqtt-broker<br/>(HiveMQ)"))
+        backend(("backend<br/>(Django)"))
+    end
+    subgraph Processing
+        realtime-engine(("realtime-engine<br/>(Python)"))
+        message-broker(("message-broker<br/>(RabbitMQ)"))
     end
     subgraph State
-        state((state))
+        state(("state<br/>(Redis)"))
     end
     subgraph Persistence
-        store((store))
+        store(("store<br/>(PostgreSQL)"))
+        gtfs-s[GTFS Schedule]
     end
+    scheduler(("scheduler<br/>(Celery Beat)"))
     subgraph Projection
-        publisher((publisher))
-        planner((planner))
+        direction LR
+        publisher(("publisher<br/>(Celery)"))
+        gtfs[GTFS Realtime]
     end
     subgraph Learning
-        analytics((analytics))
+        analytics(("analytics<br/>(Prefect)"))
     end
-    GTFS[GTFS Realtime]
 
-    API --"backend"--> Ingestion
-    MQTT --"broker"--> Ingestion
-    Ingestion --"realtime-engine"--> State
-    Ingestion --"backend"--> Persistence
-    State <--"realtime-engine"--> Persistence
-    State --"publisher"--> Projection
-    Persistence --"analytics"--> Learning
-    planner --> publisher
-    Projection --> GTFS
+    api --> backend
+    mqtt --> mqtt-broker
+    backend --"commands"--> message-broker
+    mqtt-broker --"forwards telemetry"--> realtime-engine
+    realtime-engine --"updates"--> state
+    message-broker --"forwards commands"--> realtime-engine
+    realtime-engine --"observations"--> message-broker
+    message-broker --"forwards observations"--> backend
+    realtime-engine --"writes operational traces"--> store
+    backend --"writes/reads"--> store
+    store --"batch"--> analytics
+    state --"snapshot"--> publisher
+    scheduler --> publisher
+    publisher --> gtfs
 ```
 
 GTFS-Realtime is a periodically published, contract-bound projection of a continuously evolving system state.
