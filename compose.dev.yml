@@ -4,8 +4,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: dev
     entrypoint: ["/app/docker-entrypoint.sh"]
+    command: ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports:
       - "8000:8000"
     env_file:
@@ -60,7 +60,7 @@ services:
       state:
         condition: service_healthy
 
-  broker: 
+  mqtt-broker: 
     image: hivemq/hivemq-ce
     ports:
       - "1883:1883"
@@ -68,6 +68,23 @@ services:
       - hivemq_data:/opt/hivemq/data
     environment:
       - HIVEMQ_LOG_LEVEL=${HIVEMQ_LOG_LEVEL:-INFO}
+
+  message-broker:
+    image: rabbitmq:4-management
+    ports:
+      - "5672:5672"   # AMQP 0-9-1 and AMQP 1.0
+      - "15672:15672" # HTTP API
+      - "15692:15692" # Prometheus exporter API over HTTP
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   publisher:
     build:
@@ -157,3 +174,4 @@ volumes:
   postgres_data:
   redis_data:
   hivemq_data:
+  rabbitmq_data:

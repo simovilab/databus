@@ -1,5 +1,14 @@
 # Functional Diagram
 
+| Layer            | Services                            |
+| ---------------- | ----------------------------------- |
+| Ingestion        | `backend`, `mqtt-broker`            |
+| State            | `state`                             |
+| Persistence      | `store`                             |
+| Event processing | `realtime-engine`, `message-broker` |
+| Projection       | `publisher`, `scheduler`            |
+| Learning         | `analytics`                         |
+
 ```mermaid
 flowchart TD
     API[API]

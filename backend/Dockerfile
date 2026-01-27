@@ -45,18 +45,15 @@ USER app
 EXPOSE 8000
 
 # ---- Development stage
-FROM base AS dev
-# -------------------
+# FROM base AS dev
+# ----------------------
 
-ENTRYPOINT ["/bin/sh", "-c", "exec \"${ENTRYPOINT_PATH}\" \"$@\"", "--"]
-CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+# CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
 
 # ---- Production stage
 FROM base AS prod
-# ------------------
+# ---------------------
 
 # Install dependencies in production mode
 RUN uv sync --frozen --no-dev
-
-ENTRYPOINT ["/bin/sh", "-c", "exec \"${ENTRYPOINT_PATH}\" \"$@\"", "--"]
 CMD ["uv", "run", "daphne", "-b", "0.0.0.0", "-p", "8000", "realtime.asgi:application"]

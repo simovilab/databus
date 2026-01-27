@@ -60,8 +60,12 @@ if [ ! -d "backend/gtfs" ] || [ -z "$(ls -A backend/gtfs 2>/dev/null)" ]; then
 fi
 
 COMPOSE_FILE=compose.dev.yml
+
 echo -e "${BLUE}🔧 Using compose file: ${COMPOSE_FILE}${NC}"
+
+# Build and start services --------------------
 docker compose -f ${COMPOSE_FILE} up --build -d
+# ---------------------------------------------
 
 echo ""
 echo -e "${YELLOW}⏳ Waiting for services to be ready...${NC}"
@@ -75,8 +79,7 @@ else
     echo -e "${RED}⚠️ Some services may not be running properly. Check logs for details.${NC}"
 fi
 
-
-# Celery migrations are applied by the web service; worker/beat will skip.
+# Messages
 
 echo ""
 echo -e "${GREEN}🌐 Development URLs:${NC}"
@@ -95,4 +98,4 @@ echo "  Migrations: docker compose -f ${COMPOSE_FILE} exec web uv run python man
 echo "  Superuser: docker compose -f ${COMPOSE_FILE} exec web uv run python manage.py createsuperuser"
 echo "  Shell: docker compose -f ${COMPOSE_FILE} exec web uv run python manage.py shell"
 echo ""
-echo -e "${GREEN}🛑 To stop: docker compose -f ${COMPOSE_FILE} down${NC}"
+echo -e "${BLUE}To stop: docker compose -f ${COMPOSE_FILE} down${NC}"
