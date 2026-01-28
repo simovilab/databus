@@ -12,28 +12,26 @@
 ```mermaid
 flowchart TD
     subgraph Ingestion
-        direction TB
-        api[API]
-        mqtt[MQTT]
-        mqtt-broker(("mqtt-broker<br/>(HiveMQ)"))
-        backend(("backend<br/>(Django)"))
+        api([REST API])
+        mqtt([MQTT])
     end
+    mqtt-broker(("mqtt-broker<br/>(HiveMQ)"))
+    backend(("backend<br/>(Django)"))
     subgraph Processing
         realtime-engine(("realtime-engine<br/>(Python)"))
-        message-broker(("message-broker<br/>(RabbitMQ)"))
     end
+    message-broker(("message-broker<br/>(RabbitMQ)"))
     subgraph State
         state(("state<br/>(Redis)"))
     end
     subgraph Persistence
         store(("store<br/>(PostgreSQL)"))
-        gtfs-s[GTFS Schedule]
+        gtfs-s[/GTFS Schedule/]
     end
     scheduler(("scheduler<br/>(Celery Beat)"))
     subgraph Projection
-        direction LR
         publisher(("publisher<br/>(Celery)"))
-        gtfs[GTFS Realtime]
+        gtfs-rt[/GTFS Realtime/]
     end
     subgraph Learning
         analytics(("analytics<br/>(Prefect)"))
@@ -41,18 +39,69 @@ flowchart TD
 
     api --> backend
     mqtt --> mqtt-broker
-    backend --"commands"--> message-broker
+    backend <--"writes / reads"--> store
     mqtt-broker --"forwards telemetry"--> realtime-engine
+    backend --"emits commands"--> message-broker
+    realtime-engine --"emits observations"--> message-broker
+    realtime-engine --"writes traces"--> store
     realtime-engine --"updates"--> state
-    message-broker --"forwards commands"--> realtime-engine
-    realtime-engine --"observations"--> message-broker
-    message-broker --"forwards observations"--> backend
-    realtime-engine --"writes operational traces"--> store
-    backend --"writes/reads"--> store
-    store --"batch"--> analytics
-    state --"snapshot"--> publisher
     scheduler --> publisher
-    publisher --> gtfs
+    state --"provides snapshot"--> publisher
+    publisher --"publishes"--> gtfs-rt
+    publisher --"writes records"--> store
+    publisher --"emits assertions"--> message-broker
+    message-broker --"forwards commands"--> realtime-engine
+    message-broker --"forwards observations"--> backend
+    message-broker --"forwards assertions"--> backend
+    message-broker --"forwards commands"--> publisher
+    gtfs-s -->  store
+    store --"processes batches"--> analytics
+
+```
+
+## A Day in the Life of a Run
+
+```mermaid
+sequenceDiagram
+    actor Dispatcher
+    participant Backend
+    participant Store
+    participant Message Broker
+    participant Realtime Engine
+    participant State
+    participant Vehicle
+    participant MQTT Broker
+    participant Publisher
+
+    Dispatcher->>Backend: Begin run
+    Backend->>Store: Query run metadata
+    Store->>Backend: Return run metadata
+    Backend->>Message Broker: Request to begin run
+    Message Broker->>Realtime Engine: Forward request
+    Realtime Engine->>State: Populate run metadata
+    loop Every 15 seconds
+        loop Every few seconds
+            Vehicle->>MQTT Broker: Send telemetry
+            MQTT Broker->>Realtime Engine: Forward telemetry
+            Realtime Engine->>State: Update state
+            opt Observation
+                Realtime Engine->>Message Broker: Emit observation
+                Message Broker->>Backend: Forward observation
+            end
+        end
+        State->>Publisher: Provide snapshot
+        Note right of Publisher: Publish GTFS Realtime
+        Publisher->>Store: Write record
+        opt Assertion
+            Publisher->>Message Broker: Emit assertion
+            Message Broker->>Backend: Forward assertion
+        end
+    end
+    Dispatcher->>Backend: End run
+    Backend->>Message Broker: Request to end run
+    Message Broker->>Realtime Engine: Forward request
+    Realtime Engine->>State: Flush run metadata
+    Realtime Engine->>Store: Write trace data
 ```
 
 GTFS-Realtime is a periodically published, contract-bound projection of a continuously evolving system state.
