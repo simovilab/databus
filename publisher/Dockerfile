@@ -12,8 +12,7 @@ RUN apt-get update && apt-get install -y \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Environment
-ENV ENTRYPOINT_PATH="/app/docker-entrypoint.sh" \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
@@ -27,19 +26,10 @@ WORKDIR /app
 # Copy dependency manifests first (better caching)
 COPY pyproject.toml uv.lock ./
 
+# Sync uv
+RUN uv sync
+
 # Copy source code
 COPY --chown=app:app . .
 
-# Entrypoint permissions
-RUN chmod +x $ENTRYPOINT_PATH
-
 USER app
-
-# -------------------
-# Development stage
-FROM base AS dev
-# -------------------
-
-ENTRYPOINT ["/bin/sh", "-c", "exec \"${ENTRYPOINT_PATH}\" \"$@\"", "--"]
-
-# CMD is supplied by docker-compose

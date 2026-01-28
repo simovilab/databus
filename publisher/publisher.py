@@ -12,5 +12,5 @@ app = Celery("publisher", broker=broker_url)
 
 
 @app.task
-def build_vehicle_positions(url, group):
+def build_vehicle_positions():
     return "Vehicle positions built."

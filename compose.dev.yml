@@ -66,6 +66,7 @@ services:
       - "1883:1883"
     volumes:
       - hivemq_data:/opt/hivemq/data
+      - ./mqtt-broker/hivemq-config.xml:/opt/hivemq/conf/config.xml
     environment:
       - HIVEMQ_LOG_LEVEL=${HIVEMQ_LOG_LEVEL:-INFO}
 
@@ -90,8 +91,9 @@ services:
     build:
       context: ./publisher
       dockerfile: Dockerfile
-      target: dev
-    entrypoint: ["/app/docker-entrypoint.sh"]
+    env_file:
+      - .env
+      - .env.dev
     command: 
       [
         "uv", 
@@ -102,10 +104,11 @@ services:
         "worker", 
         "--loglevel=info"
       ]
-    env_file:
-      - .env
-      - .env.dev
     environment:
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASS=${RABBITMQ_PASS:-guest}
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-message-broker}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
       - DB_NAME=${DB_NAME:-databus}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-}
@@ -113,7 +116,6 @@ services:
       - DB_PORT=5432
       - REDIS_HOST=state
       - REDIS_PORT=6379
-      - MIGRATE_ON_CELERY=0
     volumes:
       - ./publisher:/app
     depends_on:
@@ -121,13 +123,16 @@ services:
         condition: service_healthy
       state:
         condition: service_healthy
+      message-broker:
+        condition: service_healthy
 
   scheduler:
     build:
       context: ./scheduler
       dockerfile: Dockerfile
-      target: dev
-    entrypoint: ["/app/docker-entrypoint.sh"]
+    env_file:
+      - .env
+      - .env.dev
     command:
       [
         "uv",
@@ -138,24 +143,19 @@ services:
         "beat",
         "--loglevel=info",
       ]
-    env_file:
-      - .env
-      - .env.dev
     environment:
-      - DB_NAME=${DB_NAME:-databus}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-}
-      - DB_HOST=store
-      - DB_PORT=5432
-      - REDIS_HOST=state
-      - REDIS_PORT=6379
-      - MIGRATE_ON_CELERY=0
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASS=${RABBITMQ_PASS:-guest}
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-message-broker}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
     volumes:
       - ./scheduler:/app
     depends_on:
       store:
         condition: service_healthy
       state:
+        condition: service_healthy
+      message-broker:
         condition: service_healthy
 
   analytics:
