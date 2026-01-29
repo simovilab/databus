@@ -111,6 +111,7 @@ def update_vehicle_position(r: redis.Redis, vehicle_id: str) -> Dict[str, Any]:
     # Simulate movement based on current bearing and speed
     # Convert bearing to radians for calculation
     import math
+
     bearing_rad = math.radians(current_bearing)
 
     # Calculate new position (approximate)
@@ -120,7 +121,9 @@ def update_vehicle_position(r: redis.Redis, vehicle_id: str) -> Dict[str, Any]:
     if current_speed > 0:
         # Moving: update position based on bearing
         delta_lat = (distance_km / 111) * math.cos(bearing_rad)
-        delta_lon = (distance_km / (111 * math.cos(math.radians(current_lat)))) * math.sin(bearing_rad)
+        delta_lon = (
+            distance_km / (111 * math.cos(math.radians(current_lat)))
+        ) * math.sin(bearing_rad)
     else:
         # Stopped: small random jitter
         delta_lat = random.uniform(-LAT_LON_DELTA / 10, LAT_LON_DELTA / 10)
@@ -159,7 +162,9 @@ def update_vehicle_position(r: redis.Redis, vehicle_id: str) -> Dict[str, Any]:
     return updated_position
 
 
-def update_vehicle_progression(r: redis.Redis, run: Dict[str, str], vehicle_id: str) -> Dict[str, Any]:
+def update_vehicle_progression(
+    r: redis.Redis, run: Dict[str, str], vehicle_id: str
+) -> Dict[str, Any]:
     """
     Update vehicle progression (stop sequence and status).
 
@@ -220,7 +225,12 @@ def update_vehicle_progression(r: redis.Redis, run: Dict[str, str], vehicle_id: 
     new_stop_id = f"UCR_0_{new_stop_sequence:02d}"
 
     # Randomly vary congestion level
-    congestion_options = ["RUNNING_SMOOTHLY", "STOP_AND_GO", "CONGESTION", "SEVERE_CONGESTION"]
+    congestion_options = [
+        "RUNNING_SMOOTHLY",
+        "STOP_AND_GO",
+        "CONGESTION",
+        "SEVERE_CONGESTION",
+    ]
     if random.random() < 0.1:  # 10% chance to change
         new_congestion_level = random.choice(congestion_options)
     else:
@@ -285,8 +295,13 @@ def update_vehicle_occupancy(r: redis.Redis, vehicle_id: str) -> Dict[str, Any]:
     return updated_occupancy
 
 
-def run_simulation_cycle(r: redis.Redis, stop_vehicles: set = None, only_vehicles: set = None,
-                         random_drop_rate: int = 0, stop_all: bool = False) -> int:
+def run_simulation_cycle(
+    r: redis.Redis,
+    stop_vehicles: set = None,
+    only_vehicles: set = None,
+    random_drop_rate: int = 0,
+    stop_all: bool = False,
+) -> int:
     """
     Run one simulation cycle - update all vehicles.
 
@@ -351,12 +366,14 @@ def run_simulation_cycle(r: redis.Redis, stop_vehicles: set = None, only_vehicle
             occupancy = update_vehicle_occupancy(r, vehicle_id)
 
             # Log the update
-            print(f"  ✓ {vehicle_id}: "
-                  f"({position['latitude']}, {position['longitude']}) "
-                  f"@ {position['speed']}m/s | "
-                  f"Stop {progression.get('current_stop_sequence', '?')} "
-                  f"{progression.get('current_status', '?')} | "
-                  f"{occupancy.get('occupancy_percentage', '?')}% full")
+            print(
+                f"  ✓ {vehicle_id}: "
+                f"({position['latitude']}, {position['longitude']}) "
+                f"@ {position['speed']}m/s | "
+                f"Stop {progression.get('current_stop_sequence', '?')} "
+                f"{progression.get('current_status', '?')} | "
+                f"{occupancy.get('occupancy_percentage', '?')}% full"
+            )
 
             updated_count += 1
 
@@ -366,9 +383,13 @@ def run_simulation_cycle(r: redis.Redis, stop_vehicles: set = None, only_vehicle
     return updated_count
 
 
-def run_continuous_simulation(interval: int = DEFAULT_INTERVAL, stop_vehicles: set = None,
-                              only_vehicles: set = None, random_drop_rate: int = 0,
-                              stop_all_after: int = 0) -> None:
+def run_continuous_simulation(
+    interval: int = DEFAULT_INTERVAL,
+    stop_vehicles: set = None,
+    only_vehicles: set = None,
+    random_drop_rate: int = 0,
+    stop_all_after: int = 0,
+) -> None:
     """
     Run continuous simulation loop.
 
@@ -386,7 +407,7 @@ def run_continuous_simulation(interval: int = DEFAULT_INTERVAL, stop_vehicles: s
     signal.signal(signal.SIGTERM, signal_handler)
 
     print(f"\n{'=' * 80}")
-    print(f"GTFS-RT Continuous Data Simulator")
+    print("GTFS-RT Continuous Data Simulator")
     print(f"{'=' * 80}")
     print(f"Redis: {REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
     print(f"Update Interval: {interval} seconds")
@@ -409,7 +430,7 @@ def run_continuous_simulation(interval: int = DEFAULT_INTERVAL, stop_vehicles: s
     try:
         while running:
             cycle += 1
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             print(f"[Cycle {cycle}] {timestamp}")
             print(f"{'-' * 80}")
@@ -418,8 +439,9 @@ def run_continuous_simulation(interval: int = DEFAULT_INTERVAL, stop_vehicles: s
             stop_all = stop_all_after > 0 and cycle > stop_all_after
 
             # Run simulation cycle
-            updated = run_simulation_cycle(r, stop_vehicles, only_vehicles,
-                                          random_drop_rate, stop_all)
+            updated = run_simulation_cycle(
+                r, stop_vehicles, only_vehicles, random_drop_rate, stop_all
+            )
 
             print(f"{'-' * 80}")
             print(f"Updated {updated} vehicles\n")
@@ -570,13 +592,17 @@ Test Cases (Edge Case Simulation):
         if stop_vehicles:
             invalid = stop_vehicles - all_vehicles
             if invalid:
-                print(f"\n⚠️  Warning: Unknown vehicle IDs in --stop-vehicle: {', '.join(invalid)}")
+                print(
+                    f"\n⚠️  Warning: Unknown vehicle IDs in --stop-vehicle: {', '.join(invalid)}"
+                )
                 print(f"Available vehicles: {', '.join(sorted(all_vehicles))}")
 
         if only_vehicles:
             invalid = only_vehicles - all_vehicles
             if invalid:
-                print(f"\n⚠️  Warning: Unknown vehicle IDs in --only-vehicle: {', '.join(invalid)}")
+                print(
+                    f"\n⚠️  Warning: Unknown vehicle IDs in --only-vehicle: {', '.join(invalid)}"
+                )
                 print(f"Available vehicles: {', '.join(sorted(all_vehicles))}")
 
     # Run simulation
