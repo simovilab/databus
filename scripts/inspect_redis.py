@@ -35,7 +35,7 @@ import redis
 
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "16379"))
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 
@@ -153,9 +153,13 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
         # Position
         if position:
             timestamp = int(position.get("timestamp", 0))
-            age_str = f" ({get_data_age(timestamp)})" if show_age and timestamp > 0 else ""
+            age_str = (
+                f" ({get_data_age(timestamp)})" if show_age and timestamp > 0 else ""
+            )
             print(f"    Position{age_str}:")
-            print(f"      Lat/Lon:  {position.get('latitude', 'N/A')}, {position.get('longitude', 'N/A')}")
+            print(
+                f"      Lat/Lon:  {position.get('latitude', 'N/A')}, {position.get('longitude', 'N/A')}"
+            )
             print(f"      Bearing:  {position.get('bearing', 'N/A')}°")
             print(f"      Speed:    {position.get('speed', 'N/A')} m/s")
             print(f"      Odometer: {position.get('odometer', 'N/A')} m")
@@ -292,7 +296,7 @@ def inspect_summary(r: redis.Redis, show_age: bool = False) -> None:
 
 def clear_screen():
     """Clear the terminal screen."""
-    os.system('clear' if os.name != 'nt' else 'cls')
+    os.system("clear" if os.name != "nt" else "cls")
 
 
 def main():

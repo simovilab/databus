@@ -36,7 +36,7 @@ import redis
 
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "16379"))
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 # Default max age: 3 minutes
@@ -146,7 +146,9 @@ def delete_vehicle_data(r: redis.Redis, vehicle_id: str, dry_run: bool = False) 
     return deleted_count
 
 
-def cleanup_stale_data(r: redis.Redis, max_age_seconds: int, dry_run: bool = False) -> Dict[str, any]:
+def cleanup_stale_data(
+    r: redis.Redis, max_age_seconds: int, dry_run: bool = False
+) -> Dict[str, any]:
     """
     Clean up stale vehicle data.
 
@@ -176,11 +178,13 @@ def cleanup_stale_data(r: redis.Redis, max_age_seconds: int, dry_run: bool = Fal
         keys_deleted = delete_vehicle_data(r, vehicle_id, dry_run)
 
         stats["keys_deleted"] += keys_deleted
-        stats["vehicles_cleaned"].append({
-            "vehicle_id": vehicle_id,
-            "age": age,
-            "keys_deleted": keys_deleted,
-        })
+        stats["vehicles_cleaned"].append(
+            {
+                "vehicle_id": vehicle_id,
+                "age": age,
+                "keys_deleted": keys_deleted,
+            }
+        )
 
     return stats
 
@@ -234,11 +238,15 @@ def print_cleanup_report(stats: Dict[str, any], dry_run: bool = False):
         print("  No stale data found")
     else:
         print(f"  Stale vehicles found: {stats['stale_count']}")
-        print(f"  Total keys {'would be deleted' if dry_run else 'deleted'}: {stats['keys_deleted']}\n")
+        print(
+            f"  Total keys {'would be deleted' if dry_run else 'deleted'}: {stats['keys_deleted']}\n"
+        )
 
         print("  Details:")
         for vehicle in stats["vehicles_cleaned"]:
-            print(f"    {vehicle['vehicle_id']}: {vehicle['age']} old ({vehicle['keys_deleted']} keys)")
+            print(
+                f"    {vehicle['vehicle_id']}: {vehicle['age']} old ({vehicle['keys_deleted']} keys)"
+            )
 
     print()
 
@@ -340,7 +348,7 @@ Examples:
         try:
             while True:
                 cycle += 1
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 print(f"[Cycle {cycle}] {timestamp}")
                 print(f"{'-' * 80}")
@@ -348,7 +356,9 @@ Examples:
                 stats = cleanup_stale_data(r, args.max_age, args.dry_run)
 
                 mode = "[DRY RUN] Would delete" if args.dry_run else "Deleted"
-                print(f"  {mode} {stats['keys_deleted']} keys from {stats['stale_count']} vehicles")
+                print(
+                    f"  {mode} {stats['keys_deleted']} keys from {stats['stale_count']} vehicles"
+                )
                 print(f"{'-' * 80}\n")
 
                 time.sleep(args.continuous)

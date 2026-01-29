@@ -5,6 +5,7 @@ This directory contains scripts for simulating real-time vehicle telemetry data,
 ## Overview
 
 The publisher system consists of:
+
 - **Publisher Container**: Celery worker that builds GTFS-RT feeds (VehiclePositions and TripUpdates)
 - **Scheduler Container**: Celery Beat that triggers feed builders every 15 seconds
 - **Redis (state)**: Stores real-time vehicle position and trip progression data
@@ -51,6 +52,7 @@ uv run scripts/continuous_simulator.py --stop-all-after 5
 ```
 
 **What it does:**
+
 - Updates vehicle positions, progression, and occupancy every 15s (configurable)
 - Simulates realistic movement (speed, bearing, GPS coordinates)
 - Advances vehicles through stops with progression states
@@ -81,6 +83,7 @@ uv run scripts/inspect_redis.py --all-keys
 ```
 
 **What it does:**
+
 - Displays vehicle position, progression, and occupancy data
 - Shows run information
 - Calculates and displays data age (how stale the data is)
@@ -111,6 +114,7 @@ uv run scripts/cleanup_redis.py --force-all --dry-run
 ```
 
 **What it does:**
+
 - Finds vehicles with stale position data
 - Removes data older than threshold (default: 3 minutes / 180 seconds)
 - Can run as one-time cleanup or continuous daemon
@@ -128,6 +132,7 @@ uv run scripts/redis_seed_data.py
 ```
 
 **What it does:**
+
 - Creates 2 test runs with sample vehicle data
 - Populates Redis with:
   - `runs:in_progress` set
@@ -146,11 +151,13 @@ uv run scripts/redis_seed_data.py
 This simulates a production environment with continuous data updates and real-time monitoring.
 
 **Terminal 1 - Start Docker Stack:**
+
 ```bash
 docker compose -f compose.dev.yml up
 ```
 
 **Terminal 2 - Start Simulator:**
+
 ```bash
 # Initialize Redis and start simulation
 uv run scripts/continuous_simulator.py --init
@@ -160,12 +167,14 @@ uv run scripts/continuous_simulator.py --init --stop-vehicle unit-10
 ```
 
 **Terminal 3 - Monitor Redis State:**
+
 ```bash
 # Watch Redis in real-time
 uv run scripts/inspect_redis.py --watch 5 --show-age
 ```
 
 **Terminal 4 - Check Feed Output:**
+
 ```bash
 # Watch feed updates
 docker compose -f compose.dev.yml logs -f publisher scheduler
@@ -176,6 +185,7 @@ docker compose -f compose.dev.yml exec publisher cat feed/files/trip_updates.jso
 ```
 
 **Terminal 5 - Run Cleanup (Optional):**
+
 ```bash
 # Clean stale data continuously
 uv run scripts/cleanup_redis.py --continuous 120 --dry-run
@@ -186,16 +196,19 @@ uv run scripts/cleanup_redis.py --continuous 120 --dry-run
 For quick testing without continuous simulation.
 
 1. **Start the stack:**
+
    ```bash
    docker compose -f compose.dev.yml up
    ```
 
 2. **Seed Redis with test data:**
+
    ```bash
    uv run scripts/redis_seed_data.py
    ```
 
 3. **Inspect Redis state:**
+
    ```bash
    uv run scripts/inspect_redis.py --show-age
    ```
@@ -211,6 +224,7 @@ For quick testing without continuous simulation.
 ## Data Architecture
 
 ### Data Flow
+
 ```
 ┌──────────────────────┐
 │ continuous_simulator │  Updates Redis every 15s (independent)
@@ -261,11 +275,13 @@ The system implements a graduated staleness approach:
 3. **Data > 3 minutes old**: Removed from Redis by cleanup script (if running)
 
 **Architecture:**
+
 - **Simulator** writes to Redis (data persists)
 - **Publisher** reads from Redis and filters stale data
 - **Cleanup script** (optional) removes old data from Redis
 
 **Key Points:**
+
 - Simulator and Scheduler run **independently** (not synchronized)
 - Simulator **updates** Redis data in place (no deletion)
 - Publisher **reads** and **filters** Redis data (skips stale, no deletion)
@@ -285,21 +301,22 @@ These files are **excluded from git** (listed in `.gitignore`) as they are gener
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_HOST` | `localhost` | Redis hostname |
-| `REDIS_PORT` | `16379` | Redis port (Docker mapping) |
-| `REDIS_DB` | `0` | Redis database number |
-| `RABBITMQ_USER` | `guest` | RabbitMQ username |
-| `RABBITMQ_PASS` | `guest` | RabbitMQ password |
-| `RABBITMQ_HOST` | `localhost` | RabbitMQ hostname |
-| `RABBITMQ_PORT` | `5672` | RabbitMQ port |
+| Variable        | Default     | Description                 |
+| --------------- | ----------- | --------------------------- |
+| `REDIS_HOST`    | `localhost` | Redis hostname              |
+| `REDIS_PORT`    | `6379`      | Redis port (Docker mapping) |
+| `REDIS_DB`      | `0`         | Redis database number       |
+| `RABBITMQ_USER` | `guest`     | RabbitMQ username           |
+| `RABBITMQ_PASS` | `guest`     | RabbitMQ password           |
+| `RABBITMQ_HOST` | `localhost` | RabbitMQ hostname           |
+| `RABBITMQ_PORT` | `5672`      | RabbitMQ port               |
 
 When running in Docker Compose, these are set automatically via `.env` and `.env.dev` files.
 
 ## Troubleshooting
 
 ### Cannot connect to Redis
+
 ```bash
 # Check if Redis is running
 docker compose -f compose.dev.yml ps state
@@ -307,11 +324,12 @@ docker compose -f compose.dev.yml ps state
 # Check Redis logs
 docker compose -f compose.dev.yml logs state
 
-# Test Redis connection (note: Docker maps 6379 to 16379)
-redis-cli -h localhost -p 16379 ping
+# Test Redis connection
+redis-cli -h localhost -p 6379 ping
 ```
 
 ### Cannot connect to RabbitMQ
+
 ```bash
 # Check if RabbitMQ is running
 docker compose -f compose.dev.yml ps message-broker
@@ -321,6 +339,7 @@ open http://localhost:15672  # Default: guest/guest
 ```
 
 ### No data in Redis
+
 ```bash
 # Inspect Redis state
 uv run scripts/inspect_redis.py
@@ -333,6 +352,7 @@ uv run scripts/continuous_simulator.py --init
 ```
 
 ### Tasks not being picked up
+
 ```bash
 # Check if publisher worker is running
 docker compose -f compose.dev.yml ps publisher
@@ -345,6 +365,7 @@ docker compose -f compose.dev.yml logs -f scheduler
 ```
 
 ### Data is stale or not updating
+
 ```bash
 # Check data age
 uv run scripts/inspect_redis.py --show-age
@@ -373,6 +394,7 @@ The `uv` tool automatically manages dependencies from `pyproject.toml` files.
 ## Next Steps
 
 In production, the system will:
+
 1. Replace simulator with real telemetry data from vehicles via MQTT/API
 2. Replace `build_stop_time_updates()` mock function with actual GTFS database queries
 3. Schedule cleanup script as cron job or Celery periodic task

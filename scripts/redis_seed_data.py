@@ -22,7 +22,7 @@ import redis
 
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "16379"))
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 
@@ -147,7 +147,9 @@ def _build_run_fixtures() -> List[Dict[str, Dict[str, Any]]]:
     ]
 
 
-def _clear_previous_seed(client: redis.Redis, fixtures: List[Dict[str, Dict[str, Any]]]):
+def _clear_previous_seed(
+    client: redis.Redis, fixtures: List[Dict[str, Dict[str, Any]]]
+):
     """Remove the keys created by a previous seeding run."""
     keys_to_delete = {"runs:in_progress"}
     for fixture in fixtures:
@@ -184,7 +186,9 @@ def seed():
         pipeline.hset(f"run:{run_id}", mapping=run)
         pipeline.hset(f"vehicle:{vehicle_id}:data", mapping=vehicle)
         pipeline.hset(f"vehicle:{vehicle_id}:position", mapping=fixture["position"])
-        pipeline.hset(f"vehicle:{vehicle_id}:progression", mapping=fixture["progression"])
+        pipeline.hset(
+            f"vehicle:{vehicle_id}:progression", mapping=fixture["progression"]
+        )
         pipeline.hset(f"vehicle:{vehicle_id}:occupancy", mapping=fixture["occupancy"])
     pipeline.execute()
     print(
