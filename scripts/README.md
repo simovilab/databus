@@ -1,59 +1,130 @@
-# Test Scripts for GTFS-RT Feed Publisher
+# GTFS-RT Data Simulator and Testing Scripts
 
-This directory contains test scripts for the GTFS-RT feed publisher system.
+This directory contains scripts for simulating real-time vehicle telemetry data, monitoring Redis state, and maintaining data freshness for the GTFS-RT feed publisher system.
 
 ## Overview
 
 The publisher system consists of:
 - **Publisher Container**: Celery worker that builds GTFS-RT feeds (VehiclePositions and TripUpdates)
-- **Scheduler Container**: Celery Beat that triggers the feed builders every 15 seconds
+- **Scheduler Container**: Celery Beat that triggers feed builders every 15 seconds
 - **Redis (state)**: Stores real-time vehicle position and trip progression data
 - **RabbitMQ (message-broker)**: Message broker for Celery tasks
 
-## Test Scripts
+## Scripts
 
-### 1. `continuous_simulator.py` (NEW - RECOMMENDED)
+### 1. `continuous_simulator.py` - Real-time Data Simulator
 
-**Continuously publishes vehicle position updates to Redis**, simulating real-time telemetry data. This runs independently of the Celery tasks and updates Redis every N seconds (default: 15s).
+Continuously publishes vehicle position updates to Redis, simulating real-time telemetry data from vehicles. Runs independently of Celery tasks and updates Redis every N seconds (default: 15s).
 
-**Usage:**
+**Basic Usage:**
 
-Initialize and start simulation:
 ```bash
-python scripts/continuous_simulator.py --init
+# Initialize Redis and start simulation
+uv run scripts/continuous_simulator.py --init
+
+# Run with custom interval (10s)
+uv run scripts/continuous_simulator.py --interval 10
+
+# Start simulation (assumes data already in Redis)
+uv run scripts/continuous_simulator.py
 ```
 
-Run with custom interval (10s):
-```bash
-python scripts/continuous_simulator.py --interval 10
-```
+**Edge Case Testing:**
 
-Just start simulation (assumes data already in Redis):
+Simulate various failure scenarios for testing:
+
 ```bash
-python scripts/continuous_simulator.py
+# Stop updating a specific vehicle (simulate data loss)
+uv run scripts/continuous_simulator.py --stop-vehicle unit-10
+
+# Stop multiple vehicles
+uv run scripts/continuous_simulator.py --stop-vehicle unit-10 --stop-vehicle unit-22
+
+# Only update specific vehicle(s) - all others stop
+uv run scripts/continuous_simulator.py --only-vehicle unit-10
+
+# Random drop rate (30% chance to skip each vehicle each cycle)
+uv run scripts/continuous_simulator.py --random-drop-rate 30
+
+# Stop all updates after 5 cycles (simulate complete system failure)
+uv run scripts/continuous_simulator.py --stop-all-after 5
 ```
 
 **What it does:**
-- Updates vehicle positions every 15s (configurable)
+- Updates vehicle positions, progression, and occupancy every 15s (configurable)
 - Simulates realistic movement (speed, bearing, GPS coordinates)
 - Advances vehicles through stops with progression states
-- Updates occupancy levels dynamically
 - Runs indefinitely until stopped (Ctrl+C)
-- **Does NOT delete data** - publisher tasks just read the latest values
+- Data persists in Redis (not deleted)
 
-**Why use this:**
-- No need to re-seed Redis manually
-- Simulates production-like continuous data flow
-- Independent from Celery scheduler (not in phase)
-- Each update provides new, realistic position data
+### 2. `inspect_redis.py` - Redis State Inspector
 
-### 2. `redis_seed_data.py`
-
-One-time seeding of Redis with initial test data.
+Inspect the current state of Redis database, showing all vehicles, runs, and data freshness.
 
 **Usage:**
+
 ```bash
-python scripts/redis_seed_data.py
+# Show all data
+uv run scripts/inspect_redis.py
+
+# Show only vehicles with data age
+uv run scripts/inspect_redis.py --vehicles --show-age
+
+# Show only runs
+uv run scripts/inspect_redis.py --runs
+
+# Watch mode - refresh every 5 seconds
+uv run scripts/inspect_redis.py --watch 5
+
+# Show all Redis keys (debug mode)
+uv run scripts/inspect_redis.py --all-keys
+```
+
+**What it does:**
+- Displays vehicle position, progression, and occupancy data
+- Shows run information
+- Calculates and displays data age (how stale the data is)
+- Categorizes data freshness: recent (<2m), stale (2-5m), very stale (>5m)
+- Watch mode for real-time monitoring
+
+### 3. `cleanup_redis.py` - Stale Data Cleanup
+
+Removes stale vehicle data from Redis based on configurable age thresholds. Uses hybrid approach: publisher marks when feeds were built, cleanup script removes old data.
+
+**Usage:**
+
+```bash
+# Dry run (see what would be deleted)
+uv run scripts/cleanup_redis.py --dry-run
+
+# Clean data older than 3 minutes (default)
+uv run scripts/cleanup_redis.py
+
+# Clean data older than 5 minutes
+uv run scripts/cleanup_redis.py --max-age 300
+
+# Run continuously (clean every 60 seconds)
+uv run scripts/cleanup_redis.py --continuous 60
+
+# Force clean all vehicle data
+uv run scripts/cleanup_redis.py --force-all --dry-run
+```
+
+**What it does:**
+- Finds vehicles with stale position data
+- Removes data older than threshold (default: 3 minutes / 180 seconds)
+- Can run as one-time cleanup or continuous daemon
+- Dry-run mode to preview deletions
+- Detailed reporting of cleaned data
+
+### 4. `redis_seed_data.py` - Initial Data Seeder
+
+One-time seeding of Redis with initial test data. **Typically used via `continuous_simulator.py --init`**.
+
+**Usage:**
+
+```bash
+uv run scripts/redis_seed_data.py
 ```
 
 **What it does:**
@@ -66,107 +137,51 @@ python scripts/redis_seed_data.py
   - `vehicle:{vehicle_id}:progression` hashes
   - `vehicle:{vehicle_id}:occupancy` hashes
 
-**Note:** Use `continuous_simulator.py --init` instead for a complete workflow.
-
-### 2. `test_publisher_tasks.py` (NEW)
-
-Tests the publisher tasks and simulates continuous position updates.
-
-**Usage:**
-
-Test VehiclePosition builder:
-```bash
-python scripts/test_publisher_tasks.py --task vp
-```
-
-Test TripUpdate builder:
-```bash
-python scripts/test_publisher_tasks.py --task tu
-```
-
-Test both tasks:
-```bash
-python scripts/test_publisher_tasks.py --task both
-```
-
-Simulate continuous position updates (updates Redis every 5 seconds):
-```bash
-python scripts/test_publisher_tasks.py --simulate --interval 5
-```
-
-Simulate 10 updates then stop:
-```bash
-python scripts/test_publisher_tasks.py --simulate --max-iterations 10
-```
-
-Test via Celery (requires publisher worker running):
-```bash
-python scripts/test_publisher_tasks.py --task vp --celery
-```
-
-**What it does:**
-- **Direct Testing**: Imports and runs the publisher tasks directly (bypasses Celery)
-- **Celery Testing**: Sends tasks to the Celery worker via RabbitMQ
-- **Simulation Mode**: Continuously updates vehicle positions in Redis to simulate live data
-
-### 4. `test_feed_builder.py` (LEGACY - NOT RECOMMENDED)
-
-Original test script that **consumes and deletes** Redis data after testing.
-
-**Usage:**
-```bash
-python scripts/test_feed_builder.py --type vp
-python scripts/test_feed_builder.py --type tu
-```
-
-**⚠️ Warning:** This script **deletes data from Redis** after reading (consume-and-delete pattern). You must re-seed Redis after each run. Use `continuous_simulator.py` or `test_publisher_tasks.py` instead.
+**Note:** Prefer using `continuous_simulator.py --init` for complete workflow.
 
 ## Complete Testing Workflow
 
-### Option 1: Continuous Simulation (Recommended - Production-like)
+### Recommended: Continuous Simulation with Monitoring
 
-This simulates a real production environment with continuous data updates.
+This simulates a production environment with continuous data updates and real-time monitoring.
 
-1. **Start the Docker Compose stack:**
-   ```bash
-   docker compose -f compose.dev.yml up
-   ```
+**Terminal 1 - Start Docker Stack:**
+```bash
+docker compose -f compose.dev.yml up
+```
 
-2. **In another terminal, start the continuous simulator:**
-   ```bash
-   # Initialize Redis and start simulation
-   python scripts/continuous_simulator.py --init
+**Terminal 2 - Start Simulator:**
+```bash
+# Initialize Redis and start simulation
+uv run scripts/continuous_simulator.py --init
 
-   # Or with custom interval (10s)
-   python scripts/continuous_simulator.py --init --interval 10
-   ```
+# Or test edge cases
+uv run scripts/continuous_simulator.py --init --stop-vehicle unit-10
+```
 
-3. **Monitor the system (in another terminal):**
-   ```bash
-   # Watch publisher logs
-   docker compose -f compose.dev.yml logs -f publisher scheduler
+**Terminal 3 - Monitor Redis State:**
+```bash
+# Watch Redis in real-time
+uv run scripts/inspect_redis.py --watch 5 --show-age
+```
 
-   # Watch simulator output
-   # (already running in terminal from step 2)
-   ```
+**Terminal 4 - Check Feed Output:**
+```bash
+# Watch feed updates
+docker compose -f compose.dev.yml logs -f publisher scheduler
 
-4. **Check the output files (in another terminal):**
-   ```bash
-   # Watch feed updates in real-time
-   watch -n 2 'docker compose -f compose.dev.yml exec publisher cat feed/files/vehicle_positions.json | jq ".header.timestamp"'
+# Or check files directly
+docker compose -f compose.dev.yml exec publisher cat feed/files/vehicle_positions.json | jq
+docker compose -f compose.dev.yml exec publisher cat feed/files/trip_updates.json | jq
+```
 
-   # Or check manually
-   docker compose -f compose.dev.yml exec publisher cat feed/files/vehicle_positions.json | jq
-   docker compose -f compose.dev.yml exec publisher cat feed/files/trip_updates.json | jq
-   ```
+**Terminal 5 - Run Cleanup (Optional):**
+```bash
+# Clean stale data continuously
+uv run scripts/cleanup_redis.py --continuous 120 --dry-run
+```
 
-**What's happening:**
-- **Simulator** updates Redis every 15s with new vehicle positions
-- **Scheduler** triggers feed builders every 15s (independent timing)
-- **Publisher** reads from Redis and builds GTFS-RT feeds
-- **No re-seeding needed** - data flows continuously
-
-### Option 2: One-time Testing (Quick validation)
+### Quick Testing: One-time Validation
 
 For quick testing without continuous simulation.
 
@@ -177,102 +192,96 @@ For quick testing without continuous simulation.
 
 2. **Seed Redis with test data:**
    ```bash
-   python scripts/redis_seed_data.py
+   uv run scripts/redis_seed_data.py
    ```
 
-3. **Monitor the feed builder logs:**
+3. **Inspect Redis state:**
    ```bash
-   docker compose -f compose.dev.yml logs -f publisher scheduler
+   uv run scripts/inspect_redis.py --show-age
    ```
 
 4. **Check the output files:**
    ```bash
-   # Inside the publisher container
-   docker compose -f compose.dev.yml exec publisher ls -lh feed/files/
-
-   # View JSON output
-   docker compose -f compose.dev.yml exec publisher cat feed/files/vehicle_positions.json
-   docker compose -f compose.dev.yml exec publisher cat feed/files/trip_updates.json
+   docker compose -f compose.dev.yml exec publisher cat feed/files/vehicle_positions.json | jq
+   docker compose -f compose.dev.yml exec publisher cat feed/files/trip_updates.json | jq
    ```
 
-**Note:** Data won't change unless you manually update Redis or restart the simulator.
+**Note:** Data won't change unless you run the simulator or manually update Redis.
 
-### Option 3: Direct Task Testing (Development/Debugging)
+## Data Architecture
 
-Test tasks directly without Docker or Celery.
-
-1. **Start Redis:**
-   ```bash
-   docker compose -f compose.dev.yml up state
-   ```
-
-2. **Seed Redis:**
-   ```bash
-   python scripts/redis_seed_data.py
-   ```
-
-3. **Test the tasks directly:**
-   ```bash
-   python scripts/test_publisher_tasks.py --task both
-   ```
-
-4. **View output:**
-   ```bash
-   cat feed/files/vehicle_positions.json
-   cat feed/files/trip_updates.json
-   ```
-
-**Note:** This bypasses Celery and runs tasks synchronously for debugging.
-
-## Data Flow
-
+### Data Flow
 ```
 ┌──────────────────────┐
-│ continuous_simulator │  Publishes updates every 15s (independent)
-│   (Python script)    │
-└──────────┬───────────┘
+│ continuous_simulator │  Updates Redis every 15s (independent)
+│   (Python script)    │  - Simulates vehicle movement
+└──────────┬───────────┘  - Updates position, progression, occupancy
            │
            ▼
 ┌─────────────────┐
-│  Redis (state)  │  ← Vehicle position/progression data stored here
+│  Redis (state)  │  ← Current vehicle state stored here
+└────────┬────────┘  ← Data persists until cleaned up
+         │
+         ├─────────────────────────────┐
+         │                             │
+         ▼                             ▼
+┌─────────────────┐          ┌──────────────────┐
+│   Scheduler     │          │  cleanup_redis   │  Removes data > 3 min old
+│  (Celery Beat)  │          │  (Optional)      │
+└────────┬────────┘          └──────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│   RabbitMQ      │
+│ (message-broker)│
 └────────┬────────┘
          │
          ▼
-┌─────────────────┐     ┌──────────────────┐
-│   Scheduler     │────→│   RabbitMQ       │
-│  (Celery Beat)  │     │ (message-broker) │
-└─────────────────┘     └────────┬─────────┘
-  Triggers every 15s             │
-  (not in phase with             ▼
-   simulator)           ┌─────────────────┐
-                        │   Publisher     │  ← Reads latest data from Redis
-                        │ (Celery Worker) │  ← Builds GTFS-RT feeds
-                        └────────┬────────┘
-                                 │
-                                 ▼
-                        ┌─────────────────┐
-                        │   feed/files/   │
-                        │  - vehicle_positions.json
-                        │  - vehicle_positions.pb
-                        │  - trip_updates.json
-                        │  - trip_updates.pb
-                        └─────────────────┘
+┌─────────────────┐
+│   Publisher     │  ← Reads latest data from Redis
+│ (Celery Worker) │  ← Skips data > 2 minutes old
+└────────┬────────┘  ← Builds GTFS-RT feeds
+         │
+         ▼
+┌─────────────────┐
+│   feed/files/   │
+│  - vehicle_positions.json
+│  - vehicle_positions.pb
+│  - trip_updates.json
+│  - trip_updates.pb
+└─────────────────┘
 ```
+
+### Stale Data Handling
+
+The system implements a graduated staleness approach:
+
+1. **Data < 2 minutes old**: Included in feeds (fresh)
+2. **Data > 2 minutes old**: Excluded from feeds (stale, not published)
+3. **Data > 3 minutes old**: Removed from Redis by cleanup script (if running)
+
+**Architecture:**
+- **Simulator** writes to Redis (data persists)
+- **Publisher** reads from Redis and filters stale data
+- **Cleanup script** (optional) removes old data from Redis
 
 **Key Points:**
 - Simulator and Scheduler run **independently** (not synchronized)
 - Simulator **updates** Redis data in place (no deletion)
-- Publisher **reads** from Redis (no deletion)
-- Data flows continuously without needing manual re-seeding
+- Publisher **reads** and **filters** Redis data (skips stale, no deletion)
+- Cleanup script **removes** old data (optional, can run as daemon)
+- Data flows continuously without manual re-seeding
 
 ## Output Files
 
-The publisher tasks generate these files:
+The publisher tasks generate these files in `publisher/feed/files/`:
 
-- `feed/files/vehicle_positions.json` - VehiclePosition feed in JSON format
-- `feed/files/vehicle_positions.pb` - VehiclePosition feed in Protobuf format
-- `feed/files/trip_updates.json` - TripUpdate feed in JSON format
-- `feed/files/trip_updates.pb` - TripUpdate feed in Protobuf format
+- `vehicle_positions.json` - VehiclePosition feed in JSON format (pretty-printed)
+- `vehicle_positions.pb` - VehiclePosition feed in Protobuf format
+- `trip_updates.json` - TripUpdate feed in JSON format (pretty-printed)
+- `trip_updates.pb` - TripUpdate feed in Protobuf format
+
+These files are **excluded from git** (listed in `.gitignore`) as they are generated outputs.
 
 ## Environment Variables
 
@@ -298,8 +307,8 @@ docker compose -f compose.dev.yml ps state
 # Check Redis logs
 docker compose -f compose.dev.yml logs state
 
-# Test Redis connection
-redis-cli -h localhost -p 6379 ping
+# Test Redis connection (note: Docker maps 6379 to 16379)
+redis-cli -h localhost -p 16379 ping
 ```
 
 ### Cannot connect to RabbitMQ
@@ -313,11 +322,14 @@ open http://localhost:15672  # Default: guest/guest
 
 ### No data in Redis
 ```bash
-# Re-seed the data
-python scripts/redis_seed_data.py
+# Inspect Redis state
+uv run scripts/inspect_redis.py
 
-# Check Redis data
-redis-cli -h localhost -p 6379 SMEMBERS runs:in_progress
+# Re-seed the data
+uv run scripts/redis_seed_data.py
+
+# Or use simulator with --init
+uv run scripts/continuous_simulator.py --init
 ```
 
 ### Tasks not being picked up
@@ -332,11 +344,39 @@ docker compose -f compose.dev.yml logs -f publisher
 docker compose -f compose.dev.yml logs -f scheduler
 ```
 
+### Data is stale or not updating
+```bash
+# Check data age
+uv run scripts/inspect_redis.py --show-age
+
+# Check if simulator is running
+# (should see continuous output in simulator terminal)
+
+# Check publisher logs for skipped vehicles
+docker compose -f compose.dev.yml logs -f publisher | grep "skipped\|stale"
+```
+
+## Using uv
+
+All scripts use `uv` for Python package management. To run scripts:
+
+```bash
+# Run a script with uv
+uv run scripts/continuous_simulator.py --init
+
+# Install dependencies (if needed)
+uv sync
+```
+
+The `uv` tool automatically manages dependencies from `pyproject.toml` files.
+
 ## Next Steps
 
 In production, the system will:
-1. Replace `redis_seed_data.py` with real telemetry data from vehicles
+1. Replace simulator with real telemetry data from vehicles via MQTT/API
 2. Replace `build_stop_time_updates()` mock function with actual GTFS database queries
-3. Add error handling and monitoring
-4. Implement feed versioning and incremental updates
-5. Add authentication and access control for feed endpoints
+3. Schedule cleanup script as cron job or Celery periodic task
+4. Add monitoring and alerting for stale data
+5. Implement feed versioning and incremental updates
+6. Add authentication and access control for feed endpoints
+7. Add run completion logic (currently vehicles stay at last stop indefinitely)
