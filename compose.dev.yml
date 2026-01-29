@@ -36,6 +36,8 @@ services:
   state:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "16379:6379"
     volumes:
       - redis_data:/data
     healthcheck:

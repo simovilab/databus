@@ -1,0 +1,74 @@
+{
+  "header": {
+    "gtfs_realtime_version": "2.0",
+    "incrementality": "FULL_DATASET",
+    "timestamp": 1769637589,
+    "feed_version": "1.0.0"
+  },
+  "entity": [
+    {
+      "id": "unit-10",
+      "vehicle": {
+        "timestamp": 1769637589,
+        "trip": {
+          "trip_id": "TRIP-EDU-01",
+          "route_id": "bUCR_L2",
+          "direction_id": "0",
+          "start_time": "6:45:00",
+          "start_date": "20260128",
+          "schedule_relationship": "SCHEDULED"
+        },
+        "vehicle": {
+          "id": "unit-10",
+          "label": "Unit 10",
+          "license_plate": "ABC-010"
+        },
+        "position": {
+          "latitude": "9.9365",
+          "longitude": "-84.0511",
+          "bearing": "180.0",
+          "odometer": "12876.5",
+          "speed": "12.8"
+        },
+        "current_stop_sequence": "4",
+        "stop_id": "UCR_0_07",
+        "current_status": "IN_TRANSIT_TO",
+        "congestion_level": "RUNNING_SMOOTHLY",
+        "occupancy_status": "MANY_SEATS_AVAILABLE",
+        "occupancy_percentage": "42"
+      }
+    },
+    {
+      "id": "unit-22",
+      "vehicle": {
+        "timestamp": 1769637589,
+        "trip": {
+          "trip_id": "TRIP-ART-11",
+          "route_id": "bUCR_L1",
+          "direction_id": "0",
+          "start_time": "7:15:00",
+          "start_date": "20260128",
+          "schedule_relationship": "ADDED"
+        },
+        "vehicle": {
+          "id": "unit-22",
+          "label": "Unit 22",
+          "license_plate": "DEF-022"
+        },
+        "position": {
+          "latitude": "9.9351",
+          "longitude": "-84.0556",
+          "bearing": "90.0",
+          "odometer": "22344.2",
+          "speed": "0.0"
+        },
+        "current_stop_sequence": "6",
+        "stop_id": "UCR_0_08",
+        "current_status": "STOPPED_AT",
+        "congestion_level": "STOP_AND_GO",
+        "occupancy_status": "FEW_SEATS_AVAILABLE",
+        "occupancy_percentage": "78"
+      }
+    }
+  ]
+}

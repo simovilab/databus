@@ -24,8 +24,11 @@ RUN groupadd --gid 1000 app && \
 
 WORKDIR /app
 
+# Change ownership of /app directory to app user
+RUN chown -R app:app /app
+
 # Copy dependency manifests first (better caching)
-COPY pyproject.toml uv.lock ./
+COPY --chown=app:app pyproject.toml uv.lock ./
 
 # Copy source code
 COPY --chown=app:app . .
@@ -33,6 +36,7 @@ COPY --chown=app:app . .
 # Entrypoint permissions
 RUN chmod +x $ENTRYPOINT_PATH
 
+# Switch to app user
 USER app
 
 # -------------------
