@@ -4,4 +4,10 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = ["celery>=5.6.2", "faststream[cli,rabbit]>=0.6.5"]
+dependencies = [
+    "celery>=5.6.2",
+    "faststream[cli,rabbit]>=0.6.5",
+    "redis>=5.0.0",
+    "gtfs-realtime-bindings>=1.0.0",
+    "protobuf>=4.25.0",
+]

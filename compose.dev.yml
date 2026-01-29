@@ -7,7 +7,7 @@ services:
     entrypoint: ["/app/docker-entrypoint.sh"]
     command: ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     env_file:
       - .env
       - .env.dev
@@ -25,6 +25,8 @@ services:
       - POSTGRES_DB=${DB_NAME:-databus}
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_HOST_AUTH_METHOD=trust
+    ports:
+      - "${STORE_PORT:-5432}:5432"
     volumes:
       - store_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,6 +38,8 @@ services:
   state:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${STATE_PORT:-6379}:6379"
     volumes:
       - state_data:/data
     healthcheck:
@@ -63,14 +67,14 @@ services:
   mqtt-broker: 
     image: emqx/nanomq:0.24.9-full
     ports:
-      - "1883:1883"
+      - "${MQTT_BROKER_PORT:-1883}:1883"
 
   message-broker:
     image: rabbitmq:4-management
     ports:
-      - "5672:5672"   # AMQP 0-9-1 and AMQP 1.0
-      - "15672:15672" # HTTP API
-      - "15692:15692" # Prometheus exporter API over HTTP
+      - "${MESSAGE_BROKER_AMQP_PORT:-5672}:5672"          # AMQP
+      - "${MESSAGE_BROKER_MANAGEMENT_PORT:-15672}:15672"  # Management UI
+      - "${MESSAGE_BROKER_PROMETHEUS_PORT:-15692}:15692"  # Prometheus
     volumes:
       - message_broker_data:/var/lib/rabbitmq
     environment:
@@ -156,7 +160,7 @@ services:
   analytics:
     image: prefecthq/prefect:3-latest
     ports:
-      - "4200:4200"
+      - "${ANALYTICS_PORT:-4200}:4200"
     environment:
       - PREFECT_SERVER_API_HOST=${PREFECT_SERVER_API_HOST:-0.0.0.0}
       - PREFECT_API_URL=${PREFECT_API_URL:-http://localhost:4200/api}

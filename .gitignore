@@ -4,6 +4,9 @@ feed/files/trip_updates.pb
 feed/files/trip_updates.json
 feed/files/vehicle_positions.pb
 feed/files/vehicle_positions.json
+publisher/feed/files/*.pb
+publisher/feed/files/*.json
+gtfs/
 
 # Ubuntu server
 restart_services.sh

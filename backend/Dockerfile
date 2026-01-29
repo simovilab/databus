@@ -27,8 +27,11 @@ RUN groupadd --gid 1000 app && \
 # Set work directory
 WORKDIR /app
 
+# Change ownership of /app directory to app user
+RUN chown -R app:app /app
+
 # Copy dependency files
-COPY pyproject.toml uv.lock ./
+COPY --chown=app:app pyproject.toml uv.lock ./
 
 # Dependencies will be installed at runtime to avoid permission issues
 

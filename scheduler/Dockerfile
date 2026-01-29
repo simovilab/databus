@@ -23,13 +23,17 @@ RUN groupadd --gid 1000 app && \
 
 WORKDIR /app
 
-# Copy dependency manifests first (better caching)
-COPY pyproject.toml uv.lock ./
+# Change ownership of /app directory to app user
+RUN chown -R app:app /app
 
-# Sync uv
+# Copy dependency manifests first (better caching)
+COPY --chown=app:app pyproject.toml uv.lock ./
+
+# Switch to app user before uv sync
+USER app
+
+# Sync uv as app user to avoid permission issues
 RUN uv sync
 
 # Copy source code
 COPY --chown=app:app . .
-
-USER app

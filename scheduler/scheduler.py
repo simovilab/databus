@@ -16,4 +16,8 @@ app.conf.beat_schedule = {
         "task": "publisher.build_vehicle_positions",
         "schedule": timedelta(seconds=15),
     },
+    "build-trip-updates-every-15s": {
+        "task": "publisher.build_trip_updates",
+        "schedule": timedelta(seconds=15),
+    },
 }
