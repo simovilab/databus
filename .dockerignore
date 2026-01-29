@@ -16,6 +16,9 @@ build/
 .venv/
 venv/
 
+# Celery
+celerybeat-schedule-*
+
 # Environment
 .env
 *.env
