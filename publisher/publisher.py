@@ -45,6 +45,34 @@ def get_current_timestamp():
     return int(datetime.now().timestamp())
 
 
+def get_data_age_seconds(timestamp: int) -> int:
+    """
+    Calculate age of data in seconds.
+
+    Args:
+        timestamp: POSIX timestamp
+
+    Returns:
+        Age in seconds
+    """
+    now = get_current_timestamp()
+    return now - timestamp
+
+
+def is_data_fresh(timestamp: int, max_age_seconds: int = 120) -> bool:
+    """
+    Check if data is fresh enough to publish (< 2 minutes by default).
+
+    Args:
+        timestamp: POSIX timestamp of the data
+        max_age_seconds: Maximum age threshold in seconds (default: 120)
+
+    Returns:
+        True if data is fresh, False if stale
+    """
+    return get_data_age_seconds(timestamp) <= max_age_seconds
+
+
 def build_stop_time_updates(run, position, progression):
     """
     Build mock stop time updates for a run based on current progression.
@@ -164,6 +192,13 @@ def build_vehicle_positions():
         if not position and not progression and not occupancy:
             continue
 
+        # Check data freshness (skip if older than 2 minutes)
+        if position and position.get("timestamp"):
+            timestamp = int(position["timestamp"])
+            if not is_data_fresh(timestamp, max_age_seconds=120):
+                # Data is stale, skip this vehicle
+                continue
+
         entity = {}
         entity["id"] = f"{vehicle['id']}"
         entity["vehicle"] = {}
@@ -233,6 +268,9 @@ def build_vehicle_positions():
     with open("feed/files/vehicle_positions.pb", "wb") as f:
         f.write(feed_message_pb.SerializeToString())
 
+    # Mark when this feed was built (for cleanup purposes)
+    r.set("last_feed_build:vehicle_positions", get_current_timestamp())
+
     return f"FeedMessage VehiclePosition built successfully with {len(feed_message['entity'])} entities"
 
 
@@ -268,6 +306,13 @@ def build_trip_updates():
 
         if not position and not progression:
             continue
+
+        # Check data freshness (skip if older than 2 minutes)
+        if position and position.get("timestamp"):
+            timestamp = int(position["timestamp"])
+            if not is_data_fresh(timestamp, max_age_seconds=120):
+                # Data is stale, skip this vehicle
+                continue
 
         entity = {}
         entity["id"] = get_entity_id(vehicle["id"])
@@ -326,5 +371,8 @@ def build_trip_updates():
     feed_message_pb = json_format.ParseDict(feed_message_for_pb, gtfs_rt.FeedMessage())
     with open("feed/files/trip_updates.pb", "wb") as f:
         f.write(feed_message_pb.SerializeToString())
+
+    # Mark when this feed was built (for cleanup purposes)
+    r.set("last_feed_build:trip_updates", get_current_timestamp())
 
     return f"Feed TripUpdate built with {len(feed_message['entity'])} entities"

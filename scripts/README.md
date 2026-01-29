@@ -279,7 +279,7 @@ The publisher tasks generate these files:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `REDIS_HOST` | `localhost` | Redis hostname |
-| `REDIS_PORT` | `6379` | Redis port |
+| `REDIS_PORT` | `16379` | Redis port (Docker mapping) |
 | `REDIS_DB` | `0` | Redis database number |
 | `RABBITMQ_USER` | `guest` | RabbitMQ username |
 | `RABBITMQ_PASS` | `guest` | RabbitMQ password |

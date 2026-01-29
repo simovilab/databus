@@ -37,7 +37,7 @@ import redis
 
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PORT = int(os.getenv("REDIS_PORT", "16379"))
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 # Simulation parameters
@@ -285,12 +285,17 @@ def update_vehicle_occupancy(r: redis.Redis, vehicle_id: str) -> Dict[str, Any]:
     return updated_occupancy
 
 
-def run_simulation_cycle(r: redis.Redis) -> int:
+def run_simulation_cycle(r: redis.Redis, stop_vehicles: set = None, only_vehicles: set = None,
+                         random_drop_rate: int = 0, stop_all: bool = False) -> int:
     """
     Run one simulation cycle - update all vehicles.
 
     Args:
         r: Redis client
+        stop_vehicles: Set of vehicle IDs to NOT update (simulate stopped vehicles)
+        only_vehicles: Set of vehicle IDs to ONLY update (simulate partial system)
+        random_drop_rate: Percentage (0-100) chance to skip each vehicle
+        stop_all: If True, don't update any vehicles (simulate complete failure)
 
     Returns:
         Number of vehicles updated
@@ -302,13 +307,37 @@ def run_simulation_cycle(r: redis.Redis) -> int:
         print("  ⚠️  No runs in progress!")
         return 0
 
+    # If stop_all is set, don't update anything
+    if stop_all:
+        print("  ⚠️  Skipping all updates (--stop-all-after triggered)")
+        return 0
+
     updated_count = 0
+    skipped_count = 0
 
     for run_id in runs_in_progress:
         run = r.hgetall(run_id)
         vehicle_id = run.get("vehicle")
 
         if not vehicle_id:
+            continue
+
+        # Test case: skip if in stop_vehicles list
+        if stop_vehicles and vehicle_id in stop_vehicles:
+            print(f"  ⏸️  {vehicle_id}: Skipped (--stop-vehicle)")
+            skipped_count += 1
+            continue
+
+        # Test case: skip if NOT in only_vehicles list
+        if only_vehicles and vehicle_id not in only_vehicles:
+            print(f"  ⏸️  {vehicle_id}: Skipped (--only-vehicle)")
+            skipped_count += 1
+            continue
+
+        # Test case: random drop
+        if random_drop_rate > 0 and random.randint(1, 100) <= random_drop_rate:
+            print(f"  ⏸️  {vehicle_id}: Skipped (random drop)")
+            skipped_count += 1
             continue
 
         # Update position
@@ -331,15 +360,24 @@ def run_simulation_cycle(r: redis.Redis) -> int:
 
             updated_count += 1
 
+    if skipped_count > 0:
+        print(f"  ⏸️  Skipped {skipped_count} vehicles (test mode)")
+
     return updated_count
 
 
-def run_continuous_simulation(interval: int = DEFAULT_INTERVAL) -> None:
+def run_continuous_simulation(interval: int = DEFAULT_INTERVAL, stop_vehicles: set = None,
+                              only_vehicles: set = None, random_drop_rate: int = 0,
+                              stop_all_after: int = 0) -> None:
     """
     Run continuous simulation loop.
 
     Args:
         interval: Seconds between update cycles
+        stop_vehicles: Set of vehicle IDs to NOT update
+        only_vehicles: Set of vehicle IDs to ONLY update
+        random_drop_rate: Percentage (0-100) chance to skip each vehicle
+        stop_all_after: Stop all updates after N cycles
     """
     global running
 
@@ -352,6 +390,14 @@ def run_continuous_simulation(interval: int = DEFAULT_INTERVAL) -> None:
     print(f"{'=' * 80}")
     print(f"Redis: {REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
     print(f"Update Interval: {interval} seconds")
+    if stop_vehicles:
+        print(f"Test Mode: Stopping vehicles: {', '.join(sorted(stop_vehicles))}")
+    if only_vehicles:
+        print(f"Test Mode: Only updating vehicles: {', '.join(sorted(only_vehicles))}")
+    if random_drop_rate > 0:
+        print(f"Test Mode: Random drop rate: {random_drop_rate}%")
+    if stop_all_after > 0:
+        print(f"Test Mode: Stop all updates after cycle {stop_all_after}")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'=' * 80}\n")
     print("Press Ctrl+C to stop\n")
@@ -368,8 +414,12 @@ def run_continuous_simulation(interval: int = DEFAULT_INTERVAL) -> None:
             print(f"[Cycle {cycle}] {timestamp}")
             print(f"{'-' * 80}")
 
+            # Check if we should stop all updates
+            stop_all = stop_all_after > 0 and cycle > stop_all_after
+
             # Run simulation cycle
-            updated = run_simulation_cycle(r)
+            updated = run_simulation_cycle(r, stop_vehicles, only_vehicles,
+                                          random_drop_rate, stop_all)
 
             print(f"{'-' * 80}")
             print(f"Updated {updated} vehicles\n")
@@ -404,6 +454,22 @@ Examples:
 
   # Initialize and start simulation
   python scripts/continuous_simulator.py --init --interval 15
+
+Test Cases (Edge Case Simulation):
+  # Stop updating a specific vehicle (simulate data loss)
+  python scripts/continuous_simulator.py --stop-vehicle unit-10
+
+  # Stop multiple vehicles
+  python scripts/continuous_simulator.py --stop-vehicle unit-10 --stop-vehicle unit-22
+
+  # Only update specific vehicle(s) (all others stop)
+  python scripts/continuous_simulator.py --only-vehicle unit-10
+
+  # Random drop rate (30% chance to skip each vehicle each cycle)
+  python scripts/continuous_simulator.py --random-drop-rate 30
+
+  # Stop all updates after 5 cycles (simulate complete system failure)
+  python scripts/continuous_simulator.py --stop-all-after 5
         """,
     )
 
@@ -418,6 +484,39 @@ Examples:
         "--init",
         action="store_true",
         help="Initialize Redis with base data before starting simulation",
+    )
+
+    # Test case arguments
+    parser.add_argument(
+        "--stop-vehicle",
+        action="append",
+        dest="stop_vehicles",
+        metavar="VEHICLE_ID",
+        help="Stop updating specific vehicle (can be repeated). Example: --stop-vehicle unit-10",
+    )
+
+    parser.add_argument(
+        "--only-vehicle",
+        action="append",
+        dest="only_vehicles",
+        metavar="VEHICLE_ID",
+        help="Only update specific vehicle(s), stop all others (can be repeated). Example: --only-vehicle unit-10",
+    )
+
+    parser.add_argument(
+        "--random-drop-rate",
+        type=int,
+        default=0,
+        metavar="PERCENT",
+        help="Percentage (0-100) chance to skip each vehicle each cycle. Example: --random-drop-rate 30",
+    )
+
+    parser.add_argument(
+        "--stop-all-after",
+        type=int,
+        default=0,
+        metavar="CYCLES",
+        help="Stop all updates after N cycles (simulate complete failure). Example: --stop-all-after 5",
     )
 
     args = parser.parse_args()
@@ -451,8 +550,43 @@ Examples:
         print("  python scripts/redis_seed_data.py")
         sys.exit(1)
 
+    # Validate random drop rate
+    if args.random_drop_rate < 0 or args.random_drop_rate > 100:
+        print("\n⚠️  Invalid --random-drop-rate. Must be between 0 and 100.")
+        sys.exit(1)
+
+    # Convert lists to sets
+    stop_vehicles = set(args.stop_vehicles) if args.stop_vehicles else None
+    only_vehicles = set(args.only_vehicles) if args.only_vehicles else None
+
+    # Validate vehicle IDs if provided
+    if stop_vehicles or only_vehicles:
+        all_vehicles = set()
+        for run_id in runs:
+            run = r.hgetall(run_id)
+            if run.get("vehicle"):
+                all_vehicles.add(run.get("vehicle"))
+
+        if stop_vehicles:
+            invalid = stop_vehicles - all_vehicles
+            if invalid:
+                print(f"\n⚠️  Warning: Unknown vehicle IDs in --stop-vehicle: {', '.join(invalid)}")
+                print(f"Available vehicles: {', '.join(sorted(all_vehicles))}")
+
+        if only_vehicles:
+            invalid = only_vehicles - all_vehicles
+            if invalid:
+                print(f"\n⚠️  Warning: Unknown vehicle IDs in --only-vehicle: {', '.join(invalid)}")
+                print(f"Available vehicles: {', '.join(sorted(all_vehicles))}")
+
     # Run simulation
-    run_continuous_simulation(interval=args.interval)
+    run_continuous_simulation(
+        interval=args.interval,
+        stop_vehicles=stop_vehicles,
+        only_vehicles=only_vehicles,
+        random_drop_rate=args.random_drop_rate,
+        stop_all_after=args.stop_all_after,
+    )
 
 
 if __name__ == "__main__":
