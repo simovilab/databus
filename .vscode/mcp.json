@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"Prefect": {
+			"url": "https://docs.prefect.io/mcp",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}
