@@ -24,7 +24,7 @@ Architecturally, the system is divided into:
 - **State** (authoritative operational memory)
 - **Persistence** (durable storage)
 - **Projection** (GTFS Realtime outputs)
-- **Learning** (analytics and modeling)
+- **Learning** (analytics-engine and modeling)
 
 Real-time decision-making and batch analytics are intentionally decoupled.
 
@@ -36,7 +36,7 @@ flowchart TD
         api([REST API])
         mqtt([MQTT])
     end
-    mqtt-broker(("mqtt-broker<br/>(NanoMQ)"))
+    telemetry-broker(("telemetry-broker<br/>(NanoMQ)"))
     backend(("backend<br/>(Django)"))
     subgraph Processing
         realtime-engine(("realtime-engine<br/>(Python)"))
@@ -55,13 +55,13 @@ flowchart TD
         gtfs-rt[/GTFS Realtime/]
     end
     subgraph Learning
-        analytics(("analytics<br/>(Prefect)"))
+        analytics-engine(("analytics-engine<br/>(Prefect)"))
     end
 
     api --> backend
-    mqtt --> mqtt-broker
+    mqtt --> telemetry-broker
     backend <--"writes / reads"--> store
-    mqtt-broker --"forwards telemetry"--> realtime-engine
+    telemetry-broker --"forwards telemetry"--> realtime-engine
     backend --"emits commands"--> message-broker
     realtime-engine --"emits observations"--> message-broker
     realtime-engine --"writes traces"--> store
@@ -76,7 +76,7 @@ flowchart TD
     message-broker --"forwards assertions"--> backend
     message-broker --"forwards commands"--> publisher
     gtfs-s -->  store
-    store --"processes batches"--> analytics
+    store --"processes batches"--> analytics-engine
 
 ```
 

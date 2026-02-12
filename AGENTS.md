@@ -27,6 +27,7 @@ cd backend && python manage.py migrate
 ### Running Services
 
 **Docker (recommended):**
+
 ```bash
 ./scripts/dev.sh  # Starts all services
 docker compose -f compose.dev.yml logs -f  # View logs
@@ -35,6 +36,7 @@ docker compose -f compose.dev.yml down  # Stop all services
 ```
 
 **Non-Docker (requires running services separately in multiple terminals):**
+
 ```bash
 # Terminal 1: Django
 cd backend && python manage.py runserver
@@ -130,16 +132,16 @@ The system is composed of independent services communicating asynchronously:
    - Triggers periodic publishing tasks
    - Located in: `scheduler/`
 
-5. **analytics** (Prefect) - Batch processing and ML
+5. **analytics-engine** (Prefect) - Batch processing and ML
    - Processes historical data for insights
-   - Located in: `analytics/`
+   - Located in: `analytics-engine/`
 
 ### Infrastructure Services
 
 - **store** - PostgreSQL with PostGIS (durable persistence)
 - **state** - Redis (authoritative in-memory operational state)
 - **message-broker** - RabbitMQ (AMQP for commands/observations/assertions)
-- **mqtt-broker** - NanoMQ (telemetry ingestion from vehicles)
+- **telemetry-broker** - NanoMQ (telemetry ingestion from vehicles)
 
 ### Key Architectural Principles
 
@@ -164,8 +166,7 @@ The system is composed of independent services communicating asynchronously:
 - **gtfs** (Git submodule at `backend/gtfs/`)
   - GTFS Schedule models: `Agency`, `Stop`, `Route`, `Trip`, `StopTime`, `Calendar`, `Shape`
   - MUST initialize submodule: `git submodule update --init --recursive`
-  
-- **feed** 
+- **feed**
   - Real-time models: `Company`, `Vehicle`, `Run`, `Position`, `Progression`, `Occupancy`
   - Celery tasks: `build_vehicle_positions()`, `build_trip_updates()` (in `feed/tasks.py`)
   - Output directory: `backend/feed/files/`
@@ -181,11 +182,11 @@ The system is composed of independent services communicating asynchronously:
 
 ### Message Broker Semantics
 
-| Producer | Message Type | Meaning | Queue/Exchange |
-|----------|-------------|---------|----------------|
-| Backend | Commands | Intentional requests (begin run, end run) | RabbitMQ |
-| Realtime Engine | Observations | Derived facts from telemetry | RabbitMQ |
-| Publisher | Assertions | Claims about published outputs | RabbitMQ |
+| Producer        | Message Type | Meaning                                   | Queue/Exchange |
+| --------------- | ------------ | ----------------------------------------- | -------------- |
+| Backend         | Commands     | Intentional requests (begin run, end run) | RabbitMQ       |
+| Realtime Engine | Observations | Derived facts from telemetry              | RabbitMQ       |
+| Publisher       | Assertions   | Claims about published outputs            | RabbitMQ       |
 
 ### State Management
 
@@ -202,12 +203,14 @@ The system is composed of independent services communicating asynchronously:
 ## Environment Configuration
 
 Required variables in `.env`:
+
 - Django: `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`
 - Database: `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`
 - Redis: `REDIS_HOST`, `REDIS_PORT`
 - macOS only: `GDAL_LIBRARY_PATH`, `GEOS_LIBRARY_PATH` (for PostGIS)
 
 Files:
+
 - `.env` - Local secrets (not in git)
 - `.env.dev` - Development overrides (tracked)
 - `.env.prod` - Production overrides (tracked)

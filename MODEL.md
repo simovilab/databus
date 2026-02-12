@@ -2,12 +2,12 @@
 
 | Layer            | Services                            |
 | ---------------- | ----------------------------------- |
-| Ingestion        | `backend`, `mqtt-broker`            |
+| Ingestion        | `backend`, `telemetry-broker`       |
 | State            | `state`                             |
 | Persistence      | `store`                             |
 | Event processing | `realtime-engine`, `message-broker` |
 | Projection       | `publisher`, `scheduler`            |
-| Learning         | `analytics`                         |
+| Learning         | `analytics-engine`                  |
 
 ```mermaid
 flowchart TD
@@ -15,7 +15,7 @@ flowchart TD
         api([REST API])
         mqtt([MQTT])
     end
-    mqtt-broker(("mqtt-broker<br/>(HiveMQ)"))
+    telemetry-broker(("telemetry-broker<br/>(HiveMQ)"))
     backend(("backend<br/>(Django)"))
     subgraph Processing
         realtime-engine(("realtime-engine<br/>(Python)"))
@@ -34,13 +34,13 @@ flowchart TD
         gtfs-rt[/GTFS Realtime/]
     end
     subgraph Learning
-        analytics(("analytics<br/>(Prefect)"))
+        analytics-engine(("analytics-engine<br/>(Prefect)"))
     end
 
     api --> backend
-    mqtt --> mqtt-broker
+    mqtt --> telemetry-broker
     backend <--"writes / reads"--> store
-    mqtt-broker --"forwards telemetry"--> realtime-engine
+    telemetry-broker --"forwards telemetry"--> realtime-engine
     backend --"emits commands"--> message-broker
     realtime-engine --"emits observations"--> message-broker
     realtime-engine --"writes traces"--> store
@@ -55,7 +55,7 @@ flowchart TD
     message-broker --"forwards assertions"--> backend
     message-broker --"forwards commands"--> publisher
     gtfs-s -->  store
-    store --"processes batches"--> analytics
+    store --"processes batches"--> analytics-engine
 
 ```
 
