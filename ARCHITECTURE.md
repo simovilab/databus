@@ -31,7 +31,7 @@ Real-time decision-making and batch analytics are intentionally decoupled.
 ## 3. High-level architecture diagram
 
 ```mermaid
-flowchart TD
+flowchart LR
     subgraph Ingestion
         api([REST API])
         mqtt([MQTT])
@@ -77,7 +77,6 @@ flowchart TD
     message-broker --"forwards commands"--> publisher
     gtfs-s -->  store
     store --"processes batches"--> analytics-engine
-
 ```
 
 Circular nodes represent long-running services or infrastructure components.
