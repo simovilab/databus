@@ -11,3 +11,9 @@ dependencies = [
     "gtfs-realtime-bindings>=1.0.0",
     "protobuf>=4.25.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "redis>=7.1.0",
+]

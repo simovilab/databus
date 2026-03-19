@@ -118,11 +118,30 @@ def build_stop_time_updates(run, position, progression):
 
     route_id = run.get("route_id")
 
-    if not route_id or route_id not in MOCK_ROUTE_STOPS:
+    if not route_id:
         return []
 
     if not progression:
         return []
+
+    if route_id not in MOCK_ROUTE_STOPS:
+        # Fallback: generate a single stop time update from current progression.
+        # Used for routes not yet modelled in MOCK_ROUTE_STOPS until real GTFS
+        # stop-time queries are implemented.
+        stop_id = progression.get("stop_id")
+        stop_sequence = progression.get("current_stop_sequence")
+        if not stop_id or not stop_sequence:
+            return []
+        now = datetime.now(timezone.utc)
+        eta = now + timedelta(minutes=INITIAL_ETA_MINUTES)
+        return [
+            {
+                "stop_sequence": int(stop_sequence),
+                "stop_id": stop_id,
+                "eta_posix": int(eta.timestamp()),
+                "uncertainty": UNCERTAINTY_SECONDS,
+            }
+        ]
 
     current_stop_sequence = int(progression.get("current_stop_sequence", 1))
     current_status = progression.get("current_status", "IN_TRANSIT_TO")

@@ -4,6 +4,8 @@ from rest_framework.authtoken.views import obtain_auth_token
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView
 
 from . import views
+from . import realtime_views
+from . import schedule_views
 
 router = routers.DefaultRouter()
 router.register(r"company", views.CompanyViewSet)
@@ -36,11 +38,34 @@ router.register(r"feed-info", views.FeedInfoViewSet)
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     path("", include(router.urls)),
+    # Real-time endpoints (Redis + feed file backed)
+    path(
+        "realtime/vehicles/",
+        realtime_views.RealtimeVehiclesView.as_view(),
+        name="realtime-vehicles",
+    ),
+    path(
+        "realtime/predictions/",
+        realtime_views.RealtimePredictionsView.as_view(),
+        name="realtime-predictions",
+    ),
     path("login/", views.LoginView.as_view(), name="login"),
     # path("route-stops/", views.RouteStopView.as_view(), name="route_stops"),
     path("service-today/", views.ServiceTodayView.as_view(), name="service_today"),
     path("which-shapes/", views.WhichShapesView.as_view(), name="which_shapes"),
     path("find-trips/", views.FindTripsView.as_view(), name="find_trips"),
+    # GTFS Schedule JSON:API endpoints
+    path("schedule/routes/", schedule_views.RoutesView.as_view(), name="schedule-routes"),
+    path("schedule/stops/", schedule_views.StopsView.as_view(), name="schedule-stops"),
+    path("schedule/trips/", schedule_views.TripsView.as_view(), name="schedule-trips"),
+    path("schedule/shapes/", schedule_views.ShapesView.as_view(), name="schedule-shapes"),
+    path("schedule/schedules/", schedule_views.SchedulesView.as_view(), name="schedule-schedules"),
+    path("schedule/services/", schedule_views.ServicesView.as_view(), name="schedule-services"),
+    path(
+        "schedule/route-patterns/",
+        schedule_views.RoutePatternsView.as_view(),
+        name="schedule-route-patterns",
+    ),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("docs/schema/", views.get_schema, name="schema"),
     path("docs/", views.RedocView.as_view(url_name="schema"), name="api_docs"),

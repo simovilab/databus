@@ -30,6 +30,10 @@ dependencies = [
     "requests>=2.32.5",
 ]
 
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "realtime.test_settings"
+python_files = ["tests.py", "test_*.py"]
+
 [dependency-groups]
 dev = [
     "django-debug-toolbar>=6.0.0",
