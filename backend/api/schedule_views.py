@@ -175,7 +175,7 @@ def _route_pattern_to_jsonapi(route_id, direction_id, shape_id, representative_t
 
 class RoutesView(APIView):
     """
-    GET /api/mbta/routes/
+    GET /api/schedule/routes/
 
     Filters:
       ?filter[type]={routeType}   — 0=tram, 1=subway, 2=rail, 3=bus, 4=ferry
@@ -202,7 +202,7 @@ class RoutesView(APIView):
 
 class StopsView(APIView):
     """
-    GET /api/mbta/stops/
+    GET /api/schedule/stops/
 
     Filters:
       ?filter[route]={routeId}          — stops served by this route
@@ -234,7 +234,7 @@ class StopsView(APIView):
 
 class TripsView(APIView):
     """
-    GET /api/mbta/trips/
+    GET /api/schedule/trips/
 
     Filters:
       ?filter[route]={routeId}
@@ -261,7 +261,7 @@ class TripsView(APIView):
 
 class ShapesView(APIView):
     """
-    GET /api/mbta/shapes/
+    GET /api/schedule/shapes/
 
     Filters:
       ?filter[route]={routeId}   — shapes used by trips on this route
@@ -285,7 +285,7 @@ class ShapesView(APIView):
 
 class SchedulesView(APIView):
     """
-    GET /api/mbta/schedules/
+    GET /api/schedule/schedules/
 
     At least one of filter[trip], filter[stop], or filter[route] is required.
 
@@ -344,7 +344,7 @@ class SchedulesView(APIView):
 
 class ServicesView(APIView):
     """
-    GET /api/mbta/services/
+    GET /api/schedule/services/
 
     Filters:
       ?filter[id]={serviceId}
@@ -373,7 +373,7 @@ class ServicesView(APIView):
 
 class RoutePatternsView(APIView):
     """
-    GET /api/mbta/route-patterns/
+    GET /api/schedule/route-patterns/
 
     A route pattern is a unique (route_id, direction_id, shape_id) combination.
     Returns one resource per distinct pattern with a representative trip.

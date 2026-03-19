@@ -120,7 +120,7 @@ def mock_calendar(service_id="svc-weekday"):
 
 
 # ---------------------------------------------------------------------------
-# GET /api/mbta/routes/
+# GET /api/schedule/routes/
 # ---------------------------------------------------------------------------
 
 class RoutesViewTest(SimpleTestCase):
@@ -163,7 +163,7 @@ class RoutesViewTest(SimpleTestCase):
 
 
 # ---------------------------------------------------------------------------
-# GET /api/mbta/stops/
+# GET /api/schedule/stops/
 # ---------------------------------------------------------------------------
 
 class StopsViewTest(SimpleTestCase):
@@ -205,7 +205,7 @@ class StopsViewTest(SimpleTestCase):
 
 
 # ---------------------------------------------------------------------------
-# GET /api/mbta/trips/
+# GET /api/schedule/trips/
 # ---------------------------------------------------------------------------
 
 class TripsViewTest(SimpleTestCase):
@@ -244,7 +244,7 @@ class TripsViewTest(SimpleTestCase):
 
 
 # ---------------------------------------------------------------------------
-# GET /api/mbta/shapes/
+# GET /api/schedule/shapes/
 # ---------------------------------------------------------------------------
 
 class ShapesViewTest(SimpleTestCase):
@@ -277,7 +277,7 @@ class ShapesViewTest(SimpleTestCase):
 
 
 # ---------------------------------------------------------------------------
-# GET /api/mbta/schedules/
+# GET /api/schedule/schedules/
 # ---------------------------------------------------------------------------
 
 class SchedulesViewTest(SimpleTestCase):
@@ -325,7 +325,7 @@ class SchedulesViewTest(SimpleTestCase):
 
 
 # ---------------------------------------------------------------------------
-# GET /api/mbta/services/
+# GET /api/schedule/services/
 # ---------------------------------------------------------------------------
 
 class ServicesViewTest(SimpleTestCase):
@@ -368,7 +368,7 @@ class ServicesViewTest(SimpleTestCase):
 
 
 # ---------------------------------------------------------------------------
-# GET /api/mbta/route-patterns/
+# GET /api/schedule/route-patterns/
 # ---------------------------------------------------------------------------
 
 class RoutePatternsViewTest(SimpleTestCase):
