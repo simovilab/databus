@@ -1,4 +1,4 @@
 #!/bin/bash
 set -euo pipefail
 
-exec python /app/main.py
+exec uv run python /app/main.py
