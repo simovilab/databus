@@ -11,6 +11,12 @@ services:
     env_file:
       - .env
       - .env.dev
+    environment:
+      - DB_NAME=${DB_NAME:-databus}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-}
+      - DB_HOST=store
+      - DB_PORT=5432
     volumes:
       - ./backend:/app
     depends_on:
@@ -117,6 +123,7 @@ services:
       - REDIS_PORT=6379
     volumes:
       - ./publisher:/app
+      - ./publisher/feed/files:/app/feed/files
     depends_on:
       store:
         condition: service_healthy

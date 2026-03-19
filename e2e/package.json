@@ -1,0 +1,15 @@
+{
+  "name": "databus-e2e",
+  "version": "1.0.0",
+  "description": "End-to-end tests for the databus transit data platform",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:debug": "npx playwright test --debug",
+    "test:report": "npx playwright show-report artifacts/html-report"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}
