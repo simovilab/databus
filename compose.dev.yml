@@ -67,9 +67,6 @@ services:
     environment:
       - REDIS_HOST=state
       - REDIS_PORT=6379
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     volumes:
       - ./realtime-engine:/app
     depends_on:

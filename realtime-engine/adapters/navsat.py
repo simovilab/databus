@@ -76,7 +76,7 @@ class NavsatAdapter:
             time.sleep(self._poll_interval)
 
     def _poll_once(self) -> None:
-        response = httpx.get(self._url, timeout=10)
+        response = httpx.get(self._url, timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0))
         response.raise_for_status()
         vehicles = response.json()
 
