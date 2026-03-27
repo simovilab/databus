@@ -1,4 +1,3 @@
-# Multi-stage build for Django app with uv
 FROM python:3.14-slim AS base
 
 # Install system dependencies
@@ -27,7 +26,7 @@ RUN groupadd --gid 1000 app && \
 # Set work directory
 WORKDIR /app
 
-# Change ownership of /app directory to app user
+# Change ownership of /app directory to user "app"
 RUN chown -R app:app /app
 
 # Copy dependency files
@@ -48,10 +47,10 @@ USER app
 EXPOSE 8000
 
 # ---- Development stage
-# FROM base AS dev
+FROM base AS dev
 # ----------------------
 
-# CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
 
 # ---- Production stage
 FROM base AS prod

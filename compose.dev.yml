@@ -3,14 +3,12 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    entrypoint: ["/app/docker-entrypoint.sh"]
-    command: ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      target: dev
     env_file:
       - .env
       - .env.dev
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend:/app
     depends_on:
