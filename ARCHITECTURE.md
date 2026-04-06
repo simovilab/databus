@@ -31,15 +31,16 @@ Real-time decision-making and batch analytics are intentionally decoupled.
 ## 3. High-level architecture diagram
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Ingestion
         api([REST API])
         mqtt([MQTT])
     end
     telemetry-broker(("telemetry-broker<br/>(NanoMQ)"))
-    backend(("backend<br/>(Django)"))
     subgraph Processing
-        realtime-engine(("realtime-engine<br/>(Python)"))
+        backend(("backend<br/>(Django)"))
+        realtime-engine(("realtime-engine<br/>(Celery Worker)"))
+        tasks(("tasks<br/>(Celery Worker)"))
     end
     message-broker(("message-broker<br/>(RabbitMQ)"))
     subgraph State
@@ -47,35 +48,39 @@ flowchart LR
     end
     subgraph Persistence
         store(("store<br/>(PostgreSQL)"))
-        gtfs-s[/GTFS Schedule/]
     end
     scheduler(("scheduler<br/>(Celery Beat)"))
     subgraph Projection
-        publisher(("publisher<br/>(Celery)"))
         gtfs-rt[/GTFS Realtime/]
     end
     subgraph Learning
         analytics-engine(("analytics-engine<br/>(Prefect)"))
     end
+    subgraph Observation
+        state-model(("state-model<br/>(Node.js)"))
+    end
+    gtfs-s[/GTFS Schedule/]
 
     api --> backend
     mqtt --> telemetry-broker
     backend <--"writes / reads"--> store
+    tasks --"forwards telemetry"--> telemetry-broker
     telemetry-broker --"forwards telemetry"--> realtime-engine
     backend --"emits commands"--> message-broker
     realtime-engine --"emits observations"--> message-broker
     realtime-engine --"writes traces"--> store
     realtime-engine --"updates"--> state
-    scheduler --> publisher
-    state --"provides snapshot"--> publisher
-    publisher --"publishes"--> gtfs-rt
-    publisher --"writes records"--> store
-    publisher --"emits assertions"--> message-broker
+    scheduler --> message-broker
+    state --"provides snapshot"--> tasks
+    tasks --"publishes"--> gtfs-rt
+    tasks --"writes records"--> store
+    tasks --"emits assertions"--> message-broker
     message-broker --"forwards commands"--> realtime-engine
     message-broker --"forwards observations"--> backend
     message-broker --"forwards assertions"--> backend
-    message-broker --"forwards commands"--> publisher
-    gtfs-s -->  store
+    message-broker --"forwards commands"--> tasks
+    state-model --"sees events"--> message-broker
+    tasks --"polls"-->  gtfs-s
     store --"processes batches"--> analytics-engine
 ```
 
