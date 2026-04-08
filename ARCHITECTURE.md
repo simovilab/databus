@@ -48,6 +48,7 @@ flowchart TD
     end
     subgraph Persistence
         store(("store<br/>(PostgreSQL)"))
+        lake@{ shape: docs, label: "Parquet files" }
     end
     scheduler(("scheduler<br/>(Celery Beat)"))
     subgraph Projection
@@ -63,16 +64,17 @@ flowchart TD
 
     api --> backend
     mqtt --> telemetry-broker
-    backend <--"writes / reads"--> store
-    tasks --"forwards telemetry"--> telemetry-broker
     telemetry-broker --"forwards telemetry"--> realtime-engine
+    backend <--"writes / reads"--> store
     backend --"emits commands"--> message-broker
     realtime-engine --"emits observations"--> message-broker
     realtime-engine --"writes traces"--> store
     realtime-engine --"updates"--> state
+    realtime-engine --"saves"--> lake
     scheduler --> message-broker
     state --"provides snapshot"--> tasks
     tasks --"publishes"--> gtfs-rt
+    tasks --"forwards telemetry"--> telemetry-broker
     tasks --"writes records"--> store
     tasks --"emits assertions"--> message-broker
     message-broker --"forwards commands"--> realtime-engine
