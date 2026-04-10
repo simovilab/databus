@@ -2,7 +2,7 @@ name: databus-dev
 services:
   backend:
     build:
-      context: ./backend
+      context: ./processing
       target: dev
     env_file:
       - .env
@@ -10,11 +10,70 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
-      - ./backend:/app
+      - ./processing:/app
     depends_on:
       store:
         condition: service_healthy
       state:
+        condition: service_healthy
+
+  realtime-engine:
+    build:
+      context: ./processing
+      target: realtime-engine
+    environment:
+      - RUN_MIGRATIONS=False
+      - CREATE_SUPERUSER=False
+      - LOAD_FIXTURES=False
+    env_file:
+      - .env
+      - .env.dev
+    volumes:
+      - ./processing:/app
+    depends_on:
+      store:
+        condition: service_healthy
+      state:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
+
+  tasks:
+    build:
+      context: ./processing
+      target: tasks
+    environment:
+      - RUN_MIGRATIONS=False
+      - CREATE_SUPERUSER=False
+      - LOAD_FIXTURES=False
+    env_file:
+      - .env
+      - .env.dev
+    volumes:
+      - ./processing:/app
+    depends_on:
+      store:
+        condition: service_healthy
+      state:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
+
+  scheduler:
+    build:
+      context: ./processing
+      target: scheduler
+    env_file:
+      - .env
+      - .env.dev
+    volumes:
+      - ./processing:/app
+    depends_on:
+      store:
+        condition: service_healthy
+      state:
+        condition: service_healthy
+      message-broker:
         condition: service_healthy
 
   store:
@@ -46,22 +105,6 @@ services:
       timeout: 5s
       retries: 5
 
-  realtime-engine:
-    build:
-      context: ./realtime-engine
-      dockerfile: Dockerfile
-      target: dev
-    env_file:
-      - .env
-      - .env.dev
-    volumes:
-      - ./realtime-engine:/app
-    depends_on:
-      store:
-        condition: service_healthy
-      state:
-        condition: service_healthy
-
   telemetry-broker: 
     image: emqx/nanomq:0.24.9-full
     ports:
@@ -84,77 +127,6 @@ services:
       timeout: 5s
       retries: 5
 
-  publisher:
-    build:
-      context: ./publisher
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-      - .env.dev
-    command: 
-      [
-        "uv", 
-        "run", 
-        "celery", 
-        "-A", 
-        "publisher", 
-        "worker", 
-        "--loglevel=info"
-      ]
-    environment:
-      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
-      - RABBITMQ_PASS=${RABBITMQ_PASS:-guest}
-      - RABBITMQ_HOST=${RABBITMQ_HOST:-message-broker}
-      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
-      - DB_NAME=${DB_NAME:-databus}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-}
-      - DB_HOST=store
-      - DB_PORT=5432
-      - REDIS_HOST=state
-      - REDIS_PORT=6379
-    volumes:
-      - ./publisher:/app
-    depends_on:
-      store:
-        condition: service_healthy
-      state:
-        condition: service_healthy
-      message-broker:
-        condition: service_healthy
-
-  scheduler:
-    build:
-      context: ./scheduler
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-      - .env.dev
-    command:
-      [
-        "uv",
-        "run",
-        "celery",
-        "-A",
-        "scheduler",
-        "beat",
-        "--loglevel=info",
-      ]
-    environment:
-      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
-      - RABBITMQ_PASS=${RABBITMQ_PASS:-guest}
-      - RABBITMQ_HOST=${RABBITMQ_HOST:-message-broker}
-      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
-    volumes:
-      - ./scheduler:/app
-    depends_on:
-      store:
-        condition: service_healthy
-      state:
-        condition: service_healthy
-      message-broker:
-        condition: service_healthy
-
   analytics-engine:
     image: prefecthq/prefect:3-latest
     ports:
@@ -170,4 +142,5 @@ services:
 volumes:
   store_data:
   state_data:
+  lake_data:
   message_broker_data:

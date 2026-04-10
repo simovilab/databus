@@ -1,0 +1,253 @@
+[
+    {
+        "model": "tasks.dataprovider",
+        "pk": "1964",
+        "fields": {
+            "name": "EIE",
+            "description": "Escuela de Ingeniería Eléctrica",
+            "agency": []
+        }
+    },
+    {
+        "model": "tasks.company",
+        "pk": "OSG",
+        "fields": {
+            "agency": 1,
+            "name": "Sección Transportes",
+            "description": "",
+            "phone": null,
+            "email": null,
+            "website": null,
+            "location": "SRID=4326;POINT (-84.04256870656747 9.943725615890358)",
+            "logo": ""
+        }
+    },
+    {
+        "model": "tasks.vehicle",
+        "pk": "SJB1234",
+        "fields": {
+            "agency": 1,
+            "label": "SJB1234",
+            "license_plate": "SJB1234",
+            "wheelchair_accessible": "WHEELCHAIR_ACCESIBLE",
+            "wifi": "NO_VALUE",
+            "air_conditioning": "UNKNOWN",
+            "mobile_charging": "AVAILABLE",
+            "bike_rack": "UNAVAILABLE",
+            "has_screen": false,
+            "has_headsign_screen": false,
+            "has_audio": false
+        }
+    },
+    {
+        "model": "tasks.vehicle",
+        "pk": "SJB5678",
+        "fields": {
+            "agency": 1,
+            "label": "SJB5678",
+            "license_plate": "SJB5678",
+            "wheelchair_accessible": "UNKNOWN",
+            "wifi": "AVAILABLE",
+            "air_conditioning": "NO_VALUE",
+            "mobile_charging": "UNAVAILABLE",
+            "bike_rack": "UNKNOWN",
+            "has_screen": false,
+            "has_headsign_screen": true,
+            "has_audio": false
+        }
+    },
+    {
+        "model": "tasks.equipment",
+        "pk": "16736b9e-43d6-49f0-a269-6f71573d7730",
+        "fields": {
+            "data_provider": "1964",
+            "vehicle": "SJB5678",
+            "serial_number": "H4939GNE9",
+            "brand": "Hertz",
+            "model": "LM741",
+            "software_version": "v2.4",
+            "provides_vehicle": true,
+            "provides_operator": true,
+            "provides_run": true,
+            "provides_position": true,
+            "provides_progression": true,
+            "provides_occupancy": true,
+            "provides_conditions": false,
+            "provides_emissions": false,
+            "provides_travelers": false,
+            "provides_authorizations": false,
+            "provides_fares": false,
+            "provides_transfers": false,
+            "provides_alerts": true,
+            "created_at": "2024-08-29T19:43:20.404Z",
+            "updated_at": "2024-08-29T19:43:20.404Z"
+        }
+    },
+    {
+        "model": "tasks.equipment",
+        "pk": "2d01a00e-6287-4bfe-8a2b-7bc8a4e2aa5c",
+        "fields": {
+            "data_provider": "1964",
+            "vehicle": "SJB1234",
+            "serial_number": "JE3984GW9",
+            "brand": "Faraday",
+            "model": "555",
+            "software_version": "v1.2",
+            "provides_vehicle": true,
+            "provides_operator": true,
+            "provides_run": true,
+            "provides_position": true,
+            "provides_progression": true,
+            "provides_occupancy": true,
+            "provides_conditions": false,
+            "provides_emissions": false,
+            "provides_travelers": false,
+            "provides_authorizations": false,
+            "provides_fares": false,
+            "provides_transfers": false,
+            "provides_alerts": true,
+            "created_at": "2024-08-27T17:52:29.271Z",
+            "updated_at": "2024-08-27T17:52:29.271Z"
+        }
+    },
+    {
+        "model": "tasks.operator",
+        "pk": "1-1234-5678",
+        "fields": {
+            "user": 2,
+            "vehicle": null,
+            "equipment": null,
+            "phone": "87654321",
+            "photo": "",
+            "agency": [
+                1,
+                2
+            ],
+            "data_provider": []
+        }
+    },
+    {
+        "model": "tasks.operator",
+        "pk": "2-1234-5678",
+        "fields": {
+            "user": 3,
+            "vehicle": null,
+            "equipment": null,
+            "phone": "87654321",
+            "photo": "",
+            "agency": [
+                1,
+                2
+            ],
+            "data_provider": []
+        }
+    },
+    {
+        "model": "tasks.run",
+        "pk": 2,
+        "fields": {
+            "equipment": "2d01a00e-6287-4bfe-8a2b-7bc8a4e2aa5c",
+            "vehicle": "SJB1234",
+            "operator": "1-1234-5678",
+            "route_id": "bUCR_L1",
+            "trip_id": "desde_educacion_con_milla_entresemana_13:30",
+            "direction_id": 0,
+            "shape_id": "desde_educacion_con_milla",
+            "start_date": "2024-08-29",
+            "start_time": "13:30:06",
+            "schedule_relationship": "SCHEDULED",
+            "run_status": "IN_PROGRESS"
+        }
+    },
+    {
+        "model": "tasks.run",
+        "pk": 3,
+        "fields": {
+            "equipment": "16736b9e-43d6-49f0-a269-6f71573d7730",
+            "vehicle": "SJB5678",
+            "operator": "2-1234-5678",
+            "route_id": "bUCR_L2",
+            "trip_id": "desde_educacion_sin_milla_entresemana_13:35",
+            "direction_id": 0,
+            "shape_id": "desde_educacion_sin_milla",
+            "start_date": "2024-08-29",
+            "start_time": "13:35:12",
+            "schedule_relationship": "SCHEDULED",
+            "run_status": "IN_PROGRESS"
+        }
+    },
+    {
+        "model": "tasks.position",
+        "pk": 2,
+        "fields": {
+            "run": 2,
+            "timestamp": "2024-08-29T19:35:48Z",
+            "point": "SRID=4326;POINT (-84.04555530733563 9.93540698388418)",
+            "altitude": null,
+            "speed": 12.0,
+            "bearing": 0.0,
+            "odometer": 9.0
+        }
+    },
+    {
+        "model": "tasks.position",
+        "pk": 3,
+        "fields": {
+            "run": 3,
+            "timestamp": "2024-08-29T19:35:52Z",
+            "point": "SRID=4326;POINT (-84.05215754678477 9.935495431066292)",
+            "altitude": null,
+            "speed": 25.0,
+            "bearing": 75.0,
+            "odometer": 479.0
+        }
+    },
+    {
+        "model": "tasks.progression",
+        "pk": 2,
+        "fields": {
+            "run": 2,
+            "timestamp": "2024-08-29T20:03:29.055Z",
+            "current_stop_sequence": 3,
+            "stop_id": "bUCR_0_04",
+            "current_status": "INCOMING_AT",
+            "congestion_level": "RUNNING_SMOOTHLY"
+        }
+    },
+    {
+        "model": "tasks.progression",
+        "pk": 3,
+        "fields": {
+            "run": 3,
+            "timestamp": "2024-08-29T20:03:57.208Z",
+            "current_stop_sequence": 1,
+            "stop_id": "bUCR_0_04",
+            "current_status": "IN_TRANSIT_TO",
+            "congestion_level": "STOP_AND_GO"
+        }
+    },
+    {
+        "model": "tasks.occupancy",
+        "pk": 2,
+        "fields": {
+            "run": 2,
+            "timestamp": "2024-08-29T20:04:44.101Z",
+            "occupancy_status": "CRUSHED_STANDING_ROOM_ONLY",
+            "occupancy_percentage": 90,
+            "occupancy_count": 43,
+            "is_wheelchair_accesible": "WHEELCHAIR_INACCESIBLE"
+        }
+    },
+    {
+        "model": "tasks.occupancy",
+        "pk": 3,
+        "fields": {
+            "run": 3,
+            "timestamp": "2024-08-29T20:05:09.166Z",
+            "occupancy_status": "MANY_SEATS_AVAILABLE",
+            "occupancy_percentage": 60,
+            "occupancy_count": 26,
+            "is_wheelchair_accesible": "WHEELCHAIR_ACCESIBLE"
+        }
+    }
+]
