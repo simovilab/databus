@@ -61,7 +61,7 @@ log "Making migrations (if enabled)..."
 
 if [[ "${RUN_MIGRATIONS:-False}" == "True" ]]; then
     # Make migrations
-    APPS_TO_MIGRATE=("gtfs" "feed")
+    APPS_TO_MIGRATE=("gtfs" "tasks")
     log "Creating migrations for: ${APPS_TO_MIGRATE[*]}"
     uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
 
@@ -77,16 +77,16 @@ log "Creating superuser (if enabled and in debug mode)..."
 # --------------------------------------------------------
 
 if [[ "${CREATE_SUPERUSER:-False}" == "True" && ( "${DEBUG:-}" == "True" || "${DEBUG:-}" == "1" ) ]]; then
-    export SUPERUSER_USERNAME="${SUPERUSER_USERNAME:-admin}"
-    export SUPERUSER_PASSWORD="${SUPERUSER_PASSWORD:-admin}"
-    export SUPERUSER_EMAIL="${SUPERUSER_EMAIL:-admin@example.com}"
-    log "Ensuring development superuser '${SUPERUSER_USERNAME}' exists (DEBUG mode)"
+    export DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}"
+    export DJANGO_SUPERUSER_PASSWORD="${DJANGO_SUPERUSER_PASSWORD:-admin}"
+    export DJANGO_SUPERUSER_EMAIL="${DJANGO_SUPERUSER_EMAIL:-admin@example.com}"
+    log "Ensuring development superuser '${DJANGO_SUPERUSER_USERNAME}' exists (DEBUG mode)"
     set +e
     uv run python manage.py createsuperuser --noinput
     csu_exit=$?
     set -e
     if [ $csu_exit -eq 0 ]; then
-        log "Superuser created: ${SUPERUSER_USERNAME}/${SUPERUSER_PASSWORD}"
+        log "Superuser created: ${DJANGO_SUPERUSER_USERNAME}/${DJANGO_SUPERUSER_PASSWORD}"
     else
         warn "Superuser creation skipped (maybe already exists)"
     fi

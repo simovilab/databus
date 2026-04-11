@@ -29,6 +29,10 @@ WORKDIR /app
 # Change ownership of /app directory to user "app"
 RUN chown -R app:app /app
 
+# Pre-create .venv so the Docker volume inherits correct ownership on first mount.
+# Without this, the volume is initialized as root:root and the "app" user cannot install packages.
+RUN mkdir -p /app/.venv && chown app:app /app/.venv
+
 # Copy dependency files
 COPY --chown=app:app pyproject.toml uv.lock ./
 

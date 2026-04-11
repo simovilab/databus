@@ -130,13 +130,13 @@ def build_vehicle_positions():
 
     # Create and save JSON
     feed_message_json = json.dumps(feed_message)
-    with open("feed/files/vehicle_positions.json", "w") as f:
+    with open("tasks/files/vehicle_positions.json", "w") as f:
         f.write(feed_message_json)
 
     # Create and save Protobuf
     feed_message_json = json.loads(feed_message_json)
     feed_message_pb = json_format.ParseDict(feed_message_json, gtfs_rt.FeedMessage())
-    with open("feed/files/vehicle_positions.pb", "wb") as f:
+    with open("tasks/files/vehicle_positions.pb", "wb") as f:
         f.write(feed_message_pb.SerializeToString())
 
     return "FeedMessage VehiclePosition built successfully"
@@ -216,13 +216,13 @@ def build_trip_updates():
 
     # Create and save JSON
     feed_message_json = json.dumps(feed_message)
-    with open("feed/files/trip_updates.json", "w") as f:
+    with open("tasks/files/trip_updates.json", "w") as f:
         f.write(feed_message_json)
 
     # Create and save Protobuf
     feed_message_json = json.loads(feed_message_json)
     feed_message_pb = json_format.ParseDict(feed_message_json, gtfs_rt.FeedMessage())
-    with open("feed/files/trip_updates.pb", "wb") as f:
+    with open("tasks/files/trip_updates.pb", "wb") as f:
         f.write(feed_message_pb.SerializeToString())
 
     # Send status update to WebSocket

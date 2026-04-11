@@ -1,133 +1,234 @@
 #!/usr/bin/env bash
-# Development environment startup script for Infobús
+# DataBus development environment startup script
 
 set -euo pipefail
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+GRAY='\033[0;90m'
+NC='\033[0m'
 
 COMPOSE_FILE="compose.dev.yml"
 
+# ---------------------------------------------------------------------------
+# Read a value from .env / .env.dev (.env.dev overrides .env)
+# ---------------------------------------------------------------------------
 get_env_value() {
     local key="$1"
     local default_value="$2"
-    local value
+    local value dev_value
 
-    # .env.dev overrides .env; check base file first, then let dev file win
-    value=$(grep -E "^${key}=" .env 2>/dev/null | tail -n 1 | cut -d '=' -f 2- || true)
-    local dev_value
-    dev_value=$(grep -E "^${key}=" .env.dev 2>/dev/null | tail -n 1 | cut -d '=' -f 2- || true)
-    if [ -n "$dev_value" ]; then
-        value="$dev_value"
-    fi
-
-    if [ -n "$value" ]; then
-        echo "$value"
-    else
-        echo "$default_value"
-    fi
+    value=$(grep -E "^${key}=" .env 2>/dev/null | tail -n1 | cut -d'=' -f2- || true)
+    dev_value=$(grep -E "^${key}=" .env.dev 2>/dev/null | tail -n1 | cut -d'=' -f2- || true)
+    [ -n "$dev_value" ] && value="$dev_value"
+    echo "${value:-$default_value}"
 }
 
+# Ports as defined in compose.dev.yml
 BACKEND_PORT=$(get_env_value "BACKEND_PORT" "8000")
-DATABASE_PORT=$(get_env_value "DATABASE_PORT" "5432")
-MEMORY_PORT=$(get_env_value "MEMORY_PORT" "6379")
-CONTEXT_PORT=$(get_env_value "CONTEXT_PORT" "3278")
-KNOWLEDGE_PORT=$(get_env_value "KNOWLEDGE_PORT" "3030")
-BROKER_MANAGEMENT_PORT=$(get_env_value "BROKER_MANAGEMENT_PORT" "15672")
-DEBUG=$(get_env_value "DEBUG" "true")
+STORE_PORT=$(get_env_value "STORE_PORT" "5432")
+STATE_PORT=$(get_env_value "STATE_PORT" "6379")
+MQTT_BROKER_PORT=$(get_env_value "MQTT_BROKER_PORT" "1883")
+MESSAGE_BROKER_AMQP_PORT=$(get_env_value "MESSAGE_BROKER_AMQP_PORT" "5672")
+MESSAGE_BROKER_MANAGEMENT_PORT=$(get_env_value "MESSAGE_BROKER_MANAGEMENT_PORT" "15672")
+ANALYTICS_PORT=$(get_env_value "ANALYTICS_PORT" "4200")
 
-echo -e "${GREEN}🚀 Starting Infobús in DEVELOPMENT mode...${NC}"
-echo "Features enabled:"
-echo "  - Debug mode"
-echo "  - Volume mounting for code changes"
+echo -e "${GREEN}DataBus — development environment${NC}"
 echo ""
 
+# ---------------------------------------------------------------------------
+# Check Docker
+# ---------------------------------------------------------------------------
 if ! command -v docker >/dev/null 2>&1; then
-    echo -e "${RED}❌ Error: docker is not installed or not in PATH.${NC}"
+    echo -e "${RED}Error: docker is not installed or not in PATH.${NC}"
     exit 1
 fi
 
-# Check for necessary files
+# Check required files
 if [ ! -f ".env" ]; then
-    echo -e "${RED}❌ Error: .env file not found!${NC}"
-    echo "Please create .env with base configuration."
-    echo "Creating .env from example..."
-    cp .env.example .env
+    echo -e "${RED}Error: .env file not found.${NC}"
+    if [ -f ".env.example" ]; then
+        echo "Copying .env.example -> .env ..."
+        cp .env.example .env
+        echo -e "${YELLOW}Edit .env with your values before continuing.${NC}"
+    fi
     exit 1
 fi
 if [ ! -f ".env.dev" ]; then
-    echo -e "${YELLOW}⚠️  Warning: .env.dev file not found!${NC}"
+    echo -e "${YELLOW}Warning: .env.dev not found. Using values from .env only.${NC}"
 fi
 if [ ! -f "$COMPOSE_FILE" ]; then
-    echo -e "${RED}❌ Error: $COMPOSE_FILE file not found!${NC}"
-    echo "Please create $COMPOSE_FILE for the development environment."
+    echo -e "${RED}Error: $COMPOSE_FILE not found.${NC}"
     exit 1
 fi
 
-echo -e "${BLUE}🔧 Building development environment...${NC}"
-
-# Try to add the GTFS submodule if not present
-if [ ! -d "gtfs" ] || [ -z "$(ls -A gtfs 2>/dev/null)" ]; then
-    echo -e "${YELLOW}📦 Initializing GTFS submodule (gtfs-django)...${NC}"
+# ---------------------------------------------------------------------------
+# GTFS submodule
+# ---------------------------------------------------------------------------
+GTFS_DIR="processing/gtfs"
+if [ ! -d "$GTFS_DIR" ] || [ -z "$(ls -A "$GTFS_DIR" 2>/dev/null)" ]; then
+    echo -e "${YELLOW}Initializing GTFS submodule (${GTFS_DIR})...${NC}"
     if git submodule update --init --recursive; then
-        echo -e "${GREEN} GTFS submodule ready.${NC}"
+        echo -e "${GREEN}GTFS submodule ready.${NC}"
     else
-        echo -e "${RED} Failed to initialize GTFS submodule.${NC}"
-        echo "Please ensure you have network access and try: git submodule update --init --recursive, or verify the submodule URL in .gitmodules"
+        echo -e "${RED}Failed to initialize GTFS submodule.${NC}"
+        echo "Try manually: git submodule update --init --recursive"
         exit 1
     fi
+else
+    echo -e "${GREEN}GTFS submodule already present at ${GTFS_DIR}.${NC}"
 fi
 
-# Use compose.dev.yml for the development environment.
-# Docker Compose loads .env for variable substitution; services also load env_file entries.
-
-# --------------------------------------------------------------
-docker compose -f "$COMPOSE_FILE" up --build -d --remove-orphans
-# --------------------------------------------------------------
-
+# ---------------------------------------------------------------------------
+# Pull base images (only services without a local build)
+# ---------------------------------------------------------------------------
 echo ""
-echo -e "${YELLOW}⏳ Waiting for services to be ready...${NC}"
+echo -e "${BLUE}Pulling required Docker images...${NC}"
+docker compose -f "$COMPOSE_FILE" pull --ignore-buildable
 
-until curl -s "http://localhost:${BACKEND_PORT}" >/dev/null; do
-  sleep 2
+# ---------------------------------------------------------------------------
+# Start services
+# ---------------------------------------------------------------------------
+echo ""
+echo -e "${BLUE}Building and starting services...${NC}"
+set +e
+docker compose -f "$COMPOSE_FILE" up --build -d --remove-orphans
+UP_EXIT=$?
+set -e
+if [ $UP_EXIT -ne 0 ]; then
+    echo -e "${RED}Error: docker compose up failed (exit code ${UP_EXIT}).${NC}"
+    echo -e "${YELLOW}Recent logs:${NC}"
+    docker compose -f "$COMPOSE_FILE" logs --tail=30
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Wait for backend
+# ---------------------------------------------------------------------------
+echo ""
+echo -e "${YELLOW}Waiting for backend on :${BACKEND_PORT}...${NC}"
+echo -e "${GRAY}(First run may take 1-2 minutes while migrations run)${NC}"
+
+MAX_WAIT=180
+ELAPSED=0
+BACKEND_OK=false
+
+while [ $ELAPSED -lt $MAX_WAIT ]; do
+    if curl -sf --max-time 3 "http://localhost:${BACKEND_PORT}" >/dev/null 2>&1; then
+        BACKEND_OK=true
+        break
+    fi
+
+    # Every 15s: print container status + last backend log lines
+    if [ $(( ELAPSED % 15 )) -eq 0 ] && [ $ELAPSED -gt 0 ]; then
+        echo ""
+        echo -e "${GRAY}  [${ELAPSED}s] Containers:${NC}"
+        docker compose -f "$COMPOSE_FILE" ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null \
+            | while IFS= read -r line; do echo -e "${GRAY}    ${line}${NC}"; done
+        echo -e "${GRAY}  [${ELAPSED}s] Last backend lines:${NC}"
+        docker compose -f "$COMPOSE_FILE" logs --tail=5 backend 2>/dev/null \
+            | while IFS= read -r line; do echo -e "${GRAY}    ${line}${NC}"; done
+    else
+        echo -e "${GRAY}  . [${ELAPSED}s]${NC}"
+    fi
+
+    sleep 3
+    ELAPSED=$(( ELAPSED + 3 ))
 done
 
-echo -e "${GREEN}Backend is responding.${NC}"
-
-# Check if services are running
-echo -e "${BLUE}🏥 Checking service status...${NC}"
-if docker compose -f "$COMPOSE_FILE" ps --status running | grep -q .; then
-    echo -e "${GREEN}✅ Development environment started successfully!${NC}"
+if [ "$BACKEND_OK" = true ]; then
+    echo ""
+    echo -e "${GREEN}Backend responding after ${ELAPSED}s.${NC}"
 else
-    echo -e "${RED}⚠️  Some services may not be running properly. Check logs for details.${NC}"
-    echo -e "${YELLOW}📜 Showing recent logs...${NC}"
-    docker compose -f "$COMPOSE_FILE" logs --tail=50
+    echo ""
+    echo -e "${RED}Backend did not respond within ${MAX_WAIT}s.${NC}"
+    echo -e "${YELLOW}Last backend logs:${NC}"
+    docker compose -f "$COMPOSE_FILE" logs --tail=30 backend
 fi
 
+# ---------------------------------------------------------------------------
+# Container status
+# ---------------------------------------------------------------------------
+echo ""
+echo -e "${CYAN}=====================================================${NC}"
+echo -e "${CYAN}  Container status${NC}"
+echo -e "${CYAN}=====================================================${NC}"
 docker compose -f "$COMPOSE_FILE" ps
 
+# ---------------------------------------------------------------------------
+# Infrastructure health checks
+# ---------------------------------------------------------------------------
 echo ""
-echo -e "${GREEN}🌐 Development URLs:${NC}"
-echo "  Website: http://localhost:${BACKEND_PORT}"
-echo "  Admin: http://localhost:${BACKEND_PORT}/admin"
-echo "  API: http://localhost:${BACKEND_PORT}/api/"
-echo "  Context service: http://localhost:${CONTEXT_PORT}"
-echo "  Knowledge service: http://localhost:${KNOWLEDGE_PORT}"
-echo "  RabbitMQ management: http://localhost:${BROKER_MANAGEMENT_PORT}"
+echo -e "${CYAN}=====================================================${NC}"
+echo -e "${CYAN}  Infrastructure health checks${NC}"
+echo -e "${CYAN}=====================================================${NC}"
+
+for svc in store state message-broker; do
+    cid=$(docker compose -f "$COMPOSE_FILE" ps -q "$svc" 2>/dev/null || true)
+    if [ -n "$cid" ]; then
+        health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no healthcheck{{end}}' "$cid" 2>/dev/null || echo "unknown")
+        status=$(docker inspect --format='{{.State.Status}}' "$cid" 2>/dev/null || echo "?")
+        if [ "$health" = "healthy" ] || [ "$health" = "no healthcheck" ]; then
+            echo -e "  ${GREEN}[OK]${NC}  ${svc}: ${status} / ${health}"
+        else
+            echo -e "  ${RED}[!!]${NC}  ${svc}: ${status} / ${health}"
+        fi
+    else
+        echo -e "  ${RED}[!!]${NC}  ${svc}: container not found"
+    fi
+done
+
+# ---------------------------------------------------------------------------
+# Docker volumes
+# ---------------------------------------------------------------------------
 echo ""
-echo -e "${BLUE}📊 Service endpoints:${NC}"
-echo "  Database: localhost:${DATABASE_PORT}"
-echo "  Redis: localhost:${MEMORY_PORT}"
+echo -e "${CYAN}=====================================================${NC}"
+echo -e "${CYAN}  Docker volumes${NC}"
+echo -e "${CYAN}=====================================================${NC}"
+
+for vol in store_data state_data lake_data message_broker_data; do
+    full_name="databus-dev_${vol}"
+    if docker volume inspect "$full_name" >/dev/null 2>&1; then
+        mp=$(docker volume inspect --format='{{.Mountpoint}}' "$full_name" 2>/dev/null || echo "?")
+        echo -e "  ${GREEN}[OK]${NC}  ${full_name}"
+        echo    "        Mountpoint: ${mp}"
+    else
+        echo -e "  ${YELLOW}[--]${NC}  ${full_name}: does not exist yet (created on first use)"
+    fi
+done
+
+# ---------------------------------------------------------------------------
+# URLs and useful commands
+# ---------------------------------------------------------------------------
 echo ""
-echo -e "${YELLOW}🔧 Development commands:${NC}"
-echo "  View logs: docker compose -f $COMPOSE_FILE logs -f"
-echo "  View backend logs: docker compose -f $COMPOSE_FILE logs -f backend"
-echo "  Run migrations: docker compose -f $COMPOSE_FILE exec backend uv run python manage.py migrate"
-echo "  Create superuser: docker compose -f $COMPOSE_FILE exec backend uv run python manage.py createsuperuser"
-echo "  Django shell: docker compose -f -it $COMPOSE_FILE exec backend uv run python manage.py shell"
+echo -e "${GREEN}=====================================================${NC}"
+echo -e "${GREEN}  Development URLs${NC}"
+echo -e "${GREEN}=====================================================${NC}"
+echo "  Backend / API        http://localhost:${BACKEND_PORT}"
+echo "  Django admin         http://localhost:${BACKEND_PORT}/admin"
+echo "  REST API             http://localhost:${BACKEND_PORT}/api/"
+echo "  RabbitMQ management  http://localhost:${MESSAGE_BROKER_MANAGEMENT_PORT}"
+echo "  Prefect (analytics)  http://localhost:${ANALYTICS_PORT}"
 echo ""
-echo -e "${BLUE}To stop: docker compose -f $COMPOSE_FILE down${NC}"
+echo -e "${BLUE}=====================================================${NC}"
+echo -e "${BLUE}  Infrastructure ports${NC}"
+echo -e "${BLUE}=====================================================${NC}"
+echo "  PostgreSQL (store)   localhost:${STORE_PORT}"
+echo "  Redis (state)        localhost:${STATE_PORT}"
+echo "  MQTT (telemetry)     localhost:${MQTT_BROKER_PORT}"
+echo "  RabbitMQ AMQP        localhost:${MESSAGE_BROKER_AMQP_PORT}"
+echo ""
+echo -e "${YELLOW}=====================================================${NC}"
+echo -e "${YELLOW}  Useful commands${NC}"
+echo -e "${YELLOW}=====================================================${NC}"
+echo "  Stream logs:          docker compose -f $COMPOSE_FILE logs -f"
+echo "  Backend logs:         docker compose -f $COMPOSE_FILE logs -f backend"
+echo "  Run migrations:       docker compose -f $COMPOSE_FILE exec backend uv run python manage.py migrate"
+echo "  Create superuser:     docker compose -f $COMPOSE_FILE exec backend uv run python manage.py createsuperuser"
+echo "  Django shell:         docker compose -f $COMPOSE_FILE exec -it backend uv run python manage.py shell"
+echo "  Stop all:             docker compose -f $COMPOSE_FILE down"
+echo ""

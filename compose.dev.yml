@@ -11,6 +11,7 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./processing:/app
+      - backend_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
     depends_on:
       store:
         condition: service_healthy
@@ -30,6 +31,7 @@ services:
       - .env.dev
     volumes:
       - ./processing:/app
+      - realtime_engine_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
     depends_on:
       store:
         condition: service_healthy
@@ -51,6 +53,7 @@ services:
       - .env.dev
     volumes:
       - ./processing:/app
+      - tasks_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
     depends_on:
       store:
         condition: service_healthy
@@ -68,6 +71,7 @@ services:
       - .env.dev
     volumes:
       - ./processing:/app
+      - scheduler_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
     depends_on:
       store:
         condition: service_healthy
@@ -144,3 +148,7 @@ volumes:
   state_data:
   lake_data:
   message_broker_data:
+  backend_venv:
+  realtime_engine_venv:
+  tasks_venv:
+  scheduler_venv:
