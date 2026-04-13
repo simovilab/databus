@@ -4,6 +4,8 @@ services:
     build:
       context: ./processing
       target: dev
+    environment:
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
@@ -11,7 +13,7 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./processing:/app
-      - backend_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
+      - processing_venv:/home/app/.venv
     depends_on:
       store:
         condition: service_healthy
@@ -26,12 +28,13 @@ services:
       - RUN_MIGRATIONS=False
       - CREATE_SUPERUSER=False
       - LOAD_FIXTURES=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     volumes:
       - ./processing:/app
-      - realtime_engine_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
+      - processing_venv:/home/app/.venv
     depends_on:
       store:
         condition: service_healthy
@@ -48,12 +51,13 @@ services:
       - RUN_MIGRATIONS=False
       - CREATE_SUPERUSER=False
       - LOAD_FIXTURES=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     volumes:
       - ./processing:/app
-      - tasks_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
+      - processing_venv:/home/app/.venv
     depends_on:
       store:
         condition: service_healthy
@@ -66,12 +70,17 @@ services:
     build:
       context: ./processing
       target: scheduler
+    environment:
+      - RUN_MIGRATIONS=False
+      - CREATE_SUPERUSER=False
+      - LOAD_FIXTURES=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     volumes:
       - ./processing:/app
-      - scheduler_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
+      - processing_venv:/home/app/.venv
     depends_on:
       store:
         condition: service_healthy
@@ -148,7 +157,4 @@ volumes:
   state_data:
   lake_data:
   message_broker_data:
-  backend_venv:
-  realtime_engine_venv:
-  tasks_venv:
-  scheduler_venv:
+  processing_venv:

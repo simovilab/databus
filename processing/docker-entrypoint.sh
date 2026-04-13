@@ -2,9 +2,12 @@
 set -euo pipefail
 
 # Ensure virtual environment bin is on PATH if present
-if [ -d "/app/.venv/bin" ]; then
-    export PATH="/app/.venv/bin:$PATH"
+VENV_DIR="${UV_PROJECT_ENVIRONMENT:-/home/app/.venv}"
+if [ -d "${VENV_DIR}/bin" ]; then
+    export PATH="${VENV_DIR}/bin:$PATH"
 fi
+
+UV_SYNC_LOCKDIR="/tmp/uv-sync.lockdir"
 
 # Colors for output
 RED='\033[0;31m'
@@ -37,12 +40,59 @@ fi
 log "Starting Django application..."
 # ----------------------------------
 
-# Ensure virtual environment exists (install if not present)
-if [ ! -d "/app/.venv" ]; then
-warn "Setting up virtual environment (uv sync)..."
-    uv sync --frozen
-else
-log "Virtual environment already exists"
+# Ensure the shared virtual environment exists (install if not present).
+# Multiple containers share /home/app/.venv via a Docker volume, so we
+# serialize uv sync with a lock directory to avoid concurrent installs.
+setup_virtualenv() {
+    if [ -d "${VENV_DIR}/bin" ]; then
+        log "Virtual environment already exists"
+        return
+    fi
+
+    warn "Virtual environment not found; waiting for setup lock"
+    while ! mkdir "${UV_SYNC_LOCKDIR}" 2>/dev/null; do
+        if [ -d "${VENV_DIR}/bin" ]; then
+            log "Virtual environment became available"
+            return
+        fi
+        sleep 1
+    done
+
+    cleanup_lock() {
+        rmdir "${UV_SYNC_LOCKDIR}" 2>/dev/null || true
+    }
+    trap cleanup_lock EXIT
+
+    # Another container may have finished setup while we acquired the lock.
+    if [ -d "${VENV_DIR}/bin" ]; then
+        log "Virtual environment already exists"
+        cleanup_lock
+        trap - EXIT
+        return
+    fi
+
+    warn "Setting up virtual environment (uv sync)..."
+    attempts=0
+    until uv sync --frozen; do
+        attempts=$((attempts + 1))
+        if [ "$attempts" -ge 3 ]; then
+            err "uv sync failed after ${attempts} attempts"
+            exit 1
+        fi
+        warn "uv sync failed (attempt ${attempts}/3); cleaning partial env and retrying"
+        rm -rf "${VENV_DIR}" || true
+        sleep 2
+    done
+
+    log "Virtual environment ready"
+    cleanup_lock
+    trap - EXIT
+}
+
+setup_virtualenv
+
+if [ -d "${VENV_DIR}/bin" ]; then
+    export PATH="${VENV_DIR}/bin:$PATH"
 fi
 
 # --------------------------------------

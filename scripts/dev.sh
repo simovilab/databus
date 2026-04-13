@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DataBus development environment startup script
+# Databús development environment startup script
 
 set -euo pipefail
 
@@ -41,7 +41,7 @@ MESSAGE_BROKER_AMQP_PORT=$(get_env_value "MESSAGE_BROKER_AMQP_PORT" "5672")
 MESSAGE_BROKER_MANAGEMENT_PORT=$(get_env_value "MESSAGE_BROKER_MANAGEMENT_PORT" "15672")
 ANALYTICS_PORT=$(get_env_value "ANALYTICS_PORT" "4200")
 
-echo -e "${GREEN}DataBus — development environment${NC}"
+echo -e "${GREEN}Databús — development environment${NC}"
 echo ""
 
 # ---------------------------------------------------------------------------

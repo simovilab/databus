@@ -17,7 +17,8 @@ ENV ENTRYPOINT_PATH="/app/docker-entrypoint.sh" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT="/home/app/.venv"
 
 # Create app user
 RUN groupadd --gid 1000 app && \
@@ -26,17 +27,17 @@ RUN groupadd --gid 1000 app && \
 # Set work directory
 WORKDIR /app
 
-# Change ownership of /app directory to user "app"
-RUN chown -R app:app /app
-
-# Pre-create .venv so the Docker volume inherits correct ownership on first mount.
-# Without this, the volume is initialized as root:root and the "app" user cannot install packages.
-RUN mkdir -p /app/.venv && chown app:app /app/.venv
+# Pre-create venv directory with correct ownership so the Docker volume
+# inherits app:app on first mount (not root:root).
+RUN mkdir -p /home/app/.venv && \
+    chown -R app:app /app /home/app
 
 # Copy dependency files
 COPY --chown=app:app pyproject.toml uv.lock ./
 
-# Dependencies will be installed at runtime to avoid permission issues
+# Dependencies are installed at runtime via the shared Docker volume (processing_venv).
+# All services mount the same volume at /home/app/.venv; the first container
+# to start runs uv sync while the others wait on a lock.
 
 # Copy source code
 COPY --chown=app:app . .
@@ -47,7 +48,7 @@ RUN chmod +x $ENTRYPOINT_PATH
 # Execute entrypoint script to handle setup tasks before running the main command
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
-# Switch to app user before installing dependencies to avoid permission issues
+# Switch to app user
 USER app
 
 # Expose port for Django development server
@@ -63,7 +64,6 @@ CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
 FROM base AS prod
 # ----------------------------
 
-RUN uv sync --frozen --no-dev
 CMD ["uv", "run", "daphne", "-b", "0.0.0.0", "-p", "8000", "databus.asgi:application"]
 
 # -- Celery Worker
