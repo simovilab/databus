@@ -3,6 +3,10 @@
 
 set -euo pipefail
 
+# Always run from the repo root, regardless of where the script is invoked from
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -41,10 +45,14 @@ echo -e "${GREEN}DataBus — development environment${NC}"
 echo ""
 
 # ---------------------------------------------------------------------------
-# Check Docker
+# Check dependencies
 # ---------------------------------------------------------------------------
 if ! command -v docker >/dev/null 2>&1; then
     echo -e "${RED}Error: docker is not installed or not in PATH.${NC}"
+    exit 1
+fi
+if ! command -v curl >/dev/null 2>&1; then
+    echo -e "${RED}Error: curl is not installed or not in PATH.${NC}"
     exit 1
 fi
 
@@ -217,7 +225,7 @@ echo ""
 echo -e "${BLUE}=====================================================${NC}"
 echo -e "${BLUE}  Infrastructure ports${NC}"
 echo -e "${BLUE}=====================================================${NC}"
-echo "  PostgreSQL (store)   localhost:${STORE_PORT}"
+echo "  PostgreSQL (store)   internal only (docker compose exec store psql -U postgres)"
 echo "  Redis (state)        localhost:${STATE_PORT}"
 echo "  MQTT (telemetry)     localhost:${MQTT_BROKER_PORT}"
 echo "  RabbitMQ AMQP        localhost:${MESSAGE_BROKER_AMQP_PORT}"

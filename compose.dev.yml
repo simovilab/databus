@@ -86,8 +86,6 @@ services:
       - POSTGRES_DB=${DB_NAME:-databus}
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_HOST_AUTH_METHOD=trust
-    ports:
-      - "${STORE_PORT:-5432}:5432"
     volumes:
       - store_data:/var/lib/postgresql/data
     healthcheck:
@@ -109,10 +107,12 @@ services:
       timeout: 5s
       retries: 5
 
-  telemetry-broker: 
+  telemetry-broker:
     image: emqx/nanomq:0.24.9-full
     ports:
       - "${MQTT_BROKER_PORT:-1883}:1883"
+    volumes:
+      - ./telemetry-broker/nanomq.conf:/etc/nanomq.conf
 
   message-broker:
     image: rabbitmq:4-management
