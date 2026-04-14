@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     "daphne",
     "channels",
     "gtfs.apps.GtfsConfig",
-    "tasks.apps.TasksConfig",
+    "periodic_engine.apps.PeriodicEngineConfig",
     "realtime_engine.apps.RealtimeEngineConfig",
     "website.apps.WebsiteConfig",
     "api.apps.ApiConfig",

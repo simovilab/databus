@@ -30,10 +30,15 @@ if [ -z "${DATABASE_URL:-}" ]; then
         else
             export DATABASE_URL="postgresql://${DB_USER}@${DB_HOST}:${DB_PORT:-5432}/${DB_NAME}"
         fi
-        warn "DATABASE_URL not set; constructed as: ${DATABASE_URL}"
+        warn "DATABASE_URL not set; constructed from DB_* environment variables"
     else
         warn "DATABASE_URL not set and insufficient components to construct it."
     fi
+fi
+
+if [ -z "${DATABASE_URL:-}" ]; then
+    err "DATABASE_URL is required (set DATABASE_URL or DB_USER/DB_HOST/DB_NAME)"
+    exit 1
 fi
 
 # ----------------------------------
@@ -100,7 +105,7 @@ log "Waiting for database connection..."
 # --------------------------------------
 
 until uv run python -c "import psycopg2; import os; conn = psycopg2.connect(os.environ['DATABASE_URL']); conn.close(); print('Database is ready!')"; do
-warn "Database is unavailable - sleeping"
+    warn "Database is unavailable - sleeping"
     sleep 5
 done
 log "Database is ready!"

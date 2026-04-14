@@ -5,6 +5,9 @@ services:
       context: ./processing
       target: dev
     environment:
+      - RUN_MIGRATIONS=True
+      - CREATE_SUPERUSER=True
+      - LOAD_FIXTURES=True
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
@@ -13,6 +16,7 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./processing:/app
+      - shared_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
       - processing_venv:/home/app/.venv
     depends_on:
       store:
@@ -34,6 +38,7 @@ services:
       - .env.dev
     volumes:
       - ./processing:/app
+      - shared_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
       - processing_venv:/home/app/.venv
     depends_on:
       store:
@@ -43,10 +48,10 @@ services:
       message-broker:
         condition: service_healthy
 
-  tasks:
+  periodic-engine:
     build:
       context: ./processing
-      target: tasks
+      target: periodic-engine
     environment:
       - RUN_MIGRATIONS=False
       - CREATE_SUPERUSER=False
@@ -57,6 +62,7 @@ services:
       - .env.dev
     volumes:
       - ./processing:/app
+      - shared_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
       - processing_venv:/home/app/.venv
     depends_on:
       store:
@@ -80,6 +86,7 @@ services:
       - .env.dev
     volumes:
       - ./processing:/app
+      - shared_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
       - processing_venv:/home/app/.venv
     depends_on:
       store:
@@ -157,4 +164,5 @@ volumes:
   state_data:
   lake_data:
   message_broker_data:
+  shared_venv:
   processing_venv:
