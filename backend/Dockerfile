@@ -66,12 +66,6 @@ FROM base AS prod
 
 CMD ["uv", "run", "daphne", "-b", "0.0.0.0", "-p", "8000", "databus.asgi:application"]
 
-# -- Celery Worker
-FROM base AS tasks
-# ----------------
-
-CMD ["uv", "run", "celery", "-A", "databus", "worker", "-Q", "tasks", "--loglevel=info"]
-
 # ------------ Celery Worker
 FROM base AS realtime-engine
 # --------------------------

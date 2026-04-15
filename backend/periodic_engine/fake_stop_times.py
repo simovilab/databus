@@ -5,7 +5,7 @@ import numpy as np
 import random
 from typing import Any
 
-_CSV_FILE_PATH = "./tasks/aux_files/route_stops.csv"
+_CSV_FILE_PATH = "./periodic_engine/aux_files/route_stops.csv"
 # Time in seconds
 _UNCERTAINTY_S = 120
 _TIME_OFFSET_MIN_S = 150

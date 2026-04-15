@@ -1,4 +1,4 @@
-from tasks.models import (
+from periodic_engine.models import (
     Company,
     Company,
     Operator,

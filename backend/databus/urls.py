@@ -26,7 +26,7 @@ urlpatterns = [
     path("", include("website.urls")),
     path("gtfs/", include("gtfs.urls")),
     path("api/", include("api.urls")),
-    path("tasks/", include("tasks.urls")),
+    path("periodic_engine/", include("periodic_engine.urls")),
 ]
 
 serve_static_flag = os.environ.get("DJANGO_SERVE_STATIC", "").lower() in (

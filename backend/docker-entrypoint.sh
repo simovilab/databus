@@ -124,7 +124,7 @@ wait_for_database() {
 
 run_makemigrations() {
     if is_true "${DEBUG:-False}"; then
-        APPS_TO_MIGRATE=("gtfs" "tasks")
+        APPS_TO_MIGRATE=("gtfs" "periodic_engine")
         log "Creating migrations for: ${APPS_TO_MIGRATE[*]}"
         uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
     else
