@@ -17,7 +17,9 @@ def schedule(request):
 
 @xframe_options_exempt
 def vehicle_json(request):
-    file_path = settings.BASE_DIR / "schedule_engine" / "files" / "vehicle_positions.json"
+    file_path = (
+        settings.BASE_DIR / "schedule_engine" / "files" / "vehicle_positions.json"
+    )
     return FileResponse(open(file_path, "rb"), filename="vehicle_positions.json")
 
 

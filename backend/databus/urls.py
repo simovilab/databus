@@ -24,7 +24,6 @@ import os
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("website.urls")),
-    path("gtfs/", include("gtfs.urls")),
     path("api/", include("api.urls")),
     path("schedule_engine/", include("schedule_engine.urls")),
 ]

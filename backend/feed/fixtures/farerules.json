@@ -1,0 +1,24 @@
+[
+    {
+        "model": "gtfs.FareRule",
+        "pk": 1,
+        "fields": {
+            "feed": "1234",
+            "fare_id": "no_tarifa",
+            "route_id": "UCR_L1",
+            "origin_id": "UCR_0",
+            "destination_id": "UCR_0"
+        }
+    },
+    {
+        "model": "gtfs.FareRule",
+        "pk": 2,
+        "fields": {
+            "feed": "1234",
+            "fare_id": "no_tarifa",
+            "route_id": "UCR_L2",
+            "origin_id": "UCR_1",
+            "destination_id": "UCR_1"
+        }
+    }
+]

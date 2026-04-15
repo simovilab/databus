@@ -2,7 +2,7 @@ from django.contrib.gis.db import models
 from django.contrib.auth.models import User
 import uuid
 
-from gtfs.models import Agency
+from feed.models import Agency
 
 # Create your models here.
 
@@ -13,7 +13,7 @@ class Company(models.Model):
     """
 
     id = models.CharField(max_length=100, primary_key=True)
-    agency = models.OneToOneField(
+    linked_agency = models.OneToOneField(
         Agency, on_delete=models.SET_NULL, blank=True, null=True
     )
     name = models.CharField(max_length=100)

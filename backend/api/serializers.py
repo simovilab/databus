@@ -12,7 +12,7 @@ from schedule_engine.models import (
     Progression,
     Occupancy,
 )
-from gtfs.models import *
+from feed.models import *
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from django.contrib.gis.geos import Point

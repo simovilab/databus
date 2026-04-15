@@ -1,0 +1,266 @@
+[
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 1,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240101",
+            "exception_type": "2",
+            "holiday_name": "Año Nuevo"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 2,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240101",
+            "exception_type": "1",
+            "holiday_name": "Año Nuevo"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 3,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240411",
+            "exception_type": "2",
+            "holiday_name": "Día de Juan Santamaría"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 4,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240411",
+            "exception_type": "1",
+            "holiday_name": "Día de Juan Santamaría"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 5,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240328",
+            "exception_type": "2",
+            "holiday_name": "Jueves Santo"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 6,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240329",
+            "exception_type": "1",
+            "holiday_name": "Jueves Santo"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 7,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240330",
+            "exception_type": "2",
+            "holiday_name": "Viernes Santo"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 8,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240331",
+            "exception_type": "1",
+            "holiday_name": "Viernes Santo"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 9,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240501",
+            "exception_type": "2",
+            "holiday_name": "Día del Trabajo"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 10,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240501",
+            "exception_type": "1",
+            "holiday_name": "Día del Trabajo"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 11,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240617",
+            "exception_type": "2",
+            "holiday_name": "Día del Padre"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 12,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240617",
+            "exception_type": "1",
+            "holiday_name": "Día del Padre"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 13,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240725",
+            "exception_type": "2",
+            "holiday_name": "Anexión del Partido de Nicoya"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 14,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240725",
+            "exception_type": "1",
+            "holiday_name": "Anexión del Partido de Nicoya"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 15,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240802",
+            "exception_type": "2",
+            "holiday_name": "Día de la Virgen de los Ángeles"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 16,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240802",
+            "exception_type": "1",
+            "holiday_name": "Día de la Virgen de los Ángeles"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 17,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240815",
+            "exception_type": "2",
+            "holiday_name": "Día de la Madre"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 18,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240815",
+            "exception_type": "1",
+            "holiday_name": "Día de la Madre"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 19,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20240915",
+            "exception_type": "2",
+            "holiday_name": "Día de la Independencia"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 20,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20240915",
+            "exception_type": "1",
+            "holiday_name": "Día de la Independencia"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 21,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20241201",
+            "exception_type": "2",
+            "holiday_name": "Abolición del Ejército"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 22,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20241201",
+            "exception_type": "1",
+            "holiday_name": "Abolición del Ejército"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 23,
+        "fields": {
+            "feed": "1234",
+            "service_id": "entresemana",
+            "date": "20241225",
+            "exception_type": "2",
+            "holiday_name": "Navidad"
+        }
+    },
+    {
+        "model": "gtfs.CalendarDate",
+        "pk": 24,
+        "fields": {
+            "feed": "1234",
+            "service_id": "domingo",
+            "date": "20241225",
+            "exception_type": "1",
+            "holiday_name": "Navidad"
+        }
+    }
+]

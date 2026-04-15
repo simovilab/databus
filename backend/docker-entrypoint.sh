@@ -123,10 +123,8 @@ wait_for_database() {
 }
 
 run_makemigrations() {
-    # gtfs is a submodule with no committed migrations, and schedule_engine
-    # depends on gtfs — both must be generated at startup in every environment.
     if is_true "${DEBUG:-False}"; then
-        APPS_TO_MIGRATE=("gtfs" "schedule_engine" "realtime_engine")
+        APPS_TO_MIGRATE=("feed" "schedule_engine" "realtime_engine")
         log "Creating migrations for: ${APPS_TO_MIGRATE[*]}"
         uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
     else
@@ -164,7 +162,7 @@ collect_static_files() {
 }
 
 load_initial_data() {
-    if [ -f gtfs/fixtures/gtfs.json ]; then
+    if [ -f feed/fixtures/gtfs.json ]; then
         log "Loading initial data fixture gtfs.json"
         uv run python manage.py loaddata gtfs.json || warn "Initial data load failed"
     else

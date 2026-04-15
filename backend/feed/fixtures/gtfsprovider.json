@@ -1,0 +1,45 @@
+[
+    {
+        "model": "gtfs.gtfsprovider",
+        "pk": 1,
+        "fields": {
+            "code": "MBTA",
+            "name": "Massachusetts Bay Transportation Authority",
+            "description": "La agencia de transporte público de Boston.",
+            "website": "https://www.mbta.com/",
+            "schedule_url": "https://cdn.mbta.com/MBTA_GTFS.zip",
+            "trip_updates_url": "https://cdn.mbta.com/realtime/TripUpdates.pb",
+            "vehicle_positions_url": "https://cdn.mbta.com/realtime/VehiclePositions.pb",
+            "service_alerts_url": "https://cdn.mbta.com/realtime/Alerts.pb",
+            "timezone": "America/New_York",
+            "is_active": true
+        }
+    },
+    {
+        "model": "gtfs.gtfsprovider",
+        "pk": 2,
+        "fields": {
+            "code": "bUCR",
+            "name": "Buses de la Universidad de Costa Rica",
+            "description": "Buses de la Universidad de Costa Rica en el Campus Universitario Rodrigo Facio.",
+            "website": "https://bus.ucr.ac.cr/",
+            "schedule_url": "https://bus.ucr.ac.cr/gtfs/bUCR_GTFS.zip",
+            "trip_updates_url": "https://realtime.bucr.digital/gtfs/trip_updates.pb",
+            "vehicle_positions_url": "https://realtime.bucr.digital/gtfs/vehicle_positions.pb",
+            "service_alerts_url": "https://realtime.bucr.digital/gtfs/service_alerts.pb",
+            "timezone": "America/Costa_Rica",
+            "is_active": false
+        }
+    },
+    {
+        "model": "gtfs.feed",
+        "pk": "1234",
+        "fields": {
+            "provider": 2,
+            "http_etag": "sdfhwjdryj",
+            "http_last_modified": "2024-07-05T14:12:02Z",
+            "is_current": true,
+            "retrieved_at": "2024-07-05T14:12:28.457Z"
+        }
+    }
+]
