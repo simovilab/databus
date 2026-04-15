@@ -1,4 +1,4 @@
-from periodic_engine.models import (
+from schedule_engine.models import (
     Company,
     Company,
     Operator,

@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class PeriodicEngineConfig(AppConfig):
+class ScheduleEngineConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "periodic_engine"
+    name = "schedule_engine"

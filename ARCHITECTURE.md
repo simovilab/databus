@@ -47,7 +47,7 @@ flowchart TD
         state(("state<br/>(Redis)"))
     end
     subgraph Persistence
-        store(("store<br/>(PostgreSQL)"))
+        database(("database<br/>(PostgreSQL)"))
         lake@{ shape: docs, label: "Parquet files" }
     end
     scheduler(("scheduler<br/>(Celery Beat)"))
@@ -65,17 +65,17 @@ flowchart TD
     api --> orchestrator
     mqtt --> telemetry-broker
     telemetry-broker --"forwards telemetry"--> realtime-engine
-    orchestrator <--"writes / reads"--> store
+    orchestrator <--"writes / reads"--> database
     orchestrator --"emits commands"--> message-broker
     realtime-engine --"emits observations"--> message-broker
-    realtime-engine --"writes traces"--> store
+    realtime-engine --"writes traces"--> database
     realtime-engine --"updates"--> state
     realtime-engine --"saves"--> lake
     scheduler --> message-broker
     state --"provides snapshot"--> tasks
     tasks --"publishes"--> gtfs-rt
     tasks --"forwards telemetry"--> telemetry-broker
-    tasks --"writes records"--> store
+    tasks --"writes records"--> database
     tasks --"emits assertions"--> message-broker
     message-broker --"forwards commands"--> realtime-engine
     message-broker --"forwards observations"--> orchestrator
@@ -83,7 +83,7 @@ flowchart TD
     message-broker --"forwards commands"--> tasks
     state-model --"sees events"--> message-broker
     tasks --"polls"-->  gtfs-s
-    store --"processes batches"--> analytics-engine
+    database --"processes batches"--> analytics-engine
 ```
 
 Circular nodes represent long-running services or infrastructure components.

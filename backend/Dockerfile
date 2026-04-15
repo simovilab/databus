@@ -73,10 +73,10 @@ FROM base AS realtime-engine
 CMD ["uv", "run", "celery", "-A", "databus", "worker", "-Q", "realtime_engine", "--loglevel=info"]
 
 # ------------ Celery Worker
-FROM base AS periodic-engine
+FROM base AS schedule-engine
 # --------------------------
 
-CMD ["uv", "run", "celery", "-A", "databus", "worker", "-Q", "periodic_engine", "--loglevel=info"]
+CMD ["uv", "run", "celery", "-A", "databus", "worker", "-Q", "schedule_engine", "--loglevel=info"]
 
 # -------- Celery Beat
 FROM base AS scheduler

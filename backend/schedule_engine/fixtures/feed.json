@@ -1,6 +1,6 @@
 [
     {
-        "model": "periodic_engine.dataprovider",
+        "model": "schedule_engine.dataprovider",
         "pk": "1964",
         "fields": {
             "name": "EIE",
@@ -9,7 +9,7 @@
         }
     },
     {
-        "model": "periodic_engine.company",
+        "model": "schedule_engine.company",
         "pk": "OSG",
         "fields": {
             "agency": 1,
@@ -23,7 +23,7 @@
         }
     },
     {
-        "model": "periodic_engine.vehicle",
+        "model": "schedule_engine.vehicle",
         "pk": "SJB1234",
         "fields": {
             "agency": 1,
@@ -40,7 +40,7 @@
         }
     },
     {
-        "model": "periodic_engine.vehicle",
+        "model": "schedule_engine.vehicle",
         "pk": "SJB5678",
         "fields": {
             "agency": 1,
@@ -57,7 +57,7 @@
         }
     },
     {
-        "model": "periodic_engine.equipment",
+        "model": "schedule_engine.equipment",
         "pk": "16736b9e-43d6-49f0-a269-6f71573d7730",
         "fields": {
             "data_provider": "1964",
@@ -84,7 +84,7 @@
         }
     },
     {
-        "model": "periodic_engine.equipment",
+        "model": "schedule_engine.equipment",
         "pk": "2d01a00e-6287-4bfe-8a2b-7bc8a4e2aa5c",
         "fields": {
             "data_provider": "1964",
@@ -111,7 +111,7 @@
         }
     },
     {
-        "model": "periodic_engine.operator",
+        "model": "schedule_engine.operator",
         "pk": "1-1234-5678",
         "fields": {
             "user": 2,
@@ -127,7 +127,7 @@
         }
     },
     {
-        "model": "periodic_engine.operator",
+        "model": "schedule_engine.operator",
         "pk": "2-1234-5678",
         "fields": {
             "user": 3,
@@ -143,7 +143,7 @@
         }
     },
     {
-        "model": "periodic_engine.run",
+        "model": "schedule_engine.run",
         "pk": 2,
         "fields": {
             "equipment": "2d01a00e-6287-4bfe-8a2b-7bc8a4e2aa5c",
@@ -160,7 +160,7 @@
         }
     },
     {
-        "model": "periodic_engine.run",
+        "model": "schedule_engine.run",
         "pk": 3,
         "fields": {
             "equipment": "16736b9e-43d6-49f0-a269-6f71573d7730",
@@ -177,7 +177,7 @@
         }
     },
     {
-        "model": "periodic_engine.position",
+        "model": "schedule_engine.position",
         "pk": 2,
         "fields": {
             "run": 2,
@@ -190,7 +190,7 @@
         }
     },
     {
-        "model": "periodic_engine.position",
+        "model": "schedule_engine.position",
         "pk": 3,
         "fields": {
             "run": 3,
@@ -203,7 +203,7 @@
         }
     },
     {
-        "model": "periodic_engine.progression",
+        "model": "schedule_engine.progression",
         "pk": 2,
         "fields": {
             "run": 2,
@@ -215,7 +215,7 @@
         }
     },
     {
-        "model": "periodic_engine.progression",
+        "model": "schedule_engine.progression",
         "pk": 3,
         "fields": {
             "run": 3,
@@ -227,7 +227,7 @@
         }
     },
     {
-        "model": "periodic_engine.occupancy",
+        "model": "schedule_engine.occupancy",
         "pk": 2,
         "fields": {
             "run": 2,
@@ -239,7 +239,7 @@
         }
     },
     {
-        "model": "periodic_engine.occupancy",
+        "model": "schedule_engine.occupancy",
         "pk": 3,
         "fields": {
             "run": 3,

@@ -12,7 +12,7 @@ from drf_spectacular.views import SpectacularRedocView
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
 
-from periodic_engine.models import *
+from schedule_engine.models import *
 from gtfs.models import Feed, Trip, StopTime, RouteStop
 from .serializers import *
 

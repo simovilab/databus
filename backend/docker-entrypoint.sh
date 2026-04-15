@@ -123,11 +123,15 @@ wait_for_database() {
 }
 
 run_makemigrations() {
-    # gtfs is a submodule with no committed migrations, and periodic_engine
+    # gtfs is a submodule with no committed migrations, and schedule_engine
     # depends on gtfs — both must be generated at startup in every environment.
-    APPS_TO_MIGRATE=("gtfs" "periodic_engine")
-    log "Creating migrations for: ${APPS_TO_MIGRATE[*]}"
-    uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
+    if is_true "${DEBUG:-False}"; then
+        APPS_TO_MIGRATE=("gtfs" "schedule_engine" "realtime_engine")
+        log "Creating migrations for: ${APPS_TO_MIGRATE[*]}"
+        uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
+    else
+        log "Skipping makemigrations outside DEBUG (DEBUG=${DEBUG:-})"
+    fi
 }
 
 run_migrate() {

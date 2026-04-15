@@ -4,7 +4,7 @@
 | ---------------- | ----------------------------------- |
 | Ingestion        | `backend`, `telemetry-broker`       |
 | State            | `state`                             |
-| Persistence      | `store`                             |
+| Persistence      | `database`                          |
 | Event processing | `realtime-engine`, `message-broker` |
 | Projection       | `publisher`, `scheduler`            |
 | Learning         | `analytics-engine`                  |
@@ -25,7 +25,7 @@ flowchart TD
         state(("state<br/>(Redis)"))
     end
     subgraph Persistence
-        store(("store<br/>(PostgreSQL)"))
+        database(("database<br/>(PostgreSQL)"))
         gtfs-s[/GTFS Schedule/]
     end
     scheduler(("scheduler<br/>(Celery Beat)"))
@@ -39,23 +39,23 @@ flowchart TD
 
     api --> backend
     mqtt --> telemetry-broker
-    backend <--"writes / reads"--> store
+    backend <--"writes / reads"--> database
     telemetry-broker --"forwards telemetry"--> realtime-engine
     backend --"emits commands"--> message-broker
     realtime-engine --"emits observations"--> message-broker
-    realtime-engine --"writes traces"--> store
+    realtime-engine --"writes traces"--> database
     realtime-engine --"updates"--> state
     scheduler --> publisher
     state --"provides snapshot"--> publisher
     publisher --"publishes"--> gtfs-rt
-    publisher --"writes records"--> store
+    publisher --"writes records"--> database
     publisher --"emits assertions"--> message-broker
     message-broker --"forwards commands"--> realtime-engine
     message-broker --"forwards observations"--> backend
     message-broker --"forwards assertions"--> backend
     message-broker --"forwards commands"--> publisher
-    gtfs-s -->  store
-    store --"processes batches"--> analytics-engine
+    gtfs-s -->  database
+    database --"processes batches"--> analytics-engine
 
 ```
 

@@ -138,7 +138,7 @@ The system is composed of independent services communicating asynchronously:
 
 ### Infrastructure Services
 
-- **store** - PostgreSQL with PostGIS (durable persistence)
+- **database** - PostgreSQL with PostGIS (durable persistence)
 - **state** - Redis (authoritative in-memory operational state)
 - **message-broker** - RabbitMQ (AMQP for commands/observations/assertions)
 - **telemetry-broker** - NanoMQ (telemetry ingestion from vehicles)
@@ -195,7 +195,7 @@ The system is composed of independent services communicating asynchronously:
   - Updated by: realtime-engine
   - Read by: publisher
 
-- **PostgreSQL (store service)** - Durable persistence
+- **PostgreSQL (database service)** - Durable persistence
   - GTFS Schedule data
   - Run metadata and historical records
   - GTFS Realtime feed blobs (retained ~1 year)
@@ -222,7 +222,7 @@ Files:
 - **Package manager**: Uses `uv`, not pip directly
 - **Timezone**: `America/Costa_Rica` (es-cr locale)
 - **Multiple services**: Backend is just one service; realtime-engine, publisher, scheduler are separate Python projects
-- **Service names in Docker**: Use compose service names (`store`, `state`, `message-broker`) not `localhost` for inter-service communication
+- **Service names in Docker**: Use compose service names (`database`, `state`, `message-broker`) not `localhost` for inter-service communication
 - **Tests**: Minimal coverage currently. Use pytest with pytest-django for new tests
 - **Celery tasks**: Configured via Django admin at `/admin/django_celery_beat/`, not crontab
 - **State vs Persistence**: Real-time decisions use Redis state; PostgreSQL is for durability and analytics only

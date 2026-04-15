@@ -187,7 +187,7 @@ docker compose -f "$COMPOSE_FILE" ps
 
 print_section "$CYAN" "Infrastructure health checks"
 
-for svc in store state message-broker; do
+for svc in database state message-broker; do
     cid=$(docker compose -f "$COMPOSE_FILE" ps -q "$svc" 2>/dev/null || true)
     if [ -n "$cid" ]; then
         health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no healthcheck{{end}}' "$cid" 2>/dev/null || echo "unknown")
@@ -209,9 +209,9 @@ done
 print_section "$CYAN" "Docker volumes"
 
 # NOTE: If upgrading from an older PostgreSQL image, you must run
-# `docker compose -f compose.dev.yml down -v` to remove the old store_data
+# `docker compose -f compose.dev.yml down -v` to remove the old database_data
 # volume before starting fresh. PG18 is incompatible with data from PG15.
-for vol in store_data state_data lake_data message_broker_data backend_venv; do
+for vol in database_data state_data lake_data message_broker_data backend_venv; do
     full_name="databus-dev_${vol}"
     if docker volume inspect "$full_name" >/dev/null 2>&1; then
         mp=$(docker volume inspect --format='{{.Mountpoint}}' "$full_name" 2>/dev/null || echo "?")
@@ -236,7 +236,7 @@ echo "  Prefect (analytics)  http://localhost:${ANALYTICS_PORT}"
 
 print_section "$BLUE" "Infrastructure ports"
 
-echo "  PostgreSQL (store)   internal only (docker compose exec store psql -U postgres)"
+echo "  PostgreSQL (database)   internal only (docker compose exec database psql -U postgres)"
 echo "  Redis (state)        localhost:${STATE_PORT}"
 echo "  MQTT (telemetry)     localhost:${MQTT_BROKER_PORT}"
 echo "  RabbitMQ AMQP        localhost:${MESSAGE_BROKER_AMQP_PORT}"
