@@ -1,13 +1,12 @@
 name: databus-dev
 services:
-  backend:
+
+  orchestrator:
     build:
-      context: ./processing
+      context: ./backend
       target: dev
     environment:
-      - RUN_MIGRATIONS=True
-      - CREATE_SUPERUSER=True
-      - LOAD_FIXTURES=True
+      - DJANGO_SETUP=True
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
@@ -15,9 +14,8 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
-      - ./processing:/app
-      - shared_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
-      - processing_venv:/home/app/.venv
+      - ./backend:/app
+      - backend_venv:/home/app/.venv
     depends_on:
       store:
         condition: service_healthy
@@ -26,20 +24,17 @@ services:
 
   realtime-engine:
     build:
-      context: ./processing
+      context: ./backend
       target: realtime-engine
     environment:
-      - RUN_MIGRATIONS=False
-      - CREATE_SUPERUSER=False
-      - LOAD_FIXTURES=False
+      - DJANGO_SETUP=False
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     volumes:
-      - ./processing:/app
-      - shared_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
-      - processing_venv:/home/app/.venv
+      - ./backend:/app
+      - backend_venv:/home/app/.venv
     depends_on:
       store:
         condition: service_healthy
@@ -50,20 +45,17 @@ services:
 
   periodic-engine:
     build:
-      context: ./processing
+      context: ./backend
       target: periodic-engine
     environment:
-      - RUN_MIGRATIONS=False
-      - CREATE_SUPERUSER=False
-      - LOAD_FIXTURES=False
+      - DJANGO_SETUP=False
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     volumes:
-      - ./processing:/app
-      - shared_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
-      - processing_venv:/home/app/.venv
+      - ./backend:/app
+      - backend_venv:/home/app/.venv
     depends_on:
       store:
         condition: service_healthy
@@ -74,20 +66,17 @@ services:
 
   scheduler:
     build:
-      context: ./processing
+      context: ./backend
       target: scheduler
     environment:
-      - RUN_MIGRATIONS=False
-      - CREATE_SUPERUSER=False
-      - LOAD_FIXTURES=False
+      - DJANGO_SETUP=False
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     volumes:
-      - ./processing:/app
-      - shared_venv:/app/.venv  # Docker volume for .venv: avoids installing on the Windows FS (very slow via WSL2 bridge)
-      - processing_venv:/home/app/.venv
+      - ./backend:/app
+      - backend_venv:/home/app/.venv
     depends_on:
       store:
         condition: service_healthy
@@ -97,13 +86,14 @@ services:
         condition: service_healthy
 
   store:
-    image: postgis/postgis:15-3.3
+    build:
+      context: ./store
     environment:
       - POSTGRES_DB=${DB_NAME:-databus}
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
-      - store_data:/var/lib/postgresql/data
+      - store_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}", "-d", "${DB_NAME:-databus}"]
       interval: 10s
@@ -164,5 +154,4 @@ volumes:
   state_data:
   lake_data:
   message_broker_data:
-  shared_venv:
-  processing_venv:
+  backend_venv:

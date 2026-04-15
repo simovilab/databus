@@ -79,6 +79,7 @@ db.sqlite3-journal
 migrations/
 __init__.py
 staticfiles/
+backend/static/
 
 # Flask stuff:
 instance/

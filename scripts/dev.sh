@@ -19,6 +19,18 @@ NC='\033[0m'
 COMPOSE_FILE="compose.dev.yml"
 
 # ---------------------------------------------------------------------------
+# Print a consistently formatted section title with a chosen color
+# ---------------------------------------------------------------------------
+print_section() {
+    local color="$1"
+    local title="$2"
+    echo ""
+    echo -e "${color}-----------------------------------------------------${NC}"
+    echo -e "${color}  ${title}${NC}"
+    echo -e "${color}-----------------------------------------------------${NC}"
+}
+
+# ---------------------------------------------------------------------------
 # Read a value from .env / .env.dev (.env.dev overrides .env)
 # ---------------------------------------------------------------------------
 get_env_value() {
@@ -32,9 +44,7 @@ get_env_value() {
     echo "${value:-$default_value}"
 }
 
-# Ports as defined in compose.dev.yml
 BACKEND_PORT=$(get_env_value "BACKEND_PORT" "8000")
-STORE_PORT=$(get_env_value "STORE_PORT" "5432")
 STATE_PORT=$(get_env_value "STATE_PORT" "6379")
 MQTT_BROKER_PORT=$(get_env_value "MQTT_BROKER_PORT" "1883")
 MESSAGE_BROKER_AMQP_PORT=$(get_env_value "MESSAGE_BROKER_AMQP_PORT" "5672")
@@ -47,6 +57,7 @@ echo ""
 # ---------------------------------------------------------------------------
 # Check dependencies
 # ---------------------------------------------------------------------------
+
 if ! command -v docker >/dev/null 2>&1; then
     echo -e "${RED}Error: docker is not installed or not in PATH.${NC}"
     exit 1
@@ -77,7 +88,8 @@ fi
 # ---------------------------------------------------------------------------
 # GTFS submodule
 # ---------------------------------------------------------------------------
-GTFS_DIR="processing/gtfs"
+
+GTFS_DIR="backend/gtfs"
 if [ ! -d "$GTFS_DIR" ] || [ -z "$(ls -A "$GTFS_DIR" 2>/dev/null)" ]; then
     echo -e "${YELLOW}Initializing GTFS submodule (${GTFS_DIR})...${NC}"
     if git submodule update --init --recursive; then
@@ -94,6 +106,7 @@ fi
 # ---------------------------------------------------------------------------
 # Pull base images (only services without a local build)
 # ---------------------------------------------------------------------------
+
 echo ""
 echo -e "${BLUE}Pulling required Docker images...${NC}"
 docker compose -f "$COMPOSE_FILE" pull --ignore-buildable
@@ -101,6 +114,7 @@ docker compose -f "$COMPOSE_FILE" pull --ignore-buildable
 # ---------------------------------------------------------------------------
 # Start services
 # ---------------------------------------------------------------------------
+
 echo ""
 echo -e "${BLUE}Building and starting services...${NC}"
 set +e
@@ -115,30 +129,31 @@ if [ $UP_EXIT -ne 0 ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Wait for backend
+# Wait for orchestrator
 # ---------------------------------------------------------------------------
+
 echo ""
-echo -e "${YELLOW}Waiting for backend on :${BACKEND_PORT}...${NC}"
-echo -e "${GRAY}(First run may take 1-2 minutes while migrations run)${NC}"
+echo -e "${YELLOW}Waiting for orchestrator on: ${BACKEND_PORT}...${NC}"
+echo -e "${GRAY}(First run may take 1-2 minutes while database extensions and Django setup run)${NC}"
 
 MAX_WAIT=180
 ELAPSED=0
-BACKEND_OK=false
+ORCHESTRATOR_OK=false
 
 while [ $ELAPSED -lt $MAX_WAIT ]; do
     if curl -sf --max-time 3 "http://localhost:${BACKEND_PORT}" >/dev/null 2>&1; then
-        BACKEND_OK=true
+        ORCHESTRATOR_OK=true
         break
     fi
 
-    # Every 15s: print container status + last backend log lines
+    # Every 15s: print container status + last orchestrator log lines
     if [ $(( ELAPSED % 15 )) -eq 0 ] && [ $ELAPSED -gt 0 ]; then
         echo ""
         echo -e "${GRAY}  [${ELAPSED}s] Containers:${NC}"
         docker compose -f "$COMPOSE_FILE" ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null \
             | while IFS= read -r line; do echo -e "${GRAY}    ${line}${NC}"; done
-        echo -e "${GRAY}  [${ELAPSED}s] Last backend lines:${NC}"
-        docker compose -f "$COMPOSE_FILE" logs --tail=5 backend 2>/dev/null \
+        echo -e "${GRAY}  [${ELAPSED}s] Last orchestrator lines:${NC}"
+        docker compose -f "$COMPOSE_FILE" logs --tail=5 orchestrator 2>/dev/null \
             | while IFS= read -r line; do echo -e "${GRAY}    ${line}${NC}"; done
     else
         echo -e "${GRAY}  . [${ELAPSED}s]${NC}"
@@ -148,32 +163,29 @@ while [ $ELAPSED -lt $MAX_WAIT ]; do
     ELAPSED=$(( ELAPSED + 3 ))
 done
 
-if [ "$BACKEND_OK" = true ]; then
+if [ "$ORCHESTRATOR_OK" = true ]; then
     echo ""
-    echo -e "${GREEN}Backend responding after ${ELAPSED}s.${NC}"
+    echo -e "${GREEN}Orchestrator responding after ${ELAPSED}s.${NC}"
 else
     echo ""
-    echo -e "${RED}Backend did not respond within ${MAX_WAIT}s.${NC}"
-    echo -e "${YELLOW}Last backend logs:${NC}"
-    docker compose -f "$COMPOSE_FILE" logs --tail=30 backend
+    echo -e "${RED}Orchestrator did not respond within ${MAX_WAIT}s.${NC}"
+    echo -e "${YELLOW}Last orchestrator logs:${NC}"
+    docker compose -f "$COMPOSE_FILE" logs --tail=30 orchestrator
 fi
 
 # ---------------------------------------------------------------------------
 # Container status
 # ---------------------------------------------------------------------------
-echo ""
-echo -e "${CYAN}=====================================================${NC}"
-echo -e "${CYAN}  Container status${NC}"
-echo -e "${CYAN}=====================================================${NC}"
+
+print_section "$CYAN" "Container status"
+
 docker compose -f "$COMPOSE_FILE" ps
 
 # ---------------------------------------------------------------------------
 # Infrastructure health checks
 # ---------------------------------------------------------------------------
-echo ""
-echo -e "${CYAN}=====================================================${NC}"
-echo -e "${CYAN}  Infrastructure health checks${NC}"
-echo -e "${CYAN}=====================================================${NC}"
+
+print_section "$CYAN" "Infrastructure health checks"
 
 for svc in store state message-broker; do
     cid=$(docker compose -f "$COMPOSE_FILE" ps -q "$svc" 2>/dev/null || true)
@@ -193,12 +205,13 @@ done
 # ---------------------------------------------------------------------------
 # Docker volumes
 # ---------------------------------------------------------------------------
-echo ""
-echo -e "${CYAN}=====================================================${NC}"
-echo -e "${CYAN}  Docker volumes${NC}"
-echo -e "${CYAN}=====================================================${NC}"
 
-for vol in store_data state_data lake_data message_broker_data; do
+print_section "$CYAN" "Docker volumes"
+
+# NOTE: If upgrading from an older PostgreSQL image, you must run
+# `docker compose -f compose.dev.yml down -v` to remove the old store_data
+# volume before starting fresh. PG18 is incompatible with data from PG15.
+for vol in store_data state_data lake_data message_broker_data backend_venv; do
     full_name="databus-dev_${vol}"
     if docker volume inspect "$full_name" >/dev/null 2>&1; then
         mp=$(docker volume inspect --format='{{.Mountpoint}}' "$full_name" 2>/dev/null || echo "?")
@@ -212,31 +225,28 @@ done
 # ---------------------------------------------------------------------------
 # URLs and useful commands
 # ---------------------------------------------------------------------------
-echo ""
-echo -e "${GREEN}=====================================================${NC}"
-echo -e "${GREEN}  Development URLs${NC}"
-echo -e "${GREEN}=====================================================${NC}"
-echo "  Backend / API        http://localhost:${BACKEND_PORT}"
+
+print_section "$GREEN" "Development URLs"
+
+echo "  Orchestrator / API   http://localhost:${BACKEND_PORT}"
 echo "  Django admin         http://localhost:${BACKEND_PORT}/admin"
 echo "  REST API             http://localhost:${BACKEND_PORT}/api/"
 echo "  RabbitMQ management  http://localhost:${MESSAGE_BROKER_MANAGEMENT_PORT}"
 echo "  Prefect (analytics)  http://localhost:${ANALYTICS_PORT}"
-echo ""
-echo -e "${BLUE}=====================================================${NC}"
-echo -e "${BLUE}  Infrastructure ports${NC}"
-echo -e "${BLUE}=====================================================${NC}"
+
+print_section "$BLUE" "Infrastructure ports"
+
 echo "  PostgreSQL (store)   internal only (docker compose exec store psql -U postgres)"
 echo "  Redis (state)        localhost:${STATE_PORT}"
 echo "  MQTT (telemetry)     localhost:${MQTT_BROKER_PORT}"
 echo "  RabbitMQ AMQP        localhost:${MESSAGE_BROKER_AMQP_PORT}"
-echo ""
-echo -e "${YELLOW}=====================================================${NC}"
-echo -e "${YELLOW}  Useful commands${NC}"
-echo -e "${YELLOW}=====================================================${NC}"
+
+print_section "$YELLOW" "Useful commands"
+
 echo "  Stream logs:          docker compose -f $COMPOSE_FILE logs -f"
-echo "  Backend logs:         docker compose -f $COMPOSE_FILE logs -f backend"
-echo "  Run migrations:       docker compose -f $COMPOSE_FILE exec backend uv run python manage.py migrate"
-echo "  Create superuser:     docker compose -f $COMPOSE_FILE exec backend uv run python manage.py createsuperuser"
-echo "  Django shell:         docker compose -f $COMPOSE_FILE exec -it backend uv run python manage.py shell"
+echo "  Orchestrator logs:    docker compose -f $COMPOSE_FILE logs -f orchestrator"
+echo "  Run migrations:       docker compose -f $COMPOSE_FILE exec orchestrator uv run python manage.py migrate"
+echo "  Create superuser:     docker compose -f $COMPOSE_FILE exec orchestrator uv run python manage.py createsuperuser"
+echo "  Django shell:         docker compose -f $COMPOSE_FILE exec -it orchestrator uv run python manage.py shell"
 echo "  Stop all:             docker compose -f $COMPOSE_FILE down"
 echo ""
