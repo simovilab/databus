@@ -1,0 +1,23 @@
+# Virtual environment - never copied into the build context.
+# In dev it is mounted as a Docker volume (avoids the slow WSL2 bridge).
+# In prod uv sync installs directly into the image.
+.venv
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Testing / local development artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+
+# Runtime-generated data (does not belong in the image)
+media/
+staticfiles/

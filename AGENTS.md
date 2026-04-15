@@ -31,7 +31,7 @@ cd backend && python manage.py migrate
 ```bash
 ./scripts/dev.sh  # Starts all services
 docker compose -f compose.dev.yml logs -f  # View logs
-docker compose -f compose.dev.yml logs -f backend  # Single service logs
+docker compose -f compose.dev.yml logs -f orchestrator  # Single service logs
 docker compose -f compose.dev.yml down  # Stop all services
 ```
 
@@ -58,16 +58,16 @@ cd scheduler && uv run python -m celery -A scheduler beat -l info
 
 ```bash
 # Docker
-docker compose -f compose.dev.yml exec backend uv run python manage.py makemigrations
-docker compose -f compose.dev.yml exec backend uv run python manage.py migrate
-docker compose -f compose.dev.yml exec backend uv run python manage.py shell
-docker compose -f compose.dev.yml exec backend uv run python manage.py createsuperuser
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py makemigrations
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py migrate
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py shell
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py createsuperuser
 
 # Custom management command to refresh GTFS model FKs
-docker compose -f compose.dev.yml exec backend uv run python manage.py update_foreign_keys
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py update_foreign_keys
 
 # Load fixture data (bUCR GTFS)
-docker compose -f compose.dev.yml exec backend uv run python manage.py loaddata gtfs.json
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata gtfs.json
 
 # Non-Docker
 cd backend
@@ -97,7 +97,7 @@ pytest tests/test_specific.py::test_function  # Single test
 
 ### Accessing Services
 
-- Backend: http://localhost:8000
+- Orchestrator: http://localhost:8000
 - Django Admin: http://localhost:8000/admin
 - API Root: http://localhost:8000/api/
 - API Docs: http://localhost:8000/api/docs/
@@ -110,7 +110,7 @@ pytest tests/test_specific.py::test_function  # Single test
 
 The system is composed of independent services communicating asynchronously:
 
-1. **backend** (Django) - Control plane and HTTP API
+1. **orchestrator** (Django) - Control plane and HTTP API
    - Django apps: `gtfs` (submodule), `feed`, `api`, `website`
    - Manages domain models, issues commands, exposes REST APIs
    - Does NOT process real-time telemetry or maintain operational state
@@ -138,7 +138,7 @@ The system is composed of independent services communicating asynchronously:
 
 ### Infrastructure Services
 
-- **store** - PostgreSQL with PostGIS (durable persistence)
+- **database** - PostgreSQL with PostGIS (durable persistence)
 - **state** - Redis (authoritative in-memory operational state)
 - **message-broker** - RabbitMQ (AMQP for commands/observations/assertions)
 - **telemetry-broker** - NanoMQ (telemetry ingestion from vehicles)
@@ -148,7 +148,7 @@ The system is composed of independent services communicating asynchronously:
 - **Single writer per responsibility** - Each service owns specific concerns
 - **Async-first** - Services communicate via brokers, not synchronous calls
 - **In-memory state is authoritative for real-time** - Database is NOT used for coordination
-- **Explicit message semantics** - Commands (backend→engine), observations (engine→backend), assertions (publisher→backend)
+- **Explicit message semantics** - Commands (orchestrator→engine), observations (engine→orchestrator), assertions (publisher→orchestrator)
 
 ### Data Flow Example
 
@@ -184,7 +184,7 @@ The system is composed of independent services communicating asynchronously:
 
 | Producer        | Message Type | Meaning                                   | Queue/Exchange |
 | --------------- | ------------ | ----------------------------------------- | -------------- |
-| Backend         | Commands     | Intentional requests (begin run, end run) | RabbitMQ       |
+| Orchestrator    | Commands     | Intentional requests (begin run, end run) | RabbitMQ       |
 | Realtime Engine | Observations | Derived facts from telemetry              | RabbitMQ       |
 | Publisher       | Assertions   | Claims about published outputs            | RabbitMQ       |
 
@@ -195,7 +195,7 @@ The system is composed of independent services communicating asynchronously:
   - Updated by: realtime-engine
   - Read by: publisher
 
-- **PostgreSQL (store service)** - Durable persistence
+- **PostgreSQL (database service)** - Durable persistence
   - GTFS Schedule data
   - Run metadata and historical records
   - GTFS Realtime feed blobs (retained ~1 year)
@@ -222,7 +222,7 @@ Files:
 - **Package manager**: Uses `uv`, not pip directly
 - **Timezone**: `America/Costa_Rica` (es-cr locale)
 - **Multiple services**: Backend is just one service; realtime-engine, publisher, scheduler are separate Python projects
-- **Service names in Docker**: Use compose service names (`store`, `state`, `message-broker`) not `localhost` for inter-service communication
+- **Service names in Docker**: Use compose service names (`database`, `state`, `message-broker`) not `localhost` for inter-service communication
 - **Tests**: Minimal coverage currently. Use pytest with pytest-django for new tests
 - **Celery tasks**: Configured via Django admin at `/admin/django_celery_beat/`, not crontab
 - **State vs Persistence**: Real-time decisions use Redis state; PostgreSQL is for durability and analytics only
@@ -262,7 +262,7 @@ position = r.hgetall(f'vehicle:{vehicle_id}:position')
 
 1. Check RabbitMQ management UI: http://localhost:15672
 2. View queue depths, message rates, bindings
-3. Trace messages: backend→message-broker→realtime-engine
+3. Trace messages: orchestrator→message-broker→realtime-engine
 4. Check service logs: `docker compose -f compose.dev.yml logs -f <service>`
 
 ## Documentation

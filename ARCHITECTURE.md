@@ -38,7 +38,7 @@ flowchart TD
     end
     telemetry-broker(("telemetry-broker<br/>(NanoMQ)"))
     subgraph Processing
-        backend(("backend<br/>(Django)"))
+        orchestrator(("orchestrator<br/>(Django)"))
         realtime-engine(("realtime-engine<br/>(Celery Worker)"))
         tasks(("tasks<br/>(Celery Worker)"))
     end
@@ -47,7 +47,7 @@ flowchart TD
         state(("state<br/>(Redis)"))
     end
     subgraph Persistence
-        store(("store<br/>(PostgreSQL)"))
+        database(("database<br/>(PostgreSQL)"))
         lake@{ shape: docs, label: "Parquet files" }
     end
     scheduler(("scheduler<br/>(Celery Beat)"))
@@ -62,28 +62,28 @@ flowchart TD
     end
     gtfs-s[/GTFS Schedule/]
 
-    api --> backend
+    api --> orchestrator
     mqtt --> telemetry-broker
     telemetry-broker --"forwards telemetry"--> realtime-engine
-    backend <--"writes / reads"--> store
-    backend --"emits commands"--> message-broker
+    orchestrator <--"writes / reads"--> database
+    orchestrator --"emits commands"--> message-broker
     realtime-engine --"emits observations"--> message-broker
-    realtime-engine --"writes traces"--> store
+    realtime-engine --"writes traces"--> database
     realtime-engine --"updates"--> state
     realtime-engine --"saves"--> lake
     scheduler --> message-broker
     state --"provides snapshot"--> tasks
     tasks --"publishes"--> gtfs-rt
     tasks --"forwards telemetry"--> telemetry-broker
-    tasks --"writes records"--> store
+    tasks --"writes records"--> database
     tasks --"emits assertions"--> message-broker
     message-broker --"forwards commands"--> realtime-engine
-    message-broker --"forwards observations"--> backend
-    message-broker --"forwards assertions"--> backend
+    message-broker --"forwards observations"--> orchestrator
+    message-broker --"forwards assertions"--> orchestrator
     message-broker --"forwards commands"--> tasks
     state-model --"sees events"--> message-broker
     tasks --"polls"-->  gtfs-s
-    store --"processes batches"--> analytics-engine
+    database --"processes batches"--> analytics-engine
 ```
 
 Circular nodes represent long-running services or infrastructure components.
@@ -107,7 +107,7 @@ Circular nodes represent long-running services or infrastructure components.
 
 ## 5. Services and mandates
 
-### Backend (Django)
+### Orchestrator (Django)
 
 **Role**  
 System authority and control plane.
@@ -260,7 +260,7 @@ Temporal orchestration.
 
 | Producer        | Message type | Meaning                        |
 | --------------- | ------------ | ------------------------------ |
-| Backend         | Commands     | Intentional requests           |
+| Orchestrator    | Commands     | Intentional requests           |
 | Realtime Engine | Observations | Derived facts                  |
 | Publisher       | Assertions   | Claims about published outputs |
 
@@ -287,7 +287,7 @@ External telemetry is treated as untrusted signal and must be interpreted before
 ```mermaid
 sequenceDiagram
     actor Dispatcher
-    participant Backend
+    participant Orchestrator
     participant Store
     participant Message Broker
     participant Realtime Engine
@@ -296,10 +296,10 @@ sequenceDiagram
     participant MQTT Broker
     participant Publisher
 
-    Dispatcher->>Backend: Begin run
-    Backend->>Store: Query run metadata
-    Store->>Backend: Return run metadata
-    Backend->>Message Broker: Request to begin run
+    Dispatcher->>Orchestrator: Begin run
+    Orchestrator->>Store: Query run metadata
+    Store->>Orchestrator: Return run metadata
+    Orchestrator->>Message Broker: Request to begin run
     Message Broker->>Realtime Engine: Forward request
     Realtime Engine->>State: Populate run metadata
     loop Every 15 seconds
@@ -309,7 +309,7 @@ sequenceDiagram
             Realtime Engine->>State: Update state
             opt Observation
                 Realtime Engine->>Message Broker: Emit observation
-                Message Broker->>Backend: Forward observation
+                Message Broker->>Orchestrator: Forward observation
             end
         end
         State->>Publisher: Provide snapshot
@@ -317,11 +317,11 @@ sequenceDiagram
         Publisher->>Store: Write record
         opt Assertion
             Publisher->>Message Broker: Emit assertion
-            Message Broker->>Backend: Forward assertion
+            Message Broker->>Orchestrator: Forward assertion
         end
     end
-    Dispatcher->>Backend: End run
-    Backend->>Message Broker: Request to end run
+    Dispatcher->>Orchestrator: End run
+    Orchestrator->>Message Broker: Request to end run
     Message Broker->>Realtime Engine: Forward request
     Realtime Engine->>State: Flush run metadata
     Realtime Engine->>Store: Write trace data
@@ -329,7 +329,7 @@ sequenceDiagram
 
 ## 9. Persistence strategy
 
-- Backend persists authoritative domain data
+- Orchestrator persists authoritative domain data
 - Realtime Engine persists operational traces
 - Publisher persists GTFS Realtime blobs (retained ~1 year)
 - Analytics consumes batch data only

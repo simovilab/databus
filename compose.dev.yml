@@ -1,58 +1,63 @@
 name: databus-dev
 services:
-  backend:
+
+  orchestrator:
     build:
-      context: ./processing
+      context: ./backend
       target: dev
+    environment:
+      - DJANGO_SETUP=True
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
-      - ./processing:/app
+      - ./backend:/app
+      - backend_venv:/home/app/.venv
     depends_on:
-      store:
+      database:
         condition: service_healthy
       state:
         condition: service_healthy
 
   realtime-engine:
     build:
-      context: ./processing
+      context: ./backend
       target: realtime-engine
     environment:
-      - RUN_MIGRATIONS=False
-      - CREATE_SUPERUSER=False
-      - LOAD_FIXTURES=False
+      - DJANGO_SETUP=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     volumes:
-      - ./processing:/app
+      - ./backend:/app
+      - backend_venv:/home/app/.venv
     depends_on:
-      store:
+      database:
         condition: service_healthy
       state:
         condition: service_healthy
       message-broker:
         condition: service_healthy
 
-  tasks:
+  schedule-engine:
     build:
-      context: ./processing
-      target: tasks
+      context: ./backend
+      target: schedule-engine
     environment:
-      - RUN_MIGRATIONS=False
-      - CREATE_SUPERUSER=False
-      - LOAD_FIXTURES=False
+      - DJANGO_SETUP=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     volumes:
-      - ./processing:/app
+      - ./backend:/app
+      - backend_venv:/home/app/.venv
     depends_on:
-      store:
+      database:
         condition: service_healthy
       state:
         condition: service_healthy
@@ -61,31 +66,34 @@ services:
 
   scheduler:
     build:
-      context: ./processing
+      context: ./backend
       target: scheduler
+    environment:
+      - DJANGO_SETUP=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
     env_file:
       - .env
       - .env.dev
     volumes:
-      - ./processing:/app
+      - ./backend:/app
+      - backend_venv:/home/app/.venv
     depends_on:
-      store:
+      database:
         condition: service_healthy
       state:
         condition: service_healthy
       message-broker:
         condition: service_healthy
 
-  store:
-    image: postgis/postgis:15-3.3
+  database:
+    build:
+      context: ./database
     environment:
       - POSTGRES_DB=${DB_NAME:-databus}
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_HOST_AUTH_METHOD=trust
-    ports:
-      - "${STORE_PORT:-5432}:5432"
     volumes:
-      - store_data:/var/lib/postgresql/data
+      - database_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}", "-d", "${DB_NAME:-databus}"]
       interval: 10s
@@ -105,10 +113,12 @@ services:
       timeout: 5s
       retries: 5
 
-  telemetry-broker: 
+  telemetry-broker:
     image: emqx/nanomq:0.24.9-full
     ports:
       - "${MQTT_BROKER_PORT:-1883}:1883"
+    volumes:
+      - ./telemetry-broker/nanomq.conf:/etc/nanomq.conf
 
   message-broker:
     image: rabbitmq:4-management
@@ -140,7 +150,8 @@ services:
     command: prefect server start
 
 volumes:
-  store_data:
+  database_data:
   state_data:
   lake_data:
   message_broker_data:
+  backend_venv:
