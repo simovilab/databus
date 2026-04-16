@@ -1,3 +1,0 @@
-[submodule "backend/gtfs"]
-	path = backend/gtfs
-	url = https://github.com/simovilab/django-app-gtfs.git
