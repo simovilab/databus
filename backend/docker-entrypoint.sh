@@ -110,7 +110,7 @@ if [ -d "${VENV_DIR}/bin" ]; then
 fi
 
 enable_local_gtfs_django() {
-    if is_true "${DEBUG:-False}"; then
+    if is_true "${GTFS_DJANGO_DEV:-False}"; then
         # Clone gtfs-django if not already present. We clone instead of using a
         # submodule because only backend/ is bind-mounted in the container.
         if [ ! -d "gtfs-django" ]; then
@@ -126,7 +126,7 @@ enable_local_gtfs_django() {
 
         log "gtfs-django configured for local editable development"
     else
-        log "Skipping local gtfs-django setup (DEBUG=${DEBUG:-})"
+        log "Skipping local gtfs-django setup (GTFS_DJANGO_DEV=${GTFS_DJANGO_DEV:-False})"
     fi
 }
 
