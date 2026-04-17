@@ -109,25 +109,32 @@ if [ -d "${VENV_DIR}/bin" ]; then
     export PATH="${VENV_DIR}/bin:$PATH"
 fi
 
+# In dev mode, replace the PyPI-installed gtfs-django with an editable install
+# pointing at a local clone. This requires UV_NO_SYNC=1 in the container env so
+# subsequent `uv run` calls don't revert the editable install back to PyPI.
+# Note: toggling GTFS_DJANGO_DEV between runs requires removing the backend_venv
+# volume, otherwise setup_virtualenv's fast path skips uv sync and the previous
+# mode's install sticks around.
 enable_local_gtfs_django() {
-    if is_true "${GTFS_DJANGO_DEV:-False}"; then
-        # Clone gtfs-django if not already present. We clone instead of using a
-        # submodule because only backend/ is bind-mounted in the container.
-        if [ ! -d "gtfs-django" ]; then
-            log "Cloning gtfs-django repository..."
-            git clone https://github.com/simovilab/gtfs-django.git gtfs-django
-        else
-            log "gtfs-django directory already present; skipping clone"
-        fi
-
-        # Replace the PyPI-installed gtfs-django with an editable install pointing
-        # at the local clone. Uses uv pip (not uv add) to avoid mutating pyproject.toml.
-        uv pip install --editable ./gtfs-django
-
-        log "gtfs-django configured for local editable development"
-    else
-        log "Skipping local gtfs-django setup (GTFS_DJANGO_DEV=${GTFS_DJANGO_DEV:-False})"
+    if ! is_true "${GTFS_DJANGO_DEV:-False}"; then
+        log "Using PyPI gtfs-django (GTFS_DJANGO_DEV=${GTFS_DJANGO_DEV:-False})"
+        return
     fi
+
+    if [ "${UV_NO_SYNC:-}" != "1" ]; then
+        warn "GTFS_DJANGO_DEV=True but UV_NO_SYNC is not set to 1;"
+        warn "subsequent 'uv run' calls will undo the editable install."
+    fi
+
+    if [ ! -d "gtfs-django/.git" ]; then
+        log "Cloning gtfs-django repository..."
+        git clone https://github.com/simovilab/gtfs-django.git gtfs-django
+    else
+        log "gtfs-django directory already present; skipping clone"
+    fi
+
+    log "Installing gtfs-django as editable from local clone"
+    uv pip install --editable ./gtfs-django --no-deps
 }
 
 wait_for_database() {
