@@ -8,6 +8,9 @@ publisher/feed/files/*.pb
 publisher/feed/files/*.json
 gtfs/
 
+# Zensical
+site/
+
 # Ubuntu server
 restart_services.sh
 
