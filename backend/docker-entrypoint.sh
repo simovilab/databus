@@ -111,13 +111,8 @@ fi
 
 enable_local_gtfs_django() {
     if is_true "${DEBUG:-False}"; then
-        # Remove the published/pinned version of gtfs-django so we can
-        # re-add it as an editable local path.
-        uv remove gtfs-django 2>/dev/null || log "gtfs-django was not in dependencies"
-
-        # Clone gtfs-django if the directory doesn't exist yet.
-        # (git submodule commands require the full repo root, which is not
-        #  mounted in the container — only backend/ is bind-mounted at /app.)
+        # Clone gtfs-django if not already present. We clone instead of using a
+        # submodule because only backend/ is bind-mounted in the container.
         if [ ! -d "gtfs-django" ]; then
             log "Cloning gtfs-django repository..."
             git clone https://github.com/simovilab/gtfs-django.git gtfs-django
@@ -125,9 +120,9 @@ enable_local_gtfs_django() {
             log "gtfs-django directory already present; skipping clone"
         fi
 
-        # Add gtfs-django as an editable local dependency.
-        # This updates pyproject.toml with the path source under [tool.uv.sources].
-        uv add --editable ./gtfs-django
+        # Replace the PyPI-installed gtfs-django with an editable install pointing
+        # at the local clone. Uses uv pip (not uv add) to avoid mutating pyproject.toml.
+        uv pip install --editable ./gtfs-django
 
         log "gtfs-django configured for local editable development"
     else
