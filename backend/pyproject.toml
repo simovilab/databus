@@ -39,3 +39,11 @@ dev = [
     "ruff>=0.12.11",
     "watchfiles>=0.24.0",
 ]
+
+[tool.uv.workspace]
+members = [
+    "gtfs-django",
+]
+
+[tool.uv.sources]
+gtfs-django = { workspace = true, editable = true }

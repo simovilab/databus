@@ -8,7 +8,6 @@ services:
     environment:
       - DJANGO_SETUP=True
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
-      - UV_NO_SYNC=1
     env_file:
       - .env
       - .env.dev
@@ -30,7 +29,6 @@ services:
     environment:
       - DJANGO_SETUP=False
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
-      - UV_NO_SYNC=1
     env_file:
       - .env
       - .env.dev
@@ -52,7 +50,6 @@ services:
     environment:
       - DJANGO_SETUP=False
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
-      - UV_NO_SYNC=1
     env_file:
       - .env
       - .env.dev
@@ -74,7 +71,6 @@ services:
     environment:
       - DJANGO_SETUP=False
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
-      - UV_NO_SYNC=1
     env_file:
       - .env
       - .env.dev
