@@ -1,3 +1,9 @@
+# Zensical documentation
+site/
+
+# gtfs-django development
+gtfs-django/
+
 # GTFS files
 feed/files/bUCR_GTFS.zip
 feed/files/trip_updates.pb

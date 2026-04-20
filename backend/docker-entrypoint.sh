@@ -109,6 +109,18 @@ if [ -d "${VENV_DIR}/bin" ]; then
     export PATH="${VENV_DIR}/bin:$PATH"
 fi
 
+enable_local_gtfs_django() {
+    if [ ! -d "gtfs-django/.git" ]; then
+        log "Cloning gtfs-django repository..."
+        git clone https://github.com/simovilab/gtfs-django.git gtfs-django
+    else
+        log "gtfs-django directory already present; skipping clone"
+    fi
+
+    log "Installing gtfs-django as editable from local clone"
+    uv add --editable ./gtfs-django
+}
+
 wait_for_database() {
     # Explicitly fail if DATABASE_URL is still missing after construction step.
     if [ -z "${DATABASE_URL:-}" ]; then
@@ -172,6 +184,9 @@ load_initial_data() {
 
 run_django_setup() {
     section "Starting Django setup..."
+
+    section "Enabling local gtfs-django package for development..."
+    enable_local_gtfs_django
 
     section "Running makemigrations (DEBUG only)..."
     run_makemigrations

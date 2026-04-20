@@ -4,6 +4,7 @@ FROM python:3.14-slim AS base
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    git \
     libpq-dev \
     gdal-bin \
     libgdal-dev \
