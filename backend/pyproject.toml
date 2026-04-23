@@ -19,6 +19,7 @@ dependencies = [
     "flower>=2.0.1",
     "geopandas>=1.1.1",
     "gtfs-django",
+    "gtfs-io",
     "gtfs-realtime-bindings>=1.0.0",
     "gunicorn>=23.0.0",
     "mkdocs-material>=9.6.18",
@@ -42,8 +43,10 @@ dev = [
 
 [tool.uv.workspace]
 members = [
+    "gtfs-io",
     "gtfs-django",
 ]
 
 [tool.uv.sources]
+gtfs-io = { workspace = true, editable = true }
 gtfs-django = { workspace = true, editable = true }

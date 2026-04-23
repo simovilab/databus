@@ -6,8 +6,14 @@ node_modules/
 # Zensical documentation
 site/
 
-# gtfs-django development
+# gtfs-io and gtfs-django local development clones
+gtfs-io/
 gtfs-django/
+
+# Docker entrypoint lock directories (created at runtime on the bind mount)
+backend/.uv-sync.lockdir
+backend/.gtfs-io-clone.lockdir
+backend/.gtfs-django-clone.lockdir
 
 # GTFS files
 feed/files/bUCR_GTFS.zip
