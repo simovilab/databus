@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Virtual environment paths
 VENV_DIR="${UV_PROJECT_ENVIRONMENT:-/home/app/.venv}"
-UV_SYNC_LOCKDIR="/tmp/uv-sync.lockdir"
+UV_SYNC_LOCKDIR="/app/.uv-sync.lockdir"
 
 # Colors for output
 RED='\033[0;31m'
@@ -42,6 +42,68 @@ if [ -z "${DATABASE_URL:-}" ]; then
         warn "DATABASE_URL not set and insufficient components to construct it."
     fi
 fi
+
+# ------------------------------------------
+section "Preparing gtfs-io workspace member..."
+# ------------------------------------------
+
+clone_gtfs_io() {
+    if [ -d "gtfs-io/.git" ]; then
+        log "gtfs-io already present; skipping clone"
+        return
+    fi
+
+    CLONE_LOCKDIR="/app/.gtfs-io-clone.lockdir"
+    while ! mkdir "${CLONE_LOCKDIR}" 2>/dev/null; do
+        if [ -d "gtfs-io/.git" ]; then
+            log "gtfs-io became available"
+            return
+        fi
+        sleep 1
+    done
+
+    if [ -d "gtfs-io/.git" ]; then
+        rmdir "${CLONE_LOCKDIR}"
+        return
+    fi
+
+    log "Cloning gtfs-io repository..."
+    git clone https://github.com/simovilab/gtfs-io.git gtfs-io
+    rmdir "${CLONE_LOCKDIR}"
+}
+
+clone_gtfs_io
+
+# -----------------------------------------------
+section "Preparing gtfs-django workspace member..."
+# -----------------------------------------------
+
+clone_gtfs_django() {
+    if [ -d "gtfs-django/.git" ]; then
+        log "gtfs-django already present; skipping clone"
+        return
+    fi
+
+    CLONE_LOCKDIR="/app/.gtfs-django-clone.lockdir"
+    while ! mkdir "${CLONE_LOCKDIR}" 2>/dev/null; do
+        if [ -d "gtfs-django/.git" ]; then
+            log "gtfs-django became available"
+            return
+        fi
+        sleep 1
+    done
+
+    if [ -d "gtfs-django/.git" ]; then
+        rmdir "${CLONE_LOCKDIR}"
+        return
+    fi
+
+    log "Cloning gtfs-django repository..."
+    git clone https://github.com/simovilab/gtfs-django.git gtfs-django
+    rmdir "${CLONE_LOCKDIR}"
+}
+
+clone_gtfs_django
 
 # ----------------------------------------------
 section "Enabling Python virtual environment..."
@@ -109,14 +171,12 @@ if [ -d "${VENV_DIR}/bin" ]; then
     export PATH="${VENV_DIR}/bin:$PATH"
 fi
 
-enable_local_gtfs_django() {
-    if [ ! -d "gtfs-django/.git" ]; then
-        log "Cloning gtfs-django repository..."
-        git clone https://github.com/simovilab/gtfs-django.git gtfs-django
-    else
-        log "gtfs-django directory already present; skipping clone"
-    fi
+enable_local_gtfs_io() {
+    log "Installing gtfs-io as editable from local clone"
+    uv add --editable ./gtfs-io
+}
 
+enable_local_gtfs_django() {
     log "Installing gtfs-django as editable from local clone"
     uv add --editable ./gtfs-django
 }
@@ -184,6 +244,9 @@ load_initial_data() {
 
 run_django_setup() {
     section "Starting Django setup..."
+
+    section "Enabling local gtfs-io package for development..."
+    enable_local_gtfs_io
 
     section "Enabling local gtfs-django package for development..."
     enable_local_gtfs_django

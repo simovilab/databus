@@ -136,7 +136,7 @@ echo ""
 echo -e "${YELLOW}Waiting for orchestrator on: ${BACKEND_PORT}...${NC}"
 echo -e "${GRAY}(First run may take 1-2 minutes while database extensions and Django setup run)${NC}"
 
-MAX_WAIT=90
+MAX_WAIT=110
 ELAPSED=0
 ORCHESTRATOR_OK=false
 

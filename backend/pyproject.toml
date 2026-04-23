@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "celery[redis]>=5.5.3",
+    "celery[librabbitmq]>=5.6.3",
     "channels>=4.3.1",
     "channels-redis>=4.3.0",
     "daphne>=4.2.1",
@@ -19,6 +19,7 @@ dependencies = [
     "flower>=2.0.1",
     "geopandas>=1.1.1",
     "gtfs-django",
+    "gtfs-io",
     "gtfs-realtime-bindings>=1.0.0",
     "gunicorn>=23.0.0",
     "mkdocs-material>=9.6.18",
@@ -42,8 +43,10 @@ dev = [
 
 [tool.uv.workspace]
 members = [
+    "gtfs-io",
     "gtfs-django",
 ]
 
 [tool.uv.sources]
+gtfs-io = { workspace = true, editable = true }
 gtfs-django = { workspace = true, editable = true }
