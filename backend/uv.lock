@@ -633,6 +633,7 @@ dependencies = [
     { name = "gtfs-io" },
     { name = "gtfs-realtime-bindings" },
     { name = "gunicorn" },
+    { name = "kombu" },
     { name = "mkdocs-material" },
     { name = "pandas" },
     { name = "pillow" },
@@ -671,6 +672,7 @@ requires-dist = [
     { name = "gtfs-io", editable = "gtfs-io" },
     { name = "gtfs-realtime-bindings", specifier = ">=1.0.0" },
     { name = "gunicorn", specifier = ">=23.0.0" },
+    { name = "kombu", specifier = ">=5.6.2" },
     { name = "mkdocs-material", specifier = ">=9.6.18" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pillow", specifier = ">=11.3.0" },
@@ -1090,6 +1092,8 @@ version = "0.2.0"
 source = { editable = "gtfs-django" }
 dependencies = [
     { name = "django" },
+    { name = "gtfs-realtime-bindings" },
+    { name = "requests" },
 ]
 
 [package.dev-dependencies]
@@ -1112,7 +1116,11 @@ testing = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "django", specifier = ">=5.2.0" }]
+requires-dist = [
+    { name = "django", specifier = ">=5.2.0" },
+    { name = "gtfs-realtime-bindings", specifier = ">=2.0.0" },
+    { name = "requests", specifier = ">=2.33.1" },
+]
 
 [package.metadata.requires-dev]
 dev = [

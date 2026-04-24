@@ -12,7 +12,7 @@ router.register(r"data-provider", views.DataProviderViewSet)
 router.register(r"vehicle", views.VehicleViewSet)
 router.register(r"equipment", views.EquipmentViewSet)
 router.register(r"equipment-log", views.EquipmentLogViewSet)
-router.register(r"run", views.RunViewSet)
+# router.register(r"run", views.RunViewSet)
 router.register(r"position", views.PositionViewSet)
 router.register(r"progression", views.ProgressionViewSet)
 router.register(r"occupancy", views.OccupancyViewSet)
@@ -38,6 +38,7 @@ urlpatterns = [
     path("", include(router.urls)),
     path("login/", views.LoginView.as_view(), name="login"),
     # path("route-stops/", views.RouteStopView.as_view(), name="route_stops"),
+    path("run", views.RunViewSet.as_view(), name="run"),
     path("service-today/", views.ServiceTodayView.as_view(), name="service_today"),
     path("which-shapes/", views.WhichShapesView.as_view(), name="which_shapes"),
     path("find-trips/", views.FindTripsView.as_view(), name="find_trips"),

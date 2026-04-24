@@ -225,15 +225,20 @@ class Run(models.Model):
     """A run is an instance of GTFS trip."""
 
     id = models.AutoField(primary_key=True)
+
+    # Operational information
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     operator = models.ForeignKey(
         Operator, on_delete=models.SET_NULL, blank=True, null=True
     )
-    # Run information
+
+    # GTFS Schedule information
     route_id = models.CharField(max_length=100, blank=True, null=True)
     trip_id = models.CharField(max_length=100, blank=True, null=True)
     direction_id = models.PositiveSmallIntegerField(blank=True, null=True)
     shape_id = models.CharField(max_length=100, blank=True, null=True)
+
+    # Run information
     start_date = models.DateField(blank=True, null=True)
     start_time = models.DurationField(blank=True, null=True)
     schedule_relationship = models.CharField(

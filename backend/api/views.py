@@ -12,9 +12,12 @@ from drf_spectacular.views import SpectacularRedocView
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
 
+from messages.publish import databus_event
 from schedule_engine.models import *
 from feed.models import Feed, Trip, StopTime, RouteStop
 from .serializers import *
+
+from realtime_engine.tasks import register_run, start_run, end_run
 
 from datetime import datetime, timedelta
 
@@ -102,10 +105,80 @@ class OperatorViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
-class RunViewSet(viewsets.ModelViewSet):
+class RunViewSet(APIView):
     queryset = Run.objects.all()
     serializer_class = RunSerializer
     authentication_classes = [TokenAuthentication]
+
+    def get(self, request):
+        return Response({"message": "Hola"}, status=200)
+
+    def post(self, request):
+        if request.data.get("run_status") == "SUBMITTED":
+            databus_event("RUN_SUBMISSION_REQUESTED", request.data)
+            feed = Feed.objects.filter(is_current=True).first()
+            if (
+                Trip.objects.filter(
+                    feed=feed, trip_id=request.data.get("trip_id")
+                ).count()
+                > 0
+            ):
+                databus_event("RUN_SUBMISSION_SUCCEEDED", request.data)
+                registration_result, run_id = register_run.delay(request.data).get(
+                    timeout=15
+                )
+                if registration_result:
+                    databus_event("RUN_REGISTRATION_SUCCEEDED", request.data)
+                    return Response({"run_id": run_id}, status=200)
+                else:
+                    databus_event("RUN_REGISTRATION_FAILED", request.data)
+                    return Response(
+                        {"error": "Trip ID no encontrado en el feed actual"}, status=400
+                    )
+            else:
+                databus_event("RUN_SUBMISSION_FAILED", request.data)
+                return Response(
+                    {"error": "Trip ID no encontrado en el feed actual"}, status=400
+                )
+
+        elif request.data.get("run_status") == "CONFIRMED":
+            start_run_result = start_run.delay(request.data).get(timeout=15)
+            if start_run_result:
+                Run.objects.create(
+                    id=request.data.get("run_id"),
+                    vehicle_id=request.data.get("vehicle_id"),
+                    operator_id=request.data.get("operator_id"),
+                    route_id=request.data.get("route_id"),
+                    trip_id=request.data.get("trip_id"),
+                    direction_id=request.data.get("direction_id"),
+                    shape_id=request.data.get("shape_id"),
+                    start_date=datetime.now().date(),
+                    start_time=timedelta(
+                        hours=datetime.now().hour,
+                        minutes=datetime.now().minute,
+                        seconds=datetime.now().second,
+                    ),
+                    run_status="IN_PROGRESS",
+                )
+                databus_event("RUN_START_SUCCEEDED", request.data)
+                return Response({"run_status": "IN_PROGRESS"}, status=200)
+            else:
+                databus_event("RUN_CONFIRMATION_FAILED", request.data)
+                return Response({"error": "No funcionó :("}, status=400)
+        elif request.data.get("run_status") == "COMPLETED":
+            end_run_result = end_run.delay(request.data).get(timeout=15)
+            if end_run_result:
+                databus_event("RUN_COMPLETION_SUCCEEDED", request.data)
+                Run.objects.filter(id=request.data.get("run_id")).update(
+                    run_status="COMPLETED",
+                )
+                return Response({"run_status": "COMPLETED"}, status=200)
+            else:
+                databus_event("RUN_COMPLETION_FAILED", request.data)
+        else:
+            return Response(
+                {"error": "run_status debe ser CONFIRMED o COMPLETED"}, status=400
+            )
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
