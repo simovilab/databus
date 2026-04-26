@@ -1,14 +1,12 @@
-from django.conf import settings
-from django.http import FileResponse
 from django.contrib.auth import authenticate
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers as drf_serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
-from django.views.decorators.csrf import csrf_exempt
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.views import SpectacularRedocView
+from drf_spectacular.utils import extend_schema, inline_serializer
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
 
@@ -17,13 +15,6 @@ from feed.models import Feed, Trip, StopTime, RouteStop
 from .serializers import *
 
 from datetime import datetime, timedelta
-
-
-def get_schema(request):
-    file_path = settings.BASE_DIR / "api" / "realtime.yml"
-    return FileResponse(
-        open(file_path, "rb"), as_attachment=True, filename="realtime.yml"
-    )
 
 
 @method_decorator(xframe_options_exempt, name="dispatch")
@@ -102,20 +93,36 @@ class OperatorViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
+_run_create_response = inline_serializer(
+    name="RunCreateResponse",
+    fields={"id": drf_serializers.IntegerField()},
+)
+
+
 class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.all()
     serializer_class = RunSerializer
     authentication_classes = [TokenAuthentication]
 
+    @extend_schema(
+        summary="Start a run",
+        description="Registers a new run (an instance of a GTFS trip). "
+        "Triggers register_run, which updates the transit system state in Redis.",
+        responses={201: _run_create_response},
+    )
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        return Response(
-            {
-                "id": serializer.instance.id,
-            }
-        )
+        return Response({"id": serializer.instance.id}, status=201)
+
+    @extend_schema(
+        summary="End a run",
+        description="Updates run_status to end the run. "
+        "Triggers end_run, which flushes state from Redis and initiates run lifecycle management.",
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
 
 
 class PositionViewSet(viewsets.ModelViewSet):
