@@ -158,14 +158,14 @@ class RunViewSet(APIView):
                 return Response({"error": "No funcionó :("}, status=400)
         elif request.data.get("run_status") == "COMPLETED":
             end_run_result = end_run.delay(request.data).get(timeout=15)
-            if end_run_result:
+            if end_run_result: # Si end run se cumple:
                 databus_event("RUN_COMPLETION_SUCCEEDED", request.data)
-                Run.objects.filter(id=request.data.get("run_id")).update(
-                    run_status="COMPLETED",
-                )
                 return Response({"run_status": "COMPLETED"}, status=200)
-            else:
+            else: # Si end run no se cumple:
                 databus_event("RUN_COMPLETION_FAILED", request.data)
+                return Response(
+                    {"error": "No se pudo completar el run"}, status=400
+                )
         else:
             return Response(
                 {"error": "run_status debe ser CONFIRMED o COMPLETED"}, status=400
