@@ -8,3 +8,17 @@ producer = Producer(connection, exchange=exchange)
 def databus_event(name: str, data: dict):
     """Publish an event to the databus.events exchange."""
     print(f"Printing event {name} with data: {data}")
+
+
+"""
+runs.submission.requested
+runs.submission.succeeded
+runs.submission.failed
+runs.validation.succeeded
+runs.validation.failed
+runs.initialization.succeeded
+runs.initialization.failed
+
+Client:
+runs.*
+"""

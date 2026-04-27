@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from feed.models import Feed, Trip
-from schedule_engine.models import Operator, Run, Vehicle
+from operations.models import Operator, Run, Vehicle
 
 URL = "/api/run"
 
@@ -35,28 +35,31 @@ def valid_submitted():
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, CELERY_TASK_EAGER_PROPAGATES=True)
 class RunViewSetTests(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.vehicle = Vehicle.objects.create(id="v-test", license_plate="TST-001")
         user = User.objects.create_user(username="op_test", password="pw")
         cls.operator = Operator.objects.create(id="op-test", user=user)
         cls.feed = Feed.objects.create(feed_id="feed-test", is_current=True)
-        Trip.objects.bulk_create([
-            Trip(
-                feed=cls.feed,
-                trip_id="t-test",
-                route_id="r-test",
-                service_id="svc-test",
-                direction_id=0,
-                shape_id="s-test",
-                wheelchair_accessible=0,
-                bikes_allowed=0,
-            )
-        ])
+        Trip.objects.bulk_create(
+            [
+                Trip(
+                    feed=cls.feed,
+                    trip_id="t-test",
+                    route_id="r-test",
+                    service_id="svc-test",
+                    direction_id=0,
+                    shape_id="s-test",
+                    wheelchair_accessible=0,
+                    bikes_allowed=0,
+                )
+            ]
+        )
 
     def post(self, data):
-        return self.client.post(URL, data=json.dumps(data), content_type="application/json")
+        return self.client.post(
+            URL, data=json.dumps(data), content_type="application/json"
+        )
 
     def make_run(self, status):
         return Run.objects.create(
@@ -109,7 +112,13 @@ class RunViewSetTests(TestCase):
         data["start_date"] = "2024-05-03"
         response = self.post(data)
         body = response.json()
-        show(4, "SUBMITTED fecha pasada → validate_run falla → 400", response.status_code, body, 400)
+        show(
+            4,
+            "SUBMITTED fecha pasada → validate_run falla → 400",
+            response.status_code,
+            body,
+            400,
+        )
         self.assertEqual(response.status_code, 400)
 
     # ------------------------------------------------------------------
@@ -119,7 +128,13 @@ class RunViewSetTests(TestCase):
         run = self.make_run("REGISTERED")
         response = self.post({"run_status": "CONFIRMED", "run_id": run.id})
         body = response.json()
-        show(5, "CONFIRMED run_id válido → 200 IN_PROGRESS", response.status_code, body, 200)
+        show(
+            5,
+            "CONFIRMED run_id válido → 200 IN_PROGRESS",
+            response.status_code,
+            body,
+            200,
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(body.get("run_status"), "IN_PROGRESS")
         self.assertEqual(Run.objects.get(id=run.id).run_status, "IN_PROGRESS")
@@ -140,7 +155,13 @@ class RunViewSetTests(TestCase):
         run = self.make_run("IN_PROGRESS")
         response = self.post({"run_status": "COMPLETED", "run_id": run.id})
         body = response.json()
-        show(7, "COMPLETED run IN_PROGRESS → 200 COMPLETED", response.status_code, body, 200)
+        show(
+            7,
+            "COMPLETED run IN_PROGRESS → 200 COMPLETED",
+            response.status_code,
+            body,
+            200,
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(body.get("run_status"), "COMPLETED")
 

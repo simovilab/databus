@@ -13,7 +13,7 @@ from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
 
 from messages.publish import databus_event
-from schedule_engine.models import *
+from operations.models import *
 from feed.models import Feed, Trip, StopTime, RouteStop
 from .serializers import *
 
@@ -144,31 +144,36 @@ class RunViewSet(APIView):
         elif request.data.get("run_status") == "CONFIRMED":
             start_run_result = start_run.delay(request.data).get(timeout=15)
             if start_run_result:
-                updated = Run.objects.filter(
-                    id=request.data.get("run_id")
-                ).update(run_status="IN_PROGRESS")
+                updated = Run.objects.filter(id=request.data.get("run_id")).update(
+                    run_status="IN_PROGRESS"
+                )
                 if not updated:
-                    return Response(
-                        {"error": "run_id no encontrado"}, status=404
-                    )
+                    return Response({"error": "run_id no encontrado"}, status=404)
                 databus_event("RUN_START_SUCCEEDED", request.data)
                 return Response({"run_status": "IN_PROGRESS"}, status=200)
             else:
                 databus_event("RUN_CONFIRMATION_FAILED", request.data)
                 return Response({"error": "No funcionó :("}, status=400)
+
         elif request.data.get("run_status") == "COMPLETED":
             end_run_result = end_run.delay(request.data).get(timeout=15)
-            if end_run_result: # Si end run se cumple:
+            if end_run_result:  # Si end run se cumple:
                 databus_event("RUN_COMPLETION_SUCCEEDED", request.data)
                 return Response({"run_status": "COMPLETED"}, status=200)
-            else: # Si end run no se cumple:
+            else:  # Si end run no se cumple:
                 databus_event("RUN_COMPLETION_FAILED", request.data)
-                return Response(
-                    {"error": "No se pudo completar el run"}, status=400
-                )
+                return Response({"error": "No se pudo completar el run"}, status=400)
+
+        elif request.data.get("run_status") == "INTERRUPTED":
+            databus_event("RUN_INTERRUPTED", request.data)
+            return Response({"run_status": "INTERRUPTED"}, status=200)
+
         else:
             return Response(
-                {"error": "run_status debe ser CONFIRMED o COMPLETED"}, status=400
+                {
+                    "error": "run_status must be SUBMITTED, CONFIRMED, INTERRUPTED or COMPLETED"
+                },
+                status=400,
             )
 
     def create(self, request):
@@ -180,6 +185,7 @@ class RunViewSet(APIView):
                 "id": serializer.instance.id,
             }
         )
+
 
 class PositionViewSet(viewsets.ModelViewSet):
     queryset = Position.objects.all()

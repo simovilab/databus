@@ -5,7 +5,8 @@ from django.test import TestCase
 
 from feed.models import Feed, Trip
 from realtime_engine.tasks import end_run, initialize_run, register_run, validate_run
-from schedule_engine.models import Operator, Run, Vehicle
+from operations.models import Operator, Run, Vehicle
+
 
 # ---------------------------------------------------------------------------
 # Base valid payload — all cases start from this and mutate one field
@@ -37,7 +38,6 @@ def show(case_num, description, data, result, expected):
 
 
 class ValidateRunTests(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.vehicle = Vehicle.objects.create(id="v-test", license_plate="TST-001")
@@ -48,18 +48,20 @@ class ValidateRunTests(TestCase):
         cls.feed = Feed.objects.create(feed_id="feed-test", is_current=True)
 
         # bulk_create skips the overridden save() that requires Route + Calendar to exist
-        Trip.objects.bulk_create([
-            Trip(
-                feed=cls.feed,
-                trip_id="t-test",
-                route_id="r-test",
-                service_id="svc-test",
-                direction_id=0,
-                shape_id="s-test",
-                wheelchair_accessible=0,
-                bikes_allowed=0,
-            )
-        ])
+        Trip.objects.bulk_create(
+            [
+                Trip(
+                    feed=cls.feed,
+                    trip_id="t-test",
+                    route_id="r-test",
+                    service_id="svc-test",
+                    direction_id=0,
+                    shape_id="s-test",
+                    wheelchair_accessible=0,
+                    bikes_allowed=0,
+                )
+            ]
+        )
 
     # ------------------------------------------------------------------
     # Case 1 — Happy path
@@ -105,7 +107,7 @@ class ValidateRunTests(TestCase):
     # ------------------------------------------------------------------
     def test_case_05_bad_date_format(self):
         data = valid_run()
-        data["start_date"] = "26/04/2026"        # dd/mm/yyyy instead of yyyy-mm-dd
+        data["start_date"] = "26/04/2026"  # dd/mm/yyyy instead of yyyy-mm-dd
         result = run(data)
         show(5, "start_date format is dd/mm/yyyy (invalid)", data, result, False)
         self.assertFalse(result)
@@ -181,7 +183,6 @@ class ValidateRunTests(TestCase):
 
 
 class InitializeRunTests(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.vehicle = Vehicle.objects.create(id="v-test", license_plate="TST-001")
@@ -194,7 +195,13 @@ class InitializeRunTests(TestCase):
     def test_case_01_creates_run_and_returns_id(self):
         data = valid_run()
         ok, run_id = initialize_run.apply(args=[data]).get()
-        show(1, "Valid data → Run created in DB", data, (ok, run_id is not None), (True, True))
+        show(
+            1,
+            "Valid data → Run created in DB",
+            data,
+            (ok, run_id is not None),
+            (True, True),
+        )
         self.assertTrue(ok)
         self.assertIsNotNone(run_id)
         self.assertTrue(Run.objects.filter(id=run_id).exists())
@@ -206,7 +213,13 @@ class InitializeRunTests(TestCase):
         data = valid_run()
         data["start_time"] = "7h15m"
         ok, run_id = initialize_run.apply(args=[data]).get()
-        show(2, "start_time has invalid format '7h15m'", data, (ok, run_id), (False, None))
+        show(
+            2,
+            "start_time has invalid format '7h15m'",
+            data,
+            (ok, run_id),
+            (False, None),
+        )
         self.assertFalse(ok)
         self.assertIsNone(run_id)
 
@@ -217,31 +230,38 @@ class InitializeRunTests(TestCase):
         data = valid_run()
         ok, run_id = initialize_run.apply(args=[data]).get()
         run = Run.objects.get(id=run_id)
-        show(3, "Run is stored with status REGISTERED", data, run.run_status, "REGISTERED")
+        show(
+            3,
+            "Run is stored with status REGISTERED",
+            data,
+            run.run_status,
+            "REGISTERED",
+        )
         self.assertTrue(ok)
         self.assertEqual(run.run_status, "REGISTERED")
 
 
 class RegisterRunTests(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.vehicle = Vehicle.objects.create(id="v-test", license_plate="TST-001")
         user = User.objects.create_user(username="op_test", password="pw")
         cls.operator = Operator.objects.create(id="op-test", user=user)
         cls.feed = Feed.objects.create(feed_id="feed-test", is_current=True)
-        Trip.objects.bulk_create([
-            Trip(
-                feed=cls.feed,
-                trip_id="t-test",
-                route_id="r-test",
-                service_id="svc-test",
-                direction_id=0,
-                shape_id="s-test",
-                wheelchair_accessible=0,
-                bikes_allowed=0,
-            )
-        ])
+        Trip.objects.bulk_create(
+            [
+                Trip(
+                    feed=cls.feed,
+                    trip_id="t-test",
+                    route_id="r-test",
+                    service_id="svc-test",
+                    direction_id=0,
+                    shape_id="s-test",
+                    wheelchair_accessible=0,
+                    bikes_allowed=0,
+                )
+            ]
+        )
 
     # ------------------------------------------------------------------
     # Case 1 — Valid data: validation + initialization both succeed
@@ -249,7 +269,13 @@ class RegisterRunTests(TestCase):
     def test_case_01_valid_full_flow(self):
         data = valid_run()
         ok, run_id = register_run.apply(args=[data]).get()
-        show(1, "Valid data → validate + initialize → Run in DB", data, (ok, run_id is not None), (True, True))
+        show(
+            1,
+            "Valid data → validate + initialize → Run in DB",
+            data,
+            (ok, run_id is not None),
+            (True, True),
+        )
         self.assertTrue(ok)
         self.assertIsNotNone(run_id)
         self.assertTrue(Run.objects.filter(id=run_id).exists())
@@ -261,14 +287,19 @@ class RegisterRunTests(TestCase):
         data = valid_run()
         data["start_date"] = "2024-05-03"  # not today
         ok, run_id = register_run.apply(args=[data]).get()
-        show(2, "Date not today → validation fails → no Run created", data, (ok, run_id), (False, None))
+        show(
+            2,
+            "Date not today → validation fails → no Run created",
+            data,
+            (ok, run_id),
+            (False, None),
+        )
         self.assertFalse(ok)
         self.assertIsNone(run_id)
         self.assertFalse(Run.objects.exists())
 
 
 class EndRunTests(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.vehicle = Vehicle.objects.create(id="v-test", license_plate="TST-001")

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "feed.apps.FeedConfig",
     "schedule_engine.apps.ScheduleEngineConfig",
     "realtime_engine.apps.RealtimeEngineConfig",
+    "operations.apps.OperationsConfig",
     "website.apps.WebsiteConfig",
     "api.apps.ApiConfig",
     "rest_framework",

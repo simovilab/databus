@@ -1,9 +1,7 @@
-from schedule_engine.models import (
-    Company,
+from operations.models import (
     Company,
     Operator,
     DataProvider,
-    Vehicle,
     Vehicle,
     Equipment,
     EquipmentLog,
