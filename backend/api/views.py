@@ -6,20 +6,77 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
-from django.views.decorators.csrf import csrf_exempt
+
+# from django.views.decorators.csrf import csrf_exempt
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.views import SpectacularRedocView
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
 
 from messages.publish import databus_event
-from operations.models import *
-from feed.models import Feed, Trip, StopTime, RouteStop
-from .serializers import *
+from operations.models import (
+    Vehicle,
+    Operator,
+    Run,
+    Company,
+    DataProvider,
+    Equipment,
+    EquipmentLog,
+    Position,
+    Progression,
+    Occupancy,
+)
+from feed.models import (
+    Feed,
+    Agency,
+    Trip,
+    Stop,
+    Route,
+    Calendar,
+    CalendarDate,
+    StopTime,
+    RouteStop,
+    Shape,
+    GeoShape,
+    FareAttribute,
+    FareRule,
+    FeedInfo,
+    TripTime,
+)
+from .serializers import (
+    CompanySerializer,
+    DataProviderSerializer,
+    VehicleSerializer,
+    EquipmentSerializer,
+    EquipmentLogSerializer,
+    OperatorSerializer,
+    RunSerializer,
+    PositionSerializer,
+    ProgressionSerializer,
+    OccupancySerializer,
+    AgencySerializer,
+    StopSerializer,
+    GeoStopSerializer,
+    RouteSerializer,
+    CalendarSerializer,
+    CalendarDateSerializer,
+    ShapeSerializer,
+    GeoShapeSerializer,
+    TripSerializer,
+    StopTimeSerializer,
+    FareAttributeSerializer,
+    FareRuleSerializer,
+    FeedInfoSerializer,
+    ServiceTodaySerializer,
+    WhichShapesSerializer,
+    FindTripsSerializer,
+)
 
 from realtime_engine.tasks import register_run, start_run, end_run
 
-from datetime import datetime, timedelta
+from feed.utils import validate_run_request_data
+
+from datetime import datetime
 
 
 def get_schema(request):
@@ -116,13 +173,8 @@ class RunViewSet(APIView):
     def post(self, request):
         if request.data.get("run_status") == "SUBMITTED":
             databus_event("RUN_SUBMISSION_REQUESTED", request.data)
-            feed = Feed.objects.filter(is_current=True).first()
-            if (
-                Trip.objects.filter(
-                    feed=feed, trip_id=request.data.get("trip_id")
-                ).count()
-                > 0
-            ):
+            is_valid, error_code = validate_run_request_data(request.data)
+            if is_valid:
                 databus_event("RUN_SUBMISSION_SUCCEEDED", request.data)
                 registration_result, run_id = register_run.delay(request.data).get(
                     timeout=15
@@ -133,12 +185,20 @@ class RunViewSet(APIView):
                 else:
                     databus_event("RUN_REGISTRATION_FAILED", request.data)
                     return Response(
-                        {"error": "Trip ID no encontrado en el feed actual"}, status=400
+                        {
+                            "error": "Run registration failed",
+                            "error_code": "RUN_REGISTRATION_FAILED",
+                        },
+                        status=400,
                     )
             else:
                 databus_event("RUN_SUBMISSION_FAILED", request.data)
                 return Response(
-                    {"error": "Trip ID no encontrado en el feed actual"}, status=400
+                    {
+                        "error": "Run request validation failed",
+                        "error_code": error_code,
+                    },
+                    status=400,
                 )
 
         elif request.data.get("run_status") == "CONFIRMED":

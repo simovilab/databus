@@ -1,8 +1,19 @@
-openapi: '3.0.2'
+openapi: "3.0.2"
 info:
   title: Databús API
-  description: "Un servidor para enviar datos desde los equipos de los vehículos de transporte público a un servidor en tiempo real para la creación del suministro de datos GTFS Realtime y otros.\n\n**Autores**\n\n Fabián Abarca Calderón, Adrián Cordero Méndez, Edson Murillo Mamani \n\n *Escuela de Ingeniería Eléctrica, Universidad de Costa Rica*"
-  version: '1.0'
+  description: "Un servidor para enviar datos desde los equipos de los vehículos
+    de transporte público a un servidor en tiempo real para la creación del
+    suministro de datos GTFS Realtime y otros.
+
+
+    **Autores**
+
+
+    \ Fabián Abarca Calderón, Adrián Cordero Méndez, Edson Murillo Mamani\ 
+
+
+    \ *Escuela de Ingeniería Eléctrica, Universidad de Costa Rica*"
+  version: "1.0"
   contact:
     email: tropicalizacion@ucr.ac.cr
   x-logo:
@@ -10,7 +21,7 @@ info:
     altText: Logo bUCR
   license:
     name: Creative Commons CC BY 4.0
-    url: 'https://creativecommons.org/licenses/by/4.0/legalcode'
+    url: "https://creativecommons.org/licenses/by/4.0/legalcode"
 servers:
   - url: https://realtime.bucr.digital/api
 
@@ -18,7 +29,9 @@ paths:
   /data-provider:
     post:
       summary: Proveedor de datos
-      description: Publica información del proveedor de datos del servicio de transporte público, que puede o no ser la misma agencia operadora del servicio. Es el propietario del equipo proveedor de datos.
+      description: Publica información del proveedor de datos del servicio de
+        transporte público, que puede o no ser la misma agencia operadora del
+        servicio. Es el propietario del equipo proveedor de datos.
       tags:
         - Provider
       requestBody:
@@ -26,35 +39,49 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Provider'
+              $ref: "#/components/schemas/Provider"
       responses:
-        '201':
+        "201":
           description: Registro creado
   /equipment:
     post:
       summary: Equipo de telemetría y rastreo
-      description: "Registra un nuevo equipo de a bordo (On-Board Equipment) en el sistema.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo equipo en el sistema"
+      description: "Registra un nuevo equipo de a bordo (On-Board Equipment) en el
+        sistema.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: registro de nuevo equipo en el sistema"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Equipment'
+              $ref: "#/components/schemas/Equipment"
       tags:
         - Provider
       responses:
-        '201':
+        "201":
           description: Registro creado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EquipmentResponse'
-        '406':
+                $ref: "#/components/schemas/EquipmentResponse"
+        "406":
           description: Al menos un servicio debe ser proporcionado
   /vehicle:
     post:
       summary: Vehículo
-      description: "Publica datos del vehículo en el que está el equipo, como la etiqueta, placa y accesibilidad, entre otros servicios.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo equipo en un vehículo"
+      description: "Publica datos del vehículo en el que está el equipo, como la
+        etiqueta, placa y accesibilidad, entre otros servicios.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: registro de nuevo equipo en un vehículo"
       tags:
         - Vehicle
       requestBody:
@@ -62,61 +89,84 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Vehicle'
+              $ref: "#/components/schemas/Vehicle"
       responses:
-        '201':
+        "201":
           description: Registro creado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VehicleResponse'
+                $ref: "#/components/schemas/VehicleResponse"
     get:
       summary: Vehículo
-      description: "Obtiene la información de todos los vehículos vinculados con la agencia.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo equipo en un vehículo"
+      description: "Obtiene la información de todos los vehículos vinculados con la
+        agencia.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: registro de nuevo equipo en un vehículo"
       tags:
         - Vehicle
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/VehicleResponse'
+                  $ref: "#/components/schemas/VehicleResponse"
   /operator:
     post:
       summary: Conductor del vehículo
-      description: Publica datos del operador del vehículo, como el nombre y otros datos personales.
+      description: Publica datos del operador del vehículo, como el nombre y otros
+        datos personales.
       tags:
-        - Vehicle 
+        - Vehicle
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Operator'
+              $ref: "#/components/schemas/Operator"
       responses:
-        '201':
+        "201":
           description: Registro creado
     get:
       summary: Conductores inscritos en la agencia
-      description: "Obtiene la información de los operadores del vehículo de la agencia.\n\n**Tipo de actualización**: por evento\n\n**Evento**: registro de nuevo operador en el vehículo"
+      description: "Obtiene la información de los operadores del vehículo de la
+        agencia.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: registro de nuevo operador en el vehículo"
       tags:
         - Vehicle
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/OperatorResponse'
+                  $ref: "#/components/schemas/OperatorResponse"
   /run:
     post:
       summary: Datos del viaje actual
-      description: "Publica datos del viaje actual del vehículo, como el identificador del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación con el horario. Un `run` es una instancia de un `trip`.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio de un nuevo viaje"
+      description: "Publica datos del viaje actual del vehículo, como el identificador
+        del viaje, ruta, dirección, hora de inicio, fecha de inicio y relación
+        con el horario. Un `run` es una instancia de un `trip`.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: inicio de un nuevo viaje"
       tags:
         - Trip
       requestBody:
@@ -124,14 +174,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Run'
+              $ref: "#/components/schemas/Run"
       responses:
-        '201':
+        "201":
           description: Registro creado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RunResponse'
+                $ref: "#/components/schemas/RunResponse"
   /run/{run_id}:
     parameters:
       - in: path
@@ -144,7 +194,14 @@ paths:
         example: 698453
     patch:
       summary: Actualización de datos del viaje
-      description: "Actualiza los datos del viaje actual del vehículo, como el estado del viaje y la trayectoria.\n\n**Tipo de actualización**: por evento\n\n**Evento**: cambio en el estado del viaje o corrección de algún dato"
+      description: "Actualiza los datos del viaje actual del vehículo, como el estado
+        del viaje y la trayectoria.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: cambio en el estado del viaje o corrección de algún dato"
       tags:
         - Trip
       requestBody:
@@ -152,14 +209,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Run'
+              $ref: "#/components/schemas/Run"
       responses:
-        '200':
+        "200":
           description: OK
   /position:
     post:
       summary: Posición del vehículo
-      description: "Publica datos de la posición del vehículo, como la latitud, longitud, altitud, velocidad, dirección y odómetro.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 10 segundos"
+      description: "Publica datos de la posición del vehículo, como la latitud,
+        longitud, altitud, velocidad, dirección y odómetro.
+
+
+        **Tipo de actualización**: regular
+
+
+        **Período recomendado**: 10 segundos"
       tags:
         - Trip
       requestBody:
@@ -167,14 +231,23 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Position'
+              $ref: "#/components/schemas/Position"
       responses:
-        '201':
+        "201":
           description: Registro creado
-  /progression:  
+  /progression:
     post:
       summary: Avance del viaje
-      description: "Publica datos del avance del viaje, como la secuencia de la parada, identificador de la parada, estado actual del vehículo y nivel de congestión vehicular en la vía.\n\n**Tipo de actualización**: por evento\n\n**Evento**: cambio en el estado actual `current_status` o en el nivel de congestión `congestion_level`"
+      description: "Publica datos del avance del viaje, como la secuencia de la
+        parada, identificador de la parada, estado actual del vehículo y nivel
+        de congestión vehicular en la vía.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: cambio en el estado actual `current_status` o en el nivel de
+        congestión `congestion_level`"
       tags:
         - Trip
       requestBody:
@@ -182,14 +255,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Progression'
+              $ref: "#/components/schemas/Progression"
       responses:
-        '201':
+        "201":
           description: Registro creado
   /occupancy:
     post:
       summary: Ocupación del vehículo
-      description: "Publica datos de la ocupación del vehículo, como el porcentaje de ocupación del vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: cambio en la ocupación"
+      description: "Publica datos de la ocupación del vehículo, como el porcentaje de
+        ocupación del vehículo.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: cambio en la ocupación"
       tags:
         - Trip
       requestBody:
@@ -197,14 +277,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Occupancy'
+              $ref: "#/components/schemas/Occupancy"
       responses:
-        '201':
+        "201":
           description: Registro creado
   /conditions:
     post:
       summary: Condiciones del vehículo
-      description: "Publica datos de las condiciones del vehículo, como el nivel de combustible, estado de las puertas, las luces, el aire acondicionado y otros.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
+      description: "Publica datos de las condiciones del vehículo, como el nivel de
+        combustible, estado de las puertas, las luces, el aire acondicionado y
+        otros.
+
+
+        **Tipo de actualización**: regular
+
+
+        **Período recomendado**: 60 segundos"
       tags:
         - Trip
       requestBody:
@@ -212,14 +300,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Conditions'
+              $ref: "#/components/schemas/Conditions"
       responses:
-        '201':
+        "201":
           description: Registro creado
   /emissions:
     post:
       summary: Emisiones del vehículo
-      description: "Publica datos de las emisiones del vehículo, como el nivel de emisiones de gases de escape.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
+      description: "Publica datos de las emisiones del vehículo, como el nivel de
+        emisiones de gases de escape.
+
+
+        **Tipo de actualización**: regular
+
+
+        **Período recomendado**: 60 segundos"
       tags:
         - Trip
       requestBody:
@@ -227,14 +322,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Emissions'
+              $ref: "#/components/schemas/Emissions"
       responses:
-        '201':
+        "201":
           description: Registro creado
   /travelers:
     post:
       summary: Personas usuarias en viaje
-      description: "Publica datos de los usuarios que abordan o abandonan el vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: abordaje o desembarque de una persona usuaria"
+      description: "Publica datos de los usuarios que abordan o abandonan el vehículo.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: abordaje o desembarque de una persona usuaria"
       tags:
         - Users
       requestBody:
@@ -242,14 +343,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Traveler'
+              $ref: "#/components/schemas/Traveler"
       responses:
-        '201':
+        "201":
           description: Registro creado
   /authorizations:
     get:
       summary: Autorización de usuario
-      description: "Obtiene la información sobre la autorización de un pasajero para abordar el vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: abordaje o desembarque de una persona usuaria"
+      description: "Obtiene la información sobre la autorización de un pasajero para
+        abordar el vehículo.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: abordaje o desembarque de una persona usuaria"
       tags:
         - Users
       requestBody:
@@ -257,18 +365,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Authorization'
+              $ref: "#/components/schemas/Authorization"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthorizationResponse'
+                $ref: "#/components/schemas/AuthorizationResponse"
   /fares:
     post:
       summary: Información de pago
-      description: "Publica datos de la forma de pago de cada pasajero.\n\n**Tipo de actualización**: por evento\n\n**Evento**: pago al abordaje o desembarque de una persona usuaria"
+      description: "Publica datos de la forma de pago de cada pasajero.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: pago al abordaje o desembarque de una persona usuaria"
       tags:
         - Users
       requestBody:
@@ -276,14 +390,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Fare'
+              $ref: "#/components/schemas/Fare"
       responses:
-        '201':
+        "201":
           description: Registro creado
   /transfers:
     get:
       summary: Autorización de transbordo
-      description: "Obtiene la información sobre la autorización de un pasajero para abordar un nuevo vehículo en una transferencia con un mismo pago.\n\n**Tipo de actualización**: por evento\n\n**Evento**: abordaje o desembarque de una persona usuaria"
+      description: "Obtiene la información sobre la autorización de un pasajero para
+        abordar un nuevo vehículo en una transferencia con un mismo pago.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: abordaje o desembarque de una persona usuaria"
       tags:
         - Users
       requestBody:
@@ -291,32 +412,46 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Transfer'
+              $ref: "#/components/schemas/Transfer"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TransferResponse'
+                $ref: "#/components/schemas/TransferResponse"
   /alerts:
     get:
       summary: Alertas del servicio
-      description: "Obtiene la lista de alertas del servicio, como incidencias que pueden afectar la prestación del servicio.\n\n**Tipo de actualización**: regular\n\n**Período recomendado**: 60 segundos"
+      description: "Obtiene la lista de alertas del servicio, como incidencias que
+        pueden afectar la prestación del servicio.
+
+
+        **Tipo de actualización**: regular
+
+
+        **Período recomendado**: 60 segundos"
       tags:
         - Alerts
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Alert'
+                  $ref: "#/components/schemas/Alert"
     post:
       summary: Alertas del servicio
-      description: "Publica información sobre alguna incidencia que puede afectar la prestación del servicio.\n\n**Tipo de actualización**: por evento\n\n**Evento**: incidencia en la vía o en el vehículo"
+      description: "Publica información sobre alguna incidencia que puede afectar la
+        prestación del servicio.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: incidencia en la vía o en el vehículo"
       tags:
         - Alerts
       requestBody:
@@ -324,14 +459,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Alert'
+              $ref: "#/components/schemas/Alert"
       responses:
-        '201':
+        "201":
           description: Registro creado
   /stops:
     get:
       summary: Paradas del viaje
-      description: "Obtiene la lista con la secuencia de paradas del viaje actual del vehículo.\n\n**Tipo de actualización**: por evento\n\n**Evento**: inicio del viaje"
+      description: "Obtiene la lista con la secuencia de paradas del viaje actual del
+        vehículo.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: inicio del viaje"
       tags:
         - GTFS
       requestBody:
@@ -339,16 +481,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Stops'
+              $ref: "#/components/schemas/Stops"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/StopsResponse'
+                  $ref: "#/components/schemas/StopsResponse"
   /gtfs/schedule:
     get:
       summary: GTFS Schedule
@@ -356,7 +498,7 @@ paths:
       tags:
         - GTFS
       responses:
-        '200':
+        "200":
           description: OK
   /gtfs/realtime/vehicle-positions:
     get:
@@ -365,7 +507,7 @@ paths:
       tags:
         - GTFS
       responses:
-        '200':
+        "200":
           description: OK
   /gtfs/realtime/trip-updates:
     get:
@@ -374,7 +516,7 @@ paths:
       tags:
         - GTFS
       responses:
-        '200':
+        "200":
           description: OK
   /gtfs/realtime/service-alerts:
     get:
@@ -383,12 +525,19 @@ paths:
       tags:
         - GTFS
       responses:
-        '200':
+        "200":
           description: OK
   /find-trips:
     get:
       summary: Búsqueda de viajes
-      description: "Obtiene la lista de viajes disponibles cercanos a la hora actual para la combinación de ruta, calendario, trayectoria y sentido.\n\n**Tipo de actualización**: por evento\n\n**Evento**: configuración del inicio de un nuevo viaje"
+      description: "Obtiene la lista de viajes disponibles cercanos a la hora actual
+        para la combinación de ruta, calendario, trayectoria y sentido.
+
+
+        **Tipo de actualización**: por evento
+
+
+        **Evento**: configuración del inicio de un nuevo viaje"
       tags:
         - Databús
       parameters:
@@ -398,21 +547,21 @@ paths:
           required: true
           schema:
             type: string
-          example: 'bUCR-L1'
+          example: "bUCR-L1"
         - in: query
           name: service_id
           description: Identificador del calendario según GTFS Schedule
           required: true
           schema:
             type: string
-          example: 'entresemana'
+          example: "entresemana"
         - in: query
           name: shape_id
           description: Identificador de la trayectoria de la ruta según GTFS Schedule
           required: true
           schema:
             type: string
-          example: 'desde_educacion'
+          example: "desde_educacion"
         - in: query
           name: direction_id
           description: Identificador de la dirección (sentido) del viaje según GTFS Schedule
@@ -421,14 +570,14 @@ paths:
             type: integer
           example: 0
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/FindTripsResponse'
+                  $ref: "#/components/schemas/FindTripsResponse"
 
 components:
   schemas:
@@ -438,46 +587,47 @@ components:
         agency:
           description: Identificador de la agencia a la que pertenece el vehículo
           type: string
-          example: 'bUCR'
+          example: "bUCR"
         label:
           description: Etiqueta del vehículo
           type: string
-          example: 'SJB 9876'
+          example: "SJB 9876"
         license_plate:
           description: Placa del vehículo
           type: string
-          example: 'SJB 9876'
+          example: "SJB 9876"
         wheelchair_accessible:
           description: Accesibilidad para sillas de ruedas
           type: string
-          enum: ['NO_VALUE', 'UNKNOWN', 'WHEELCHAIR_ACCESSIBLE', 'WHEELCHAIR_INACCESSIBLE']
-          example: 'WHEELCHAIR_ACCESSIBLE'
+          enum: [ "NO_VALUE", "UNKNOWN", "WHEELCHAIR_ACCESSIBLE", "WHEELCHAIR_INACCESSIBLE" ]
+          example: "WHEELCHAIR_ACCESSIBLE"
         wifi:
           description: Disponibilidad de Wi-Fi en el vehículo
           type: string
-          enum: ['NO_VALUE', 'UNKNOWN', 'AVAILABLE', 'UNAVAILABLE']
-          example: 'AVAILABLE'
+          enum: [ "NO_VALUE", "UNKNOWN", "AVAILABLE", "UNAVAILABLE" ]
+          example: "AVAILABLE"
         air_conditioning:
           description: Disponibilidad de aire acondicionado en el vehículo
           type: string
-          enum: ['NO_VALUE', 'UNKNOWN', 'AVAILABLE', 'UNAVAILABLE']
-          example: 'UNAVAILABLE'
+          enum: [ "NO_VALUE", "UNKNOWN", "AVAILABLE", "UNAVAILABLE" ]
+          example: "UNAVAILABLE"
         mobile_charging:
           description: Disponibilidad de cargadores para móviles en el vehículo
           type: string
-          enum: ['NO_VALUE', 'UNKNOWN', 'AVAILABLE', 'UNAVAILABLE']
-          example: 'UNKNOWN'
+          enum: [ "NO_VALUE", "UNKNOWN", "AVAILABLE", "UNAVAILABLE" ]
+          example: "UNKNOWN"
         bike_rack:
           description: Disponibilidad de portabicicletas en el vehículo
           type: string
-          enum: ['NO_VALUE', 'UNKNOWN', 'AVAILABLE', 'UNAVAILABLE']
-          example: 'NO_VALUE'
+          enum: [ "NO_VALUE", "UNKNOWN", "AVAILABLE", "UNAVAILABLE" ]
+          example: "NO_VALUE"
         has_screen:
           description: Disponibilidad de pantalla informativa dentro del vehículo
           type: boolean
           example: true
         has_headsign_screen:
-          description: Disponibilidad de pantalla informativa fuera del vehículo, por ejemplo, en la parte frontal
+          description: Disponibilidad de pantalla informativa fuera del vehículo, por
+            ejemplo, en la parte frontal
           type: boolean
           example: true
         has_audio:
@@ -488,88 +638,93 @@ components:
       type: object
       properties:
         vehicle_id:
-          description: Identificador único del vehículo, generado automáticamente en el servidor
+          description: Identificador único del vehículo, generado automáticamente en el
+            servidor
           type: string
-          example: '98E4TNSG'
+          example: "98E4TNSG"
         label:
           description: Etiqueta del vehículo
           type: string
-          example: 'SJB 9876'
+          example: "SJB 9876"
         license_plate:
           description: Placa del vehículo
           type: string
-          example: 'SJB 9876'
-    Operator: 
+          example: "SJB 9876"
+    Operator:
       type: object
       properties:
         operator_id:
           description: Identificador del operador (conductor) del vehículo
           type: string
-          example: '1-1234-5678'
+          example: "1-1234-5678"
         name:
           description: Nombre del operador
           type: string
-          example: 'María Rodríguez'
+          example: "María Rodríguez"
         phone:
           description: Teléfono del operador
           type: string
-          example: '8888-8888'
+          example: "8888-8888"
         email:
           description: Correo electrónico del operador
           type: string
-          example: 'nombre.apellido@ejemplo.com'
+          example: "nombre.apellido@ejemplo.com"
     OperatorResponse:
       type: object
       properties:
         operator_id:
-          description: Identificador único del operador, generado automáticamente en el servidor
+          description: Identificador único del operador, generado automáticamente en el
+            servidor
           type: string
-          example: '1-1234-5678'
+          example: "1-1234-5678"
         name:
           description: Nombre del operador
           type: string
-          example: 'María Rodríguez'
+          example: "María Rodríguez"
     Provider:
       type: object
       properties:
         provider_id:
           description: Identificador del proveedor de datos
           type: string
-          example: 'bUCR'
+          example: "bUCR"
     Equipment:
       type: object
       properties:
         provider_id:
           description: Propietario del equipo proveedor de datos
           type: string
-          example: 'bUCR'
+          example: "bUCR"
         agency_id:
           description: Agencia a la que pertenece el equipo
           type: string
-          example: 'bUCR'
+          example: "bUCR"
         vehicle_id:
           description: Identificador del vehículo en el que está el equipo
           type: string
-          example: '98E4TNSG'
+          example: "98E4TNSG"
         serial_number:
           description: Número de serie del equipo
           type: string
-          example: 'SJ3249TISER94N'
+          example: "SJ3249TISER94N"
         brand:
           description: Marca del equipo
           type: string
-          example: 'Blackberry'
+          example: "Blackberry"
         model:
           description: Modelo del equipo
           type: string
-          example: 'Solar System 12'
+          example: "Solar System 12"
         software_version:
           description: Versión del software del equipo
           type: string
-          example: '1.3.5'
+          example: "1.3.5"
         provides:
           type: object
-          description: Datos (servicios) que proporciona el equipo de telemetría y rastreo. Solamente un equipo para cada tipo de dato es permitido por vehículo, y en caso de duplicidad, el último equipo registrado será el válido. Cada servicio corresponde a un endpoint de la API.
+          description: Datos (servicios) que proporciona el equipo de telemetría y
+            rastreo. Solamente un equipo para cada tipo de dato es permitido por
+            vehículo, y en caso de duplicidad, el último equipo registrado será
+            el válido. Cada servicio corresponde a un endpoint de la API.
           properties:
             vehicle:
               description: Proporciona datos del vehículo
@@ -640,43 +795,44 @@ components:
       type: object
       properties:
         equipment_id:
-          description: Identificador UUID del equipo, generado automáticamente en el servidor
+          description: Identificador UUID del equipo, generado automáticamente en el
+            servidor
           type: string
-          example: '123e4567-e89b-12d3-a456-426614174000'
+          example: "123e4567-e89b-12d3-a456-426614174000"
         serial_number:
           description: Número de serie del equipo
           type: string
-          example: 'SJ3249TISER94N'
+          example: "SJ3249TISER94N"
     FindTripsResponse:
       type: object
       properties:
         trip_id:
           description: Identificador del viaje según GTFS Schedule
           type: string
-          example: 'JFH367'
+          example: "JFH367"
         trip_departure time:
           description: Hora de salida del viaje
           type: string
-          example: '07:15:00'
+          example: "07:15:00"
     Run:
       type: object
       properties:
-        equipment_id:
-          description: Identificador UUID del equipo en el vehículo
+        vehicle_id:
+          description: Identificador del vehículo
           type: string
-          example: '123e4567-e89b-12d3-a456-426614174000'
+          example: "SJB 1234"
         operator_id:
           description: Identificador del operador (conductor) del vehículo
           type: string
-          example: '1-1234-5678'
+          example: "1-1234-5678"
         route_id:
           description: Identificador de la ruta según GTFS Schedule
           type: string
-          example: 'bUCR-L1'
+          example: "bUCR-L1"
         trip_id:
           description: Identificador del viaje según GTFS Schedule
           type: string
-          example: 'JFH367'
+          example: "JFH367"
         direction_id:
           description: Identificador de la dirección del viaje según GTFS Schedule
           type: integer
@@ -684,30 +840,47 @@ components:
         shape_id:
           description: Identificador de la trayectoria de la ruta según GTFS Schedule
           type: string
-          example: 'desde_educacion'
+          example: "desde_educacion"
         start_date:
           description: Fecha de inicio del viaje
           type: string
-          example: '2024-05-03'
+          example: "2024-05-03"
         start_time:
           description: Hora de inicio del viaje
           type: string
-          example: '07:15:00'
+          example: "07:15:00"
         schedule_relationship:
           description: Relación con el horario
           type: string
-          enum: ['SCHEDULED', 'ADDED', 'UNSCHEDULED', 'CANCELED', 'DUPLICATED', 'DELETED']
+          enum:
+            [
+              "SCHEDULED",
+              "ADDED",
+              "UNSCHEDULED",
+              "CANCELED",
+              "DUPLICATED",
+              "DELETED",
+            ]
         run_status:
           description: Estado del viaje
           type: string
-          enum: ['IN_PROGRESS', 'COMPLETED', 'INTERRUPTED']
-          default: 'IN_PROGRESS'
-          example: 'IN_PROGRESS'
+          enum:
+            [
+              "SUBMITTED",
+              "CONFIRMED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "INTERRUPTED",
+              "INITIALIZED",
+            ]
+          default: "SUBMITTED"
+          example: "COMPLETED"
     RunResponse:
       type: object
       properties:
         run_id:
-          description: Identificador único del viaje particular, generado automáticamente en el servidor
+          description: Identificador único del viaje particular, generado automáticamente
+            en el servidor
           type: number
           format: integer
           example: 698453
@@ -720,7 +893,8 @@ components:
           format: integer
           example: 698453
         timestamp:
-          description: Fecha y hora de la medición de la posición del vehículo, en tiempo POSIX
+          description: Fecha y hora de la medición de la posición del vehículo, en tiempo
+            POSIX
           type: number
           format: integer
           example: 1710067980
@@ -768,7 +942,8 @@ components:
           format: integer
           example: 698453
         timestamp:
-          description: Fecha y hora de la actualización del estado de avance del vehículo, en tiempo POSIX
+          description: Fecha y hora de la actualización del estado de avance del vehículo,
+            en tiempo POSIX
           type: number
           format: integer
           example: 1710067980
@@ -779,17 +954,24 @@ components:
         stop_id:
           description: Identificador de la parada
           type: string
-          example: 'bUCR-0-03'
+          example: "bUCR-0-03"
         current_status:
           description: Estado actual del vehículo
           type: string
-          enum: ['INCOMING_AT', 'STOPPED_AT', 'IN_TRANSIT_TO']
-          example: 'STOPPED_AT'
+          enum: [ "INCOMING_AT", "STOPPED_AT", "IN_TRANSIT_TO" ]
+          example: "STOPPED_AT"
         congestion_level:
           description: Nivel de congestión vehicular en la vía
           type: string
-          enum: ['UNKNOWN_CONGESTION_LEVEL', 'RUNNING_SMOOTHLY', 'STOP_AND_GO', 'CONGESTION', 'SEVERE_CONGESTION']
-          example: 'SEVERE_CONGESTION'
+          enum:
+            [
+              "UNKNOWN_CONGESTION_LEVEL",
+              "RUNNING_SMOOTHLY",
+              "STOP_AND_GO",
+              "CONGESTION",
+              "SEVERE_CONGESTION",
+            ]
+          example: "SEVERE_CONGESTION"
     Occupancy:
       type: object
       properties:
@@ -801,8 +983,19 @@ components:
         occupancy_status:
           description: Estado de la ocupación de la parada
           type: string
-          enum: ['EMPTY', 'MANY_SEATS_AVAILABLE', 'FEW_SEATS_AVAILABLE', 'STANDING_ROOM_ONLY', 'CRUSHED_STANDING_ROOM_ONLY', 'FULL', 'NOT_ACCEPTING_PASSENGERS', 'NO_DATA_AVAILABLE', 'NOT_BOARDABLE']
-          example: 'CRUSHED_STANDING_ROOM_ONLY'
+          enum:
+            [
+              "EMPTY",
+              "MANY_SEATS_AVAILABLE",
+              "FEW_SEATS_AVAILABLE",
+              "STANDING_ROOM_ONLY",
+              "CRUSHED_STANDING_ROOM_ONLY",
+              "FULL",
+              "NOT_ACCEPTING_PASSENGERS",
+              "NO_DATA_AVAILABLE",
+              "NOT_BOARDABLE",
+            ]
+          example: "CRUSHED_STANDING_ROOM_ONLY"
         occupancy_percentage:
           description: Porcentaje de ocupación del vehículo según capacidad de carga
           type: integer
@@ -814,8 +1007,8 @@ components:
         is_wheelchair_accesible:
           description: Indica si actualmente hay espacio disponible para sillas de ruedas
           type: string
-          enum: ['NO_VALUE', 'UNKNOWN', 'WHEELCHAIR_ACCESSIBLE', 'WHEELCHAIR_INACCESSIBLE']
-          example: 'WHEELCHAIR_ACCESSIBLE'
+          enum: [ "NO_VALUE", "UNKNOWN", "WHEELCHAIR_ACCESSIBLE", "WHEELCHAIR_INACCESSIBLE" ]
+          example: "WHEELCHAIR_ACCESSIBLE"
     Conditions:
       type: object
       properties:
@@ -832,19 +1025,19 @@ components:
         engine:
           description: Estado del motor del vehículo
           type: string
-          enum: ['ON', 'OFF']
+          enum: [ "ON", "OFF" ]
         doors:
           description: Estado de las puertas del vehículo
           type: string
-          enum: ['OPEN', 'CLOSED']
+          enum: [ "OPEN", "CLOSED" ]
         lights:
           description: Estado de las luces del vehículo
           type: string
-          enum: ['ON', 'OFF']
+          enum: [ "ON", "OFF" ]
         air_conditioning:
           description: Estado del aire acondicionado del vehículo
           type: string
-          enum: ['ON', 'OFF']
+          enum: [ "ON", "OFF" ]
         temperature:
           description: Temperatura del vehículo
           type: number
@@ -899,16 +1092,16 @@ components:
         user_id:
           description: Identificador anonimizado del usuario
           type: string
-          example: 'IUHG9483NE9'
+          example: "IUHG9483NE9"
         stop_id:
           description: Identificador de la parada
           type: string
-          example: 'bUCR-0-03'
+          example: "bUCR-0-03"
         boarding:
           description: Indica si el usuario aborda o desembarca del vehículo
           type: string
-          enum: ['BOARDING', 'ALIGHTING']
-          example: 'BOARDING'
+          enum: [ "BOARDING", "ALIGHTING" ]
+          example: "BOARDING"
     Authorization:
       type: object
       properties:
@@ -920,7 +1113,7 @@ components:
         user_id:
           description: Identificador anonimizado del usuario
           type: string
-          example: 'IUHG9483NE9'
+          example: "IUHG9483NE9"
     AuthorizationResponse:
       type: object
       properties:
@@ -932,7 +1125,7 @@ components:
         user_id:
           description: Identificador anonimizado del usuario
           type: string
-          example: 'IUHG9483NE9'
+          example: "IUHG9483NE9"
         authorized:
           description: Indica si el usuario está autorizado para abordar el vehículo
           type: boolean
@@ -948,16 +1141,16 @@ components:
         user_id:
           description: Identificador anonimizado del usuario
           type: string
-          example: 'IUHG9483NE9'
+          example: "IUHG9483NE9"
         fare_media:
           description: Método de pago del usuario
           type: string
-          enum: ['CASH', 'TICKET', 'CARD', 'CEMV', 'MOBILE']
-          example: 'CARD'
+          enum: [ "CASH", "TICKET", "CARD", "CEMV", "MOBILE" ]
+          example: "CARD"
         fare_product:
           description: Producto de pago del usuario
           type: string
-          example: 'Estudiante'
+          example: "Estudiante"
         amount:
           description: Monto pagado por el usuario
           type: number
@@ -966,7 +1159,7 @@ components:
         currency:
           description: Moneda del monto pagado
           type: string
-          example: 'CRC'
+          example: "CRC"
     Transfer:
       type: object
       properties:
@@ -978,7 +1171,7 @@ components:
         user_id:
           description: Identificador anonimizado del usuario
           type: string
-          example: 'IUHG9483NE9'
+          example: "IUHG9483NE9"
     TransferResponse:
       type: object
       properties:
@@ -990,9 +1183,10 @@ components:
         user_id:
           description: Identificador anonimizado del usuario
           type: string
-          example: 'IUHG9483NE9'
+          example: "IUHG9483NE9"
         authorized:
-          description: Indica si el usuario está autorizado para abordar el vehículo en transferencia
+          description: Indica si el usuario está autorizado para abordar el vehículo en
+            transferencia
           type: boolean
           example: true
     Alert:
@@ -1007,11 +1201,11 @@ components:
               start:
                 description: Fecha y hora de inicio de la alerta, en tiempo POSIX
                 type: string
-                example: '1715733943'
+                example: "1715733943"
               end:
                 description: Fecha y hora de finalización de la alerta, en tiempo POSIX
                 type: string
-                example: '1715735978'
+                example: "1715735978"
         informed_entity:
           description: Tipo de alerta
           type: array
@@ -1021,11 +1215,11 @@ components:
               agency_id:
                 description: Identificador de la agencia
                 type: string
-                example: 'bUCR'
+                example: "bUCR"
               route_id:
                 description: Identificador de la ruta
                 type: string
-                example: 'bUCR-L1'
+                example: "bUCR-L1"
               route_type:
                 description: Tipo de ruta
                 type: integer
@@ -1043,11 +1237,11 @@ components:
                     trip_id:
                       description: Identificador del viaje
                       type: string
-                      example: 'JFH367'
+                      example: "JFH367"
                     route_id:
                       description: Identificador de la ruta
                       type: string
-                      example: 'bUCR-L1'
+                      example: "bUCR-L1"
                     direction_id:
                       description: Identificador de la dirección del viaje
                       type: integer
@@ -1055,58 +1249,93 @@ components:
                     start_time:
                       description: Hora de inicio del viaje
                       type: string
-                      example: '07:15:00'
+                      example: "07:15:00"
                     start_date:
                       description: Fecha de inicio del viaje
                       type: string
-                      example: '2024-05-03'
+                      example: "2024-05-03"
                     schedule_relationship:
                       description: Relación con el horario
                       type: string
-                      enum: ['SCHEDULED', 'ADDED', 'UNSCHEDULED', 'CANCELED', 'DUPLICATED', 'DELETED']
-                      example: 'SCHEDULED'
+                      enum:
+                        [
+                          "SCHEDULED",
+                          "ADDED",
+                          "UNSCHEDULED",
+                          "CANCELED",
+                          "DUPLICATED",
+                          "DELETED",
+                        ]
+                      example: "SCHEDULED"
               stop_id:
                 description: Identificador de la parada
                 type: string
-                example: 'bUCR-0-03'
+                example: "bUCR-0-03"
         cause:
           description: Causa de la alerta
           type: string
-          enum: ['UNKNOWN_CAUSE', 'OTHER_CAUSE','TECHNICAL_PROBLEM', 'STRIKE', 'DEMONSTRATION', 'ACCIDENT', 'HOLIDAY', 'WEATHER', 'MAINTENANCE', 'CONSTRUCTION', 'POLICE_ACTIVITY', 'MEDICAL_EMERGENCY']
+          enum:
+            [
+              "UNKNOWN_CAUSE",
+              "OTHER_CAUSE",
+              "TECHNICAL_PROBLEM",
+              "STRIKE",
+              "DEMONSTRATION",
+              "ACCIDENT",
+              "HOLIDAY",
+              "WEATHER",
+              "MAINTENANCE",
+              "CONSTRUCTION",
+              "POLICE_ACTIVITY",
+              "MEDICAL_EMERGENCY",
+            ]
         cause_detail:
           description: Detalle de la causa de la alerta
           type: string
-          example: 'Cierre de vía por manifestación'
+          example: "Cierre de vía por manifestación"
         effect:
           description: Efecto de la alerta
           type: string
-          enum: ['NO_SERVICE', 'REDUCED_SERVICE', 'SIGNIFICANT_DELAYS', 'DETOUR', 'ADDITIONAL_SERVICE', 'MODIFIED_SERVICE', 'OTHER_EFFECT', 'UNKNOWN_EFFECT', 'STOP_MOVED', 'NO_EFFECT', 'ACCESSIBILITY_ISSUE']
+          enum:
+            [
+              "NO_SERVICE",
+              "REDUCED_SERVICE",
+              "SIGNIFICANT_DELAYS",
+              "DETOUR",
+              "ADDITIONAL_SERVICE",
+              "MODIFIED_SERVICE",
+              "OTHER_EFFECT",
+              "UNKNOWN_EFFECT",
+              "STOP_MOVED",
+              "NO_EFFECT",
+              "ACCESSIBILITY_ISSUE",
+            ]
         effect_detail:
           description: Detalle del efecto de la alerta
           type: string
-          example: 'Desvío por cierre de vía'
+          example: "Desvío por cierre de vía"
         description_text:
           description: Descripción de la alerta
           type: string
-          example: 'Cierre de vía por manifestación y desvío de la ruta'      
-    Stops: 
+          example: "Cierre de vía por manifestación y desvío de la ruta"
+    Stops:
       type: object
       properties:
         route_id:
           description: Identificador de la ruta
           type: string
-          example: 'bUCR-L1'
+          example: "bUCR-L1"
         shape_id:
           description: Identificador de la trayectoria de la ruta
           type: string
-          example: 'desde_educacion'
+          example: "desde_educacion"
     StopsResponse:
       type: object
       properties:
         stop_id:
           description: Identificador de la parada
           type: string
-          example: 'bUCR-0-03'
+          example: "bUCR-0-03"
         stop_sequence:
           description: Secuencia de la parada
           type: integer
@@ -1132,10 +1361,13 @@ tags:
     description: Información sobre las personas usuarias del sistema
   - name: Alerts
     x-displayName: Alertas
-    description: Alertas sobre incidencias en el vehículo o en la vía que pueden afectar la prestación del servicio
+    description: Alertas sobre incidencias en el vehículo o en la vía que pueden
+      afectar la prestación del servicio
   - name: GTFS
     x-displayName: GTFS
-    description: Suministro de datos GTFS (General Transit Feed Specification) Schedule y Realtime en formato JSON
+    description: Suministro de datos GTFS (General Transit Feed Specification)
+      Schedule y Realtime en formato JSON
   - name: Databús
     x-displayName: Aplicación Databús
-    description: Información para la aplicación móvil operacional de telemetría y rastreo de vehículos
+    description: Información para la aplicación móvil operacional de telemetría y
+      rastreo de vehículos

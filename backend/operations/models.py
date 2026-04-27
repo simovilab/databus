@@ -260,6 +260,9 @@ class Run(models.Model):
         blank=True,
         null=True,
         choices=[
+            ("SUBMITTED", "Submitted"),
+            ("INITIALIZED", "Initialized"),
+            ("CONFIRMED", "Confirmed"),
             ("IN_PROGRESS", "En progreso"),
             ("COMPLETED", "Completado"),
             ("INTERRUPTED", "Interrumpido"),

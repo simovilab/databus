@@ -1,9 +1,14 @@
 from celery import shared_task
 from messages.publish import databus_event
 from typing import Any
-from datetime import date, datetime, timedelta
 from operations.models import Vehicle, Operator, Run
 from feed.models import Feed, Trip
+import redis
+import os
+
+redis_client = redis.Redis(
+    host=os.getenv("REDIS_HOST", "state"), port=os.getenv("REDIS_PORT", 6379), db=0
+)
 
 
 @shared_task(queue="realtime_engine")
@@ -12,22 +17,41 @@ def hello_world() -> None:
 
 
 @shared_task(queue="realtime_engine")
+def validate_run(run_data: dict[str, Any]) -> bool:
+    # Validation against the system state in Redis.
+    # Verify that:
+    # 1. the vehicle is not currently in another run,
+    # 2. the trip_id is not already being executed by another run
+    return True  # Placeholder for actual validation logic. Always returns True for now.
+
+
+@shared_task(queue="realtime_engine")
 def initialize_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
-    # Saves the run to the database and returns the id the database assigned to it
+    """
+    Initializes a run in the database and the system state (Redis).
+
+    Args:
+        run_data (dict): Run request payload to initialize. Expected keys include
+            ``vehicle_id``, ``operator_id``, ``route_id``, ``trip_id``,
+            ``direction_id``, ``shape_id``, and ``schedule_relationship``.
+    Returns:
+        tuple[bool, str | None]: A tuple where the first value is ``True`` when the run was successfully initialized. The second value is the run ID on success, or ``None`` on failure.
+    """
     try:
-        h, m, s = (int(part) for part in run_data["start_time"].split(":"))
         run = Run.objects.create(
-            vehicle_id=run_data["vehicle_id"],
-            operator_id=run_data["operator_id"],
-            route_id=run_data["route_id"],
-            trip_id=run_data["trip_id"],
-            direction_id=int(run_data["direction_id"]),
-            shape_id=run_data["shape_id"],
-            start_date=datetime.strptime(run_data["start_date"], "%Y-%m-%d").date(),
-            start_time=timedelta(hours=h, minutes=m, seconds=s),
+            vehicle_id=run_data.get("vehicle_id"),
+            operator_id=run_data.get("operator_id"),
+            route_id=run_data.get("route_id"),
+            trip_id=run_data.get(
+                "trip_id"
+            ),  # Cuando no es SCHEDULED, alguien tiene que crear un nuevo trip_id
+            direction_id=int(run_data.get("direction_id")),
+            shape_id=run_data.get("shape_id"),
             schedule_relationship=run_data.get("schedule_relationship"),
-            run_status="REGISTERED",  # TODO: CONFIRMAR ESTADO ADECUADO
+            run_status="INITIALIZED",  # TODO: CONFIRMAR ESTADO ADECUADO
         )
+        # Save run data (all) to Redis' "runs" key
+        redis_client.hset(f"run:{run.id}", mapping=run_data)
         return (True, str(run.id))
     except Exception as e:
         databus_event(
@@ -56,6 +80,8 @@ def register_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
 @shared_task(queue="realtime_engine")
 def start_run(run_data: dict[str, Any]) -> bool:
     # Aquí iría la lógica de inicio del run_data
+    # Save run_id to Redis' runs:in_progress group
+    # redis_client.sadd("runs:in_progress", run_data.get("run_id"))
     return True
 
 
@@ -80,61 +106,3 @@ def end_run(run_data: dict[str, Any]) -> bool:
             {"error": str(e), **run_data},
         )
         return False
-
-
-@shared_task(queue="realtime_engine")
-def validate_run(run_data: dict[str, Any]) -> bool:
-    # Are all required fields present and non-empty?
-    required = [
-        "vehicle_id",
-        "operator_id",
-        "route_id",
-        "trip_id",
-        "direction_id",
-        "shape_id",
-        "start_date",
-        "start_time",
-        "schedule_relationship",
-    ]
-    if any(run_data.get(field) in (None, "") for field in required):
-        return False
-    #  JSON often sends numbers as strings ("0" instead of 0). The database stores it as an integer, so we convert. If the value can't be converted (e.g. "abc"), reject.
-    try:
-        direction_id = int(run_data["direction_id"])
-    except (TypeError, ValueError):
-        return False
-    # Is the date today? (quiza inncesario)
-    try:
-        submitted_date = datetime.strptime(run_data["start_date"], "%Y-%m-%d").date()
-    except (TypeError, ValueError):
-        return False
-    if submitted_date != date.today():
-        return False
-    # Does the vehicle exist?
-    if not Vehicle.objects.filter(id=run_data["vehicle_id"]).exists():
-        return False
-    # Does the operator exist?
-    if not Operator.objects.filter(id=run_data["operator_id"]).exists():
-        return False
-    # Is the bus in another active run?
-    if Run.objects.filter(
-        vehicle_id=run_data["vehicle_id"],
-        run_status="IN_PROGRESS",
-    ).exists():
-        return False
-    # Is there a current GTFS Feed
-    feed = Feed.objects.filter(is_current=True).first()
-    if feed is None:
-        return False
-    # Does the trip exist in the current GTFS feed?
-    trip_exists = Trip.objects.filter(
-        feed=feed,
-        trip_id=run_data["trip_id"],
-        route_id=run_data["route_id"],
-        direction_id=direction_id,
-        shape_id=run_data["shape_id"],
-    ).exists()
-    if not trip_exists:
-        return False
-
-    return True
