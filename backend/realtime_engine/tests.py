@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from feed.models import Feed, Trip
-from realtime_engine.tasks import initialize_run, register_run, validate_run
+from realtime_engine.tasks import end_run, initialize_run, register_run, validate_run
 from schedule_engine.models import Operator, Run, Vehicle
 
 # ---------------------------------------------------------------------------
@@ -265,3 +265,75 @@ class RegisterRunTests(TestCase):
         self.assertFalse(ok)
         self.assertIsNone(run_id)
         self.assertFalse(Run.objects.exists())
+
+
+class EndRunTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.vehicle = Vehicle.objects.create(id="v-test", license_plate="TST-001")
+        user = User.objects.create_user(username="op_test", password="pw")
+        cls.operator = Operator.objects.create(id="op-test", user=user)
+
+    def make_run(self, status="IN_PROGRESS"):
+        return Run.objects.create(
+            vehicle=self.vehicle,
+            operator=self.operator,
+            route_id="r-test",
+            trip_id="t-test",
+            direction_id=0,
+            shape_id="s-test",
+            start_date=date.today(),
+            run_status=status,
+        )
+
+    def call(self, data):
+        return end_run.apply(args=[data]).get()
+
+    # ------------------------------------------------------------------
+    # Case 1 — IN_PROGRESS run → transitions to COMPLETED → True
+    # ------------------------------------------------------------------
+    def test_case_01_valid(self):
+        run = self.make_run("IN_PROGRESS")
+        data = {"run_id": run.id}
+        result = self.call(data)
+        show(1, "IN_PROGRESS run → COMPLETED", data, result, True)
+        self.assertTrue(result)
+        self.assertEqual(Run.objects.get(id=run.id).run_status, "COMPLETED")
+
+    # ------------------------------------------------------------------
+    # Case 2 — run_id is None
+    # ------------------------------------------------------------------
+    def test_case_02_run_id_none(self):
+        data = {"run_id": None}
+        result = self.call(data)
+        show(2, "run_id is None", data, result, False)
+        self.assertFalse(result)
+
+    # ------------------------------------------------------------------
+    # Case 3 — run_id is empty string
+    # ------------------------------------------------------------------
+    def test_case_03_run_id_empty(self):
+        data = {"run_id": ""}
+        result = self.call(data)
+        show(3, "run_id is empty string", data, result, False)
+        self.assertFalse(result)
+
+    # ------------------------------------------------------------------
+    # Case 4 — run_id does not exist in DB
+    # ------------------------------------------------------------------
+    def test_case_04_run_not_found(self):
+        data = {"run_id": 99999}
+        result = self.call(data)
+        show(4, "run_id 99999 does not exist in DB", data, result, False)
+        self.assertFalse(result)
+
+    # ------------------------------------------------------------------
+    # Case 5 — Run exists but is already COMPLETED (non-completable state)
+    # ------------------------------------------------------------------
+    def test_case_05_already_completed(self):
+        run = self.make_run("COMPLETED")
+        data = {"run_id": run.id}
+        result = self.call(data)
+        show(5, "Run is already COMPLETED → cannot complete again", data, result, False)
+        self.assertFalse(result)

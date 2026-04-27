@@ -61,8 +61,25 @@ def start_run(run_data: dict[str, Any]) -> bool:
 
 @shared_task(queue="realtime_engine")
 def end_run(run_data: dict[str, Any]) -> bool:
-    # Aquí iría la lógica de finalización del run_data
-    return True
+    #Transitions an IN_PROGRESS run to COMPLETED. Returns False if the run is missing, in a non-completable state, or an erorr occurs.
+    run_id = run_data.get("run_id")
+    if run_id in (None, ""):
+        return False
+    try:
+        run = Run.objects.filter(id=run_id).first()
+        if run is None:
+            return False
+        if run.run_status != "IN_PROGRESS":
+            return False
+        run.run_status = "COMPLETED"
+        run.save(update_fields=["run_status"])
+        return True
+    except Exception as e:
+        databus_event(
+            "RUN_COMPLETION_ERROR",
+            {"error": str(e), **run_data},
+        )
+        return False
 
 @shared_task(queue="realtime_engine")
 def validate_run(run_data: dict[str, Any]) -> bool:
