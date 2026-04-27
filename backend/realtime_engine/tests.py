@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 
 from feed.models import Feed, Trip
-from realtime_engine.tasks import validate_run
+from realtime_engine.tasks import initialize_run, register_run, validate_run
 from schedule_engine.models import Operator, Run, Vehicle
 
 # ---------------------------------------------------------------------------
@@ -178,3 +178,90 @@ class ValidateRunTests(TestCase):
         result = run(data)
         show(11, "trip_id does not exist in current feed", data, result, False)
         self.assertFalse(result)
+
+
+class InitializeRunTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.vehicle = Vehicle.objects.create(id="v-test", license_plate="TST-001")
+        user = User.objects.create_user(username="op_test", password="pw")
+        cls.operator = Operator.objects.create(id="op-test", user=user)
+
+    # ------------------------------------------------------------------
+    # Case 1 — Happy path: Run is created and its id is returned
+    # ------------------------------------------------------------------
+    def test_case_01_creates_run_and_returns_id(self):
+        data = valid_run()
+        ok, run_id = initialize_run.apply(args=[data]).get()
+        show(1, "Valid data → Run created in DB", data, (ok, run_id is not None), (True, True))
+        self.assertTrue(ok)
+        self.assertIsNotNone(run_id)
+        self.assertTrue(Run.objects.filter(id=run_id).exists())
+
+    # ------------------------------------------------------------------
+    # Case 2 — Bad start_time format → exception caught → (False, None)
+    # ------------------------------------------------------------------
+    def test_case_02_bad_start_time_format(self):
+        data = valid_run()
+        data["start_time"] = "7h15m"
+        ok, run_id = initialize_run.apply(args=[data]).get()
+        show(2, "start_time has invalid format '7h15m'", data, (ok, run_id), (False, None))
+        self.assertFalse(ok)
+        self.assertIsNone(run_id)
+
+    # ------------------------------------------------------------------
+    # Case 3 — Run with same vehicle+trip already exists (duplicate)
+    # ------------------------------------------------------------------
+    def test_case_03_run_created_with_correct_status(self):
+        data = valid_run()
+        ok, run_id = initialize_run.apply(args=[data]).get()
+        run = Run.objects.get(id=run_id)
+        show(3, "Run is stored with status REGISTERED", data, run.run_status, "REGISTERED")
+        self.assertTrue(ok)
+        self.assertEqual(run.run_status, "REGISTERED")
+
+
+class RegisterRunTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.vehicle = Vehicle.objects.create(id="v-test", license_plate="TST-001")
+        user = User.objects.create_user(username="op_test", password="pw")
+        cls.operator = Operator.objects.create(id="op-test", user=user)
+        cls.feed = Feed.objects.create(feed_id="feed-test", is_current=True)
+        Trip.objects.bulk_create([
+            Trip(
+                feed=cls.feed,
+                trip_id="t-test",
+                route_id="r-test",
+                service_id="svc-test",
+                direction_id=0,
+                shape_id="s-test",
+                wheelchair_accessible=0,
+                bikes_allowed=0,
+            )
+        ])
+
+    # ------------------------------------------------------------------
+    # Case 1 — Valid data: validation + initialization both succeed
+    # ------------------------------------------------------------------
+    def test_case_01_valid_full_flow(self):
+        data = valid_run()
+        ok, run_id = register_run.apply(args=[data]).get()
+        show(1, "Valid data → validate + initialize → Run in DB", data, (ok, run_id is not None), (True, True))
+        self.assertTrue(ok)
+        self.assertIsNotNone(run_id)
+        self.assertTrue(Run.objects.filter(id=run_id).exists())
+
+    # ------------------------------------------------------------------
+    # Case 2 — Validation fails: register_run short-circuits → (False, None)
+    # ------------------------------------------------------------------
+    def test_case_02_validation_fails(self):
+        data = valid_run()
+        data["start_date"] = "2024-05-03"  # not today
+        ok, run_id = register_run.apply(args=[data]).get()
+        show(2, "Date not today → validation fails → no Run created", data, (ok, run_id), (False, None))
+        self.assertFalse(ok)
+        self.assertIsNone(run_id)
+        self.assertFalse(Run.objects.exists())

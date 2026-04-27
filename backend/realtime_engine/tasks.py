@@ -1,7 +1,7 @@
 from celery import shared_task
 from messages.publish import databus_event
 from typing import Any
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from schedule_engine.models import Vehicle, Operator, Run
 from feed.models import Feed, Trip
 
@@ -12,26 +12,45 @@ def hello_world() -> None:
 
 
 @shared_task(queue="realtime_engine")
-def initialize_run(run_data: dict[str, Any]) -> bool:
-    # Aquí iría la lógica de inicialización del run_data
-    return True
+def initialize_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
+    # Saves the run to the database and returns the id the database assigned to it
+    try:
+        h, m, s = (int(part) for part in run_data["start_time"].split(":"))
+        run = Run.objects.create(
+            vehicle_id=run_data["vehicle_id"],
+            operator_id=run_data["operator_id"],
+            route_id=run_data["route_id"],
+            trip_id=run_data["trip_id"],
+            direction_id=int(run_data["direction_id"]),
+            shape_id=run_data["shape_id"],
+            start_date=datetime.strptime(run_data["start_date"], "%Y-%m-%d").date(),
+            start_time=timedelta(hours=h, minutes=m, seconds=s),
+            schedule_relationship=run_data.get("schedule_relationship"),
+            run_status="REGISTERED",  # TODO: CONFIRMAR ESTADO ADECUADO
+        )
+        return (True, str(run.id))
+    except Exception as e:
+        databus_event(
+            "RUN_INITIALIZATION_ERROR",
+            {"error": str(e), **run_data}, # Error with payload
+        )
+        return (False, None)
 
 
 @shared_task(queue="realtime_engine")
 def register_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
-    validation_result = validate_run(run_data)
-    if validation_result:
-        databus_event("RUN_VALIDATION_SUCCEEDED", run_data)
-        intialization_result = initialize_run(run_data)
-        if intialization_result:
-            databus_event("RUN_INITIALIZATION_SUCCEEDED", run_data)
-            return (True, "94268469")
-        else:
-            databus_event("RUN_INITIALIZATION_FAILED", run_data)
-            return (False, None)
-    else:
+    if not validate_run(run_data):
         databus_event("RUN_VALIDATION_FAILED", run_data)
         return (False, None)
+
+    databus_event("RUN_VALIDATION_SUCCEEDED", run_data)
+    initialization_ok, run_id = initialize_run(run_data)
+    if initialization_ok:
+        databus_event("RUN_INITIALIZATION_SUCCEEDED", run_data)
+        return (True, run_id)
+
+    databus_event("RUN_INITIALIZATION_FAILED", run_data)
+    return (False, None)
 
 
 @shared_task(queue="realtime_engine")

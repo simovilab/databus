@@ -144,22 +144,13 @@ class RunViewSet(APIView):
         elif request.data.get("run_status") == "CONFIRMED":
             start_run_result = start_run.delay(request.data).get(timeout=15)
             if start_run_result:
-                Run.objects.create(
-                    id=request.data.get("run_id"),
-                    vehicle_id=request.data.get("vehicle_id"),
-                    operator_id=request.data.get("operator_id"),
-                    route_id=request.data.get("route_id"),
-                    trip_id=request.data.get("trip_id"),
-                    direction_id=request.data.get("direction_id"),
-                    shape_id=request.data.get("shape_id"),
-                    start_date=datetime.now().date(),
-                    start_time=timedelta(
-                        hours=datetime.now().hour,
-                        minutes=datetime.now().minute,
-                        seconds=datetime.now().second,
-                    ),
-                    run_status="IN_PROGRESS",
-                )
+                updated = Run.objects.filter(
+                    id=request.data.get("run_id")
+                ).update(run_status="IN_PROGRESS")
+                if not updated:
+                    return Response(
+                        {"error": "run_id no encontrado"}, status=404
+                    )
                 databus_event("RUN_START_SUCCEEDED", request.data)
                 return Response({"run_status": "IN_PROGRESS"}, status=200)
             else:
@@ -189,7 +180,6 @@ class RunViewSet(APIView):
                 "id": serializer.instance.id,
             }
         )
-
 
 class PositionViewSet(viewsets.ModelViewSet):
     queryset = Position.objects.all()
