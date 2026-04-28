@@ -1,5 +1,5 @@
 from celery import shared_task
-from messages.publish import databus_event
+from backend.messages.publisher import publish_event
 from typing import Any
 from operations.models import Vehicle, Operator, Run
 from feed.models import Feed, Trip
@@ -54,7 +54,7 @@ def initialize_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
         redis_client.hset(f"run:{run.id}", mapping=run_data)
         return (True, str(run.id))
     except Exception as e:
-        databus_event(
+        publish_event(
             "RUN_INITIALIZATION_ERROR",
             {"error": str(e), **run_data},  # Error with payload
         )
@@ -64,16 +64,16 @@ def initialize_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
 @shared_task(queue="realtime_engine")
 def register_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
     if not validate_run(run_data):
-        databus_event("RUN_VALIDATION_FAILED", run_data)
+        publish_event("RUN_VALIDATION_FAILED", run_data)
         return (False, None)
 
-    databus_event("RUN_VALIDATION_SUCCEEDED", run_data)
+    publish_event("RUN_VALIDATION_SUCCEEDED", run_data)
     initialization_ok, run_id = initialize_run(run_data)
     if initialization_ok:
-        databus_event("RUN_INITIALIZATION_SUCCEEDED", run_data)
+        publish_event("RUN_INITIALIZATION_SUCCEEDED", run_data)
         return (True, run_id)
 
-    databus_event("RUN_INITIALIZATION_FAILED", run_data)
+    publish_event("RUN_INITIALIZATION_FAILED", run_data)
     return (False, None)
 
 
@@ -101,7 +101,7 @@ def end_run(run_data: dict[str, Any]) -> bool:
         run.save(update_fields=["run_status"])
         return True
     except Exception as e:
-        databus_event(
+        publish_event(
             "RUN_COMPLETION_ERROR",
             {"error": str(e), **run_data},
         )

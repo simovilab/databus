@@ -155,7 +155,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/OperatorResponse"
-  /run:
+  /runs:
     post:
       summary: Datos del viaje actual
       description: "Publica datos del viaje actual del vehículo, como el identificador
