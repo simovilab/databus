@@ -224,7 +224,7 @@ class EquipmentLog(models.Model):
 class Run(models.Model):
     """A run is an instance of GTFS trip."""
 
-    id = models.AutoField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
 
     # Operational information
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
