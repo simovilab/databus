@@ -5,7 +5,8 @@ from django.test import TestCase
 
 from feed.models import Feed, Trip
 from realtime_engine.tasks import end_run, initialize_run, register_run, validate_run
-from operations.models import Operator, Run, Vehicle
+from operations.models import Operator, Vehicle
+from runs.models import Run
 
 
 # ---------------------------------------------------------------------------

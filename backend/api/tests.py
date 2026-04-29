@@ -6,7 +6,8 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from feed.models import Feed, Trip
-from operations.models import Operator, Run, Vehicle
+from operations.models import Operator, Vehicle
+from runs.models import Run
 
 URL = "/api/run"
 

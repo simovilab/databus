@@ -34,8 +34,6 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 # Application definition
 
 INSTALLED_APPS = [
-    "daphne",
-    "channels",
     "gtfs",
     "feed.apps.FeedConfig",
     "schedule_engine.apps.ScheduleEngineConfig",
@@ -43,6 +41,9 @@ INSTALLED_APPS = [
     "operations.apps.OperationsConfig",
     "website.apps.WebsiteConfig",
     "api.apps.ApiConfig",
+    "runs.apps.RunsConfig",
+    "daphne",
+    "channels",
     "rest_framework",
     "rest_framework.authtoken",
     "drf_spectacular",

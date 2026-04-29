@@ -1,7 +1,8 @@
 from celery import shared_task
-from backend.messages.publisher import publish_event
+from messages.publisher import publish_event
 from typing import Any
-from operations.models import Vehicle, Operator, Run
+from operations.models import Vehicle, Operator
+from runs.models import Run
 from feed.models import Feed, Trip
 import redis
 import os

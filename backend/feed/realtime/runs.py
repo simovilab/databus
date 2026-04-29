@@ -1,4 +1,4 @@
-from operations.models import Run
+from runs.models import Run
 from messages import publish_event
 from realtime_engine.tasks import register_run, start_run, end_run
 from feed.utils import validate_run_request_data

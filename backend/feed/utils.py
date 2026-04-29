@@ -1,5 +1,6 @@
 from .models import Feed, Trip
-from operations.models import Vehicle, Operator, Run
+from operations.models import Vehicle, Operator
+from runs.models import Run
 
 
 def validate_run_request_data(run_data) -> tuple[bool, str | None]:

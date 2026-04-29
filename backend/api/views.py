@@ -13,16 +13,17 @@ from django.utils.decorators import method_decorator
 from operations.models import (
     Vehicle,
     Operator,
-    Run,
     Company,
     DataProvider,
     Equipment,
     EquipmentLog,
+)
+from runs.models import (
+    Run,
     Position,
     Progression,
     Occupancy,
 )
-
 from feed.models import (
     Feed,
     Agency,
