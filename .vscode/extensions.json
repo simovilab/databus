@@ -1,5 +1,9 @@
 {
   "recommendations": [
-    "redis.redis-for-vscode"
+    "charliermarsh.ruff",
+    "esbenp.prettier-vscode",
+    "astral-sh.ty",
+    "redis.redis-for-vscode",
+    "redhat.vscode-yaml"
   ]
 }
