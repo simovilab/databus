@@ -28,8 +28,8 @@ def debug_task(self):
 # --------------------
 
 app.conf.beat_schedule = {
-    "build-alerts-every-5s": {
+    "build-alerts-every-10s": {
         "task": "schedule_engine.tasks.build_alerts",
-        "schedule": timedelta(seconds=5),
+        "schedule": timedelta(seconds=10),
     },
 }
