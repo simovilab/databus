@@ -150,6 +150,17 @@ services:
     working_dir: /prefect
     command: prefect server start
 
+  flower:
+    image: mher/flower:2.0
+    environment:
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@${RABBITMQ_HOST:-message-broker}:${RABBITMQ_PORT:-5672}//
+      - TZ=America/Costa_Rica
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    depends_on:
+      message-broker:
+        condition: service_healthy
+
   user-interface:
     build:
       context: ./frontend
