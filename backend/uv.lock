@@ -1090,6 +1090,8 @@ version = "0.2.0"
 source = { editable = "gtfs-django" }
 dependencies = [
     { name = "django" },
+    { name = "gtfs-realtime-bindings" },
+    { name = "requests" },
 ]
 
 [package.dev-dependencies]
@@ -1112,7 +1114,11 @@ testing = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "django", specifier = ">=5.2.0" }]
+requires-dist = [
+    { name = "django", specifier = ">=5.2.0" },
+    { name = "gtfs-realtime-bindings", specifier = ">=2.0.0" },
+    { name = "requests", specifier = ">=2.33.1" },
+]
 
 [package.metadata.requires-dev]
 dev = [
