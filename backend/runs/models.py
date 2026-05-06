@@ -1,5 +1,6 @@
 from django.contrib.gis.db import models
 from operations.models import Vehicle, Operator
+from runs.domain.states import RunStatus, choices
 import uuid
 
 # Create your models here.
@@ -41,22 +42,45 @@ class Run(models.Model):
         max_length=40,
         blank=True,
         null=True,
-        choices=[
-            ("REQUESTED", "Requested"),
-            ("VALIDATED", "Validated"),
-            ("INITIALIZED", "Initialized"),
-            ("CONFIRMED", "Confirmed"),
-            ("TRACKING", "Tracking"),
-            ("IN_PROGRESS", "In Progress"),
-            ("LOST_CONNECTION", "Lost Connection"),
-            ("COMPLETED", "Completed"),
-            ("INTERRUPTED", "Interrupted"),
-            ("CANCELLED", "Cancelled"),
-        ],
+        choices=choices,
+        default=RunStatus.REQUESTED.name,
     )
 
     def __str__(self):
         return f"{self.route_id} / {self.trip_id} ({self.start_date})"
+
+
+class RunLifecycleEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    event_type = models.CharField(max_length=128)
+    from_state = models.CharField(max_length=64, null=True)
+    to_state = models.CharField(max_length=64, null=True)
+    payload = models.JSONField(default=dict)
+    timestamp = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["run", "timestamp"]),
+            models.Index(fields=["event_type"]),
+        ]
+
+
+class RunProgressEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    event_type = models.CharField(max_length=128)
+    stop_id = models.CharField(max_length=64, null=True)
+    payload = models.JSONField(default=dict)
+    timestamp = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["run", "timestamp"]),
+            models.Index(fields=["event_type"]),
+        ]
 
 
 class Position(models.Model):

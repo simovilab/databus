@@ -1,7 +1,9 @@
+from pdb import run
+
 from django.conf import settings
 from django.http import FileResponse
 from django.contrib.auth import authenticate
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
@@ -10,6 +12,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.views import SpectacularRedocView
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
+from realtime_engine.tasks import manage_run_event
+from runs.services.preamble import (
+    RunRequestValidator,
+    RunValidationError,
+    RunRequestInitializer,
+    RunInitializationError,
+)
 from operations.models import (
     Vehicle,
     Operator,
@@ -69,12 +78,6 @@ from .serializers import (
     WhichShapesSerializer,
     FindTripsSerializer,
 )
-from feed.realtime import (
-    process_submission,
-    process_confirmation,
-    process_completion,
-    process_interruption,
-)
 from datetime import datetime
 
 
@@ -82,21 +85,6 @@ def get_schema(request):
     file_path = settings.BASE_DIR / "api" / "realtime.yml"
     return FileResponse(
         open(file_path, "rb"), as_attachment=True, filename="realtime.yml"
-    )
-
-
-def _update_run_status(payload):
-    if payload.get("run_status") == "SUBMITTED":
-        return process_submission(payload)
-    elif payload.get("run_status") == "CONFIRMED":
-        return process_confirmation(payload)
-    elif payload.get("run_status") == "COMPLETED":
-        return process_completion(payload)
-    elif payload.get("run_status") == "INTERRUPTED":
-        return process_interruption(payload)
-    return (
-        {"error": "run_status not recognized or missing in payload"},
-        400,
     )
 
 
@@ -182,41 +170,40 @@ class RunsViewSet(APIView):
     authentication_classes = [TokenAuthentication]
 
     def get(self, request):
-        return Response({"message": "Hola"}, status=200)
+        return Response({"message": "Hello world!"}, status=200)
 
     def post(self, request):
-        payload = dict(request.data)
-        result, status = _update_run_status(payload)
-        return Response(result, status=status)
+        serializer = RunSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        manage_run_event.delay("run_requested", data)
+        validator = RunRequestValidator()
+        try:
+            validated = validator.validate(data)
+            payload = {**validated}
+            manage_run_event.delay("run_validated", payload)
+        except RunValidationError as e:
+            return Response(
+                {"status": "error", "errors": e.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        initializer = RunRequestInitializer()
+        try:
+            run = initializer.initialize(validated)
+            payload["run_id"] = run.id
+            manage_run_event.delay("run_initialized", payload)
+        except RunInitializationError as e:
+            return Response(
+                {"status": "error", "errors": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return Response(
+            {"run_id": run.id, "run_status": "INITIALIZED"}, status=status.HTTP_200_OK
+        )
 
 
 class RunViewSet(APIView):
-    """Single run endpoint to get info or handle run status updates"""
-
-    queryset = Run.objects.all()
-    serializer_class = RunSerializer
-    authentication_classes = [TokenAuthentication]
-
-    def get(self, request, run_id):
-        run = Run.objects.filter(id=run_id).first()
-        if not run:
-            return Response({"error": "run_id not found"}, status=404)
-        serializer = RunSerializer(run, context={"request": request})
-        return Response(serializer.data, status=200)
-
-    def post(self, request, run_id):
-        run_id_in_body = request.data.get("run_id")
-        if run_id_in_body is not None and str(run_id_in_body) != str(run_id):
-            return Response(
-                {
-                    "error": "run_id in URL and request body must match when both are provided"
-                },
-                status=400,
-            )
-        payload = dict(request.data)
-        payload["run_id"] = run_id
-        result, status = _update_run_status(payload)
-        return Response(result, status=status)
+    pass
 
 
 class PositionViewSet(viewsets.ModelViewSet):

@@ -3,6 +3,7 @@ from messages.publisher import publish_event
 from typing import Any
 from operations.models import Vehicle, Operator
 from runs.models import Run
+from runs.services import RunLifecycleService, RunProgressService
 from feed.models import Feed, Trip
 import redis
 import os
@@ -15,6 +16,11 @@ redis_client = redis.Redis(
 @shared_task(queue="realtime_engine")
 def hello_world() -> None:
     print("Hello, world!")
+
+
+@shared_task(queue="realtime_engine")
+def manage_run_event(event: str, payload: dict[str, Any]) -> None:
+    pass
 
 
 @shared_task(queue="realtime_engine")

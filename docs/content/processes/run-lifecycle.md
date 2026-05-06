@@ -1,0 +1,44 @@
+---
+icon: lucide/file
+---
+
+# Run Lifecycle
+
+This processes handles the main events in a run lifecycle, such as creation, completion, and failure. It follows the state machine defined in the [Run State Machine](../concepts/run-state-machine.md) documentation.
+
+```mermaid
+stateDiagram-v2
+    [*] --> REQUESTED : 📣 request_run
+    REQUESTED --> VALIDATED : 📣 run_validated
+    REQUESTED --> CANCELLED : 📣request_failed
+    VALIDATED --> INITIALIZED : 📣 run_initialized
+    VALIDATED --> CANCELLED : 📣 validation_failed
+    INITIALIZED --> CONFIRMED : 📣 run_confirmed
+    INITIALIZED --> CANCELLED : 📣 initialization_failed
+    CONFIRMED --> TRACKING : 📣 run_tracking_started
+    CONFIRMED --> CANCELLED : 📣 confirmation_failed
+    TRACKING --> IN_PROGRESS : 📣 run_begun
+    TRACKING --> CANCELLED : 📣 tracking_failed
+    IN_PROGRESS --> COMPLETED : 📣 run_completed
+    IN_PROGRESS --> INTERRUPTED : 📣 run_interrupted
+    IN_PROGRESS --> NO_SIGNAL : 📣 lost_signal
+    IN_PROGRESS --> SHORT_TURNED : 📣 run_short_turned
+    NO_SIGNAL --> IN_PROGRESS : 📣 tracking_restored
+    NO_SIGNAL --> [*] : 📣 tracking_expired
+    COMPLETED --> [*]
+    INTERRUPTED --> [*]
+    CANCELLED --> [*]
+    SHORT_TURNED --> [*]
+```
+
+REQUESTED
+VALIDATED
+INITIALIZED
+CONFIRMED
+TRACKING
+IN_PROGRESS
+NO_SIGNAL
+COMPLETED
+INTERRUPTED
+CANCELLED
+SHORT_TURNED
