@@ -1,6 +1,6 @@
 from django.contrib.gis.db import models
 from operations.models import Vehicle, Operator
-from runs.domain.states import RunStatus, choices
+from runs.domain.states import RunLifecycleStates, choices
 import uuid
 
 # Create your models here.
@@ -38,12 +38,12 @@ class Run(models.Model):
             ("DELETED", "Deleted"),
         ],
     )
-    run_status = models.CharField(
+    run_lifecycle_state = models.CharField(
         max_length=40,
         blank=True,
         null=True,
         choices=choices,
-        default=RunStatus.REQUESTED.name,
+        default=RunLifecycleStates.REQUESTED,
     )
 
     def __str__(self):

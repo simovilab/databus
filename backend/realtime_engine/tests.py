@@ -155,7 +155,7 @@ class ValidateRunTests(TestCase):
             direction_id=0,
             shape_id="s-test",
             start_date=date.today(),
-            run_status="IN_PROGRESS",
+            run_lifecycle_state="IN_PROGRESS",
         )
         data = valid_run()
         result = run(data)
@@ -235,11 +235,11 @@ class InitializeRunTests(TestCase):
             3,
             "Run is stored with status REGISTERED",
             data,
-            run.run_status,
+            run.run_lifecycle_state,
             "REGISTERED",
         )
         self.assertTrue(ok)
-        self.assertEqual(run.run_status, "REGISTERED")
+        self.assertEqual(run.run_lifecycle_state, "REGISTERED")
 
 
 class RegisterRunTests(TestCase):
@@ -316,7 +316,7 @@ class EndRunTests(TestCase):
             direction_id=0,
             shape_id="s-test",
             start_date=date.today(),
-            run_status=status,
+            run_lifecycle_state=status,
         )
 
     def call(self, data):
@@ -331,7 +331,7 @@ class EndRunTests(TestCase):
         result = self.call(data)
         show(1, "IN_PROGRESS run → COMPLETED", data, result, True)
         self.assertTrue(result)
-        self.assertEqual(Run.objects.get(id=run.id).run_status, "COMPLETED")
+        self.assertEqual(Run.objects.get(id=run.id).run_lifecycle_state, "COMPLETED")
 
     # ------------------------------------------------------------------
     # Case 2 — run_id is None

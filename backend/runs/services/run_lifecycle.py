@@ -1,43 +1,57 @@
+from typing import Any
 from django.utils.timezone import now
+from runs.domain.events import RunLifecycleEvents
+from runs.domain.states import RunLifecycleStates
+from runs.domain.transitions import Transition
 from runs.services.registry import TransitionRegistry
+from runs.services.exceptions import RunLifecycleError, RunLifecycleActionError
 from runs.models import Run
 
 
 class RunLifecycleService:
-    def __init__(self):
-        self.registry = TransitionRegistry()
+    def __init__(self) -> None:
+        self.registry: TransitionRegistry = TransitionRegistry()
 
-    def process_event(self, event, payload):
+    def process_event(
+        self, event: RunLifecycleEvents, payload: dict[str, Any]
+    ) -> RunLifecycleStates | None:
         run = self._load_run(payload)
-        candidates = self.registry.find(run.run_status, event)
+        candidates = self.registry.find(run.run_lifecycle_state, event)
         for transition in candidates:
             if self._check_guards(run, transition, payload):
                 return self._apply_transition(run, transition, payload)
-        return None  # no transition
+        return None
 
-    def _load_run(self, payload):
+    def _load_run(self, payload: dict[str, Any]) -> Run:
         run_id = payload.get("run_id")
         return Run.objects.get(id=run_id)
 
-    def _check_guards(self, run, transition, payload):
+    def _check_guards(
+        self, run: Run, transition: Transition, payload: dict[str, Any]
+    ) -> bool:
         return all(guard(run, payload) for guard in transition.guards)
 
-    def _apply_transition(self, run, transition, payload):
-        old_state = run.run_status
-        run.run_status = transition.to_state
+    def _execute_actions(
+        self, run: Run, transition: Transition, payload: dict[str, Any]
+    ) -> None:
+        for action in transition.actions:
+            action(run, payload)
+
+    def _apply_transition(
+        self, run: Run, transition: Transition, payload: dict[str, Any]
+    ) -> RunLifecycleStates:
+        try:
+            self._execute_actions(run, transition, payload)
+        except RunLifecycleActionError as exc:
+            raise RunLifecycleError({"detail": str(exc)}) from exc
+        old_state = run.run_lifecycle_state
+        run.run_lifecycle_state = transition.to_state
         run.last_event_at = now()
         run.save()
         self._emit_event(run, old_state, transition.to_state)
         return transition.to_state
 
-    def _emit_event(self, run, old, new):
+    def _emit_event(
+        self, run: Run, old: RunLifecycleStates, new: RunLifecycleStates
+    ) -> None:
         pass
-        # emit_event(
-        #    "run_state_changed",
-        #    {
-        #        "run_id": run.id,
-        #        "from": old,
-        #        "to": new,
-        #        "timestamp": run.last_event_at,
-        #    },
-        # )

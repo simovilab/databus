@@ -1,24 +1,20 @@
-from pdb import run
-
 from django.conf import settings
 from django.http import FileResponse
 from django.contrib.auth import authenticate
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.views import SpectacularRedocView
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
-from realtime_engine.tasks import manage_run_event
-from runs.services.preamble import (
-    RunRequestValidator,
-    RunValidationError,
-    RunRequestInitializer,
-    RunInitializationError,
-)
+from realtime_engine.tasks import run_lifecycle_event
+from runs.services.exceptions import RunLifecycleError
+from runs.domain.events import RunLifecycleEvents
+from runs.domain.states import RunLifecycleStates
 from operations.models import (
     Vehicle,
     Operator,
@@ -93,6 +89,11 @@ class RedocView(SpectacularRedocView):
     pass
 
 
+# -------------
+# Operations
+# -------------
+
+
 class LoginView(APIView):
     def post(self, request):
         username = request.data.get("username")
@@ -164,6 +165,11 @@ class OperatorViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
+# -------------
+# Runs
+# -------------
+
+
 class RunsViewSet(APIView):
     queryset = Run.objects.all()
     serializer_class = RunSerializer
@@ -173,32 +179,43 @@ class RunsViewSet(APIView):
         return Response({"message": "Hello world!"}, status=200)
 
     def post(self, request):
-        serializer = RunSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        manage_run_event.delay("run_requested", data)
-        validator = RunRequestValidator()
+
         try:
-            validated = validator.validate(data)
-            payload = {**validated}
-            manage_run_event.delay("run_validated", payload)
-        except RunValidationError as e:
+            serializer = RunSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:
             return Response(
-                {"status": "error", "errors": e.errors},
+                {"status": "error", "errors": e.detail},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        initializer = RunRequestInitializer()
         try:
-            run = initializer.initialize(validated)
+            payload = serializer.validated_data
+            run = Run.objects.create(**payload)
             payload["run_id"] = run.id
-            manage_run_event.delay("run_initialized", payload)
-        except RunInitializationError as e:
+            run_lifecycle_event.delay(RunLifecycleEvents.RUN_REQUESTED, payload)
+        except RunLifecycleError as e:
             return Response(
-                {"status": "error", "errors": str(e)},
+                {"status": "error", "errors": e.errors},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+        try:
+            run_lifecycle_event.delay(RunLifecycleEvents.RUN_VALIDATED, payload)
+        except RunLifecycleError as e:
+            return Response(
+                {"status": "error", "errors": e.errors},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        try:
+            run_lifecycle_event.delay(RunLifecycleEvents.RUN_INITIALIZED, payload)
+        except RunLifecycleError as e:
+            return Response(
+                {"status": "error", "errors": e.errors},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
         return Response(
-            {"run_id": run.id, "run_status": "INITIALIZED"}, status=status.HTTP_200_OK
+            {"run_id": run.id, "run_lifecycle_state": RunLifecycleStates.INITIALIZED},
+            status=status.HTTP_200_OK,
         )
 
 
@@ -510,24 +527,26 @@ class FindTripsView(APIView):
                 .first()
             )
             if this_trip:
-                this_run_status = (
+                this_run_lifecycle_state = (
                     Run.objects.filter(
                         trip_id=trip.trip_id,
                         start_date=datetime.now().date(),
                         # TODO: check the criteria for selecting the runs
                     )
-                    .values("run_status")
+                    .values("run_lifecycle_state")
                     .first()
                 )
-                if this_run_status:
-                    run_status = this_run_status["run_status"]
+                if this_run_lifecycle_state:
+                    run_lifecycle_state = this_run_lifecycle_state[
+                        "run_lifecycle_state"
+                    ]
                 else:
-                    run_status = "UNKNOWN"
+                    run_lifecycle_state = "UNKNOWN"
                 selected_trips.append(
                     {
                         "trip_id": this_trip["trip_id"],
                         "trip_time": this_trip["trip_time"],
-                        "run_status": run_status,
+                        "run_lifecycle_state": run_lifecycle_state,
                         "direction_id": trip.direction_id,
                         "trip_headsign": trip.trip_headsign,
                     }

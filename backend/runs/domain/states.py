@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class RunStatus(str, Enum):
+class RunLifecycleStates(str, Enum):
     REQUESTED = "Requested"
     VALIDATED = "Validated"
     INITIALIZED = "Initialized"
@@ -16,4 +16,4 @@ class RunStatus(str, Enum):
 
 
 def choices():
-    return [(status.value, status.name) for status in RunStatus]
+    return [(status.value, status.name) for status in RunLifecycleStates]

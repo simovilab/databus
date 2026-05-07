@@ -1,14 +1,14 @@
 from feed.models import Feed, Trip, Route
 from operations.models import Vehicle
+from runs.models import Run
 
 
-class RunValidationError(Exception):
+class RunLifecycleError(Exception):
     def __init__(self, errors: dict[str, str]):
         self.errors = errors
-        super().__init__("Run request validation failed")
 
 
-class RunInitializationError(Exception):
+class RunLifecycleActionError(Exception):
     def __init__(self, message: str):
         super().__init__(message)
 
@@ -65,15 +65,28 @@ class RunRequestValidator:
             errors["vehicle_id"] = "The vehicle does not exist"
 
         if errors:
-            raise RunValidationError(errors)
+            raise RunLifecycleError(errors)
 
         return payload
 
 
 class RunRequestInitializer:
-    def initialize(self, payload) -> str:
-        # Create a new run in the database with status REQUESTED
-        # and return the run ID.
-        # This is a placeholder implementation. You would need to implement
-        # the actual logic to create a run in your database.
-        return "new_run_id"
+    def initialize(self, payload) -> Run:
+        try:
+            run: Run = Run.objects.create(
+                route_id=payload.get("route_id"),
+                trip_id=payload.get("trip_id"),
+            )
+
+            vehicle_id = payload.get("vehicle_id")
+            if vehicle_id:
+                vehicle = Vehicle.objects.get(id=vehicle_id)
+                run.vehicle.add(vehicle)
+
+            return run
+        except Vehicle.DoesNotExist as exc:
+            raise RunLifecycleError(
+                {"vehicle_id": "The vehicle does not exist"}
+            ) from exc
+        except Exception as exc:
+            raise RunLifecycleError({"detail": "Failed to initialize run"}) from exc

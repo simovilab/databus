@@ -62,7 +62,7 @@ def validate_run_request_data(run_data) -> tuple[bool, str | None]:
     # Is the bus in another active run?
     if Run.objects.filter(
         vehicle_id=run_data["vehicle_id"],
-        run_status="IN_PROGRESS",
+        run_lifecycle_state="IN_PROGRESS",
     ).exists():
         return (False, "VEHICLE_ALREADY_IN_PROGRESS")
     # Is there a current GTFS Feed?

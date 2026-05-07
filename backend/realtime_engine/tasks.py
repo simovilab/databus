@@ -3,7 +3,7 @@ from messages.publisher import publish_event
 from typing import Any
 from operations.models import Vehicle, Operator
 from runs.models import Run
-from runs.services import RunLifecycleService, RunProgressService
+from runs.services import RunLifecycleService
 from feed.models import Feed, Trip
 import redis
 import os
@@ -19,8 +19,10 @@ def hello_world() -> None:
 
 
 @shared_task(queue="realtime_engine")
-def manage_run_event(event: str, payload: dict[str, Any]) -> None:
-    pass
+def run_lifecycle_event(event: str, payload: dict[str, Any]) -> Run | None:
+    service = RunLifecycleService()
+    result = service.process_event(event, payload)
+    return result
 
 
 @shared_task(queue="realtime_engine")
@@ -55,7 +57,7 @@ def initialize_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
             direction_id=int(run_data.get("direction_id")),
             shape_id=run_data.get("shape_id"),
             schedule_relationship=run_data.get("schedule_relationship"),
-            run_status="INITIALIZED",  # TODO: CONFIRMAR ESTADO ADECUADO
+            run_lifecycle_state="INITIALIZED",  # TODO: CONFIRMAR ESTADO ADECUADO
         )
         # Save run data (all) to Redis' "runs" key
         redis_client.hset(f"run:{run.id}", mapping=run_data)
@@ -102,10 +104,10 @@ def end_run(run_data: dict[str, Any]) -> bool:
         run = Run.objects.filter(id=run_id).first()
         if run is None:
             return False
-        if run.run_status != "IN_PROGRESS":
+        if run.run_lifecycle_state != "IN_PROGRESS":
             return False
-        run.run_status = "COMPLETED"
-        run.save(update_fields=["run_status"])
+        run.run_lifecycle_state = "COMPLETED"
+        run.save(update_fields=["run_lifecycle_state"])
         return True
     except Exception as e:
         publish_event(

@@ -861,7 +861,7 @@ components:
               "DUPLICATED",
               "DELETED",
             ]
-        run_status:
+        run_lifecycle_state:
           description: Estado del viaje
           type: string
           enum:

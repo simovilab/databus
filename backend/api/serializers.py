@@ -102,7 +102,6 @@ class EquipmentLogSerializer(serializers.HyperlinkedModelSerializer):
 
 class RunSerializer(serializers.HyperlinkedModelSerializer):
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
-    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     operator = serializers.PrimaryKeyRelatedField(queryset=Operator.objects.all())
 
     class Meta:
@@ -306,7 +305,7 @@ class WhichShapesSerializer(serializers.Serializer):
 class FindTripsSerializer(serializers.Serializer):
     trip_id = serializers.CharField()
     trip_time = serializers.TimeField()
-    run_status = serializers.CharField()
+    run_lifecycle_state = serializers.CharField()
     direction_id = serializers.IntegerField()
     trip_headsign = serializers.CharField()
 

@@ -150,7 +150,7 @@
       "start_date": "2024-08-29",
       "start_time": "13:30:06",
       "schedule_relationship": "SCHEDULED",
-      "run_status": "IN_PROGRESS"
+      "run_lifecycle_state": "IN_PROGRESS"
     }
   },
   {
@@ -167,7 +167,7 @@
       "start_date": "2024-08-29",
       "start_time": "13:35:12",
       "schedule_relationship": "SCHEDULED",
-      "run_status": "IN_PROGRESS"
+      "run_lifecycle_state": "IN_PROGRESS"
     }
   },
   {

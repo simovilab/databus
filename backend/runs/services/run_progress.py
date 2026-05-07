@@ -15,7 +15,7 @@ class RunProgressService:
         return Run.objects.get(id=run_id)
 
     def _is_active(self, run):
-        return run.run_status == "IN_PROGRESS"
+        return run.run_lifecycle_state == "IN_PROGRESS"
 
     def _build_context(self, run, payload):
         context = {

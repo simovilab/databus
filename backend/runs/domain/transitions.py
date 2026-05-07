@@ -1,38 +1,43 @@
 from dataclasses import dataclass
 from typing import Callable, List
-from .guards import has_valid_gtfs
-from .events import RUN_VALIDATED
-from runs.domain.states import RunStatus
+
+from .actions import RunLifecycleActions
+from .guards import RunLifecycleGuards
+from .states import RunLifecycleStates
+from .events import RunLifecycleEvents
 
 
 @dataclass
 class Transition:
-    from_state: str
-    event: str
-    to_state: str
+    from_state: RunLifecycleStates
+    event: RunLifecycleEvents
+    to_state: RunLifecycleStates
     guards: List[Callable]
+    actions: List[Callable]
 
 
 TRANSITIONS = [
     Transition(
-        from_state="REQUESTED",
-        event=RUN_VALIDATED,
-        to_state="VALIDATED",
-        guards=[has_valid_gtfs],
+        from_state=RunLifecycleStates.REQUESTED,
+        event=RunLifecycleEvents.RUN_REQUESTED,
+        to_state=RunLifecycleStates.VALIDATED,
+        guards=[
+            RunLifecycleGuards.has_valid_gtfs,
+            RunLifecycleGuards.is_vehicle_available,
+            RunLifecycleGuards.is_trip_available,
+        ],
+        actions=[RunLifecycleActions.update_run_lifecycle_state],
+    ),
+    Transition(
+        from_state=RunLifecycleStates.VALIDATED,
+        event=RunLifecycleEvents.RUN_VALIDATED,
+        to_state=RunLifecycleStates.INITIALIZED,
+        guards=[
+            RunLifecycleGuards.is_system_state_updated,
+        ],
+        actions=[
+            RunLifecycleActions.update_system_state,
+            RunLifecycleActions.update_run_lifecycle_state,
+        ],
     ),
 ]
-
-
-def validate_transition_states_exist() -> None:
-    defined_states = set(RunStatus.__members__.keys())
-    referenced_states = {t.from_state for t in TRANSITIONS} | {
-        t.to_state for t in TRANSITIONS
-    }
-    unknown_states = sorted(referenced_states - defined_states)
-
-    assert not unknown_states, "Unknown run state(s) in TRANSITIONS: " + ", ".join(
-        unknown_states
-    )
-
-
-validate_transition_states_exist()

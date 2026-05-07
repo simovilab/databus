@@ -30,7 +30,7 @@ def valid_submitted():
         "start_date": date.today().strftime("%Y-%m-%d"),
         "start_time": "07:15:00",
         "schedule_relationship": "SCHEDULED",
-        "run_status": "SUBMITTED",
+        "run_lifecycle_state": "SUBMITTED",
     }
 
 
@@ -71,7 +71,7 @@ class RunViewSetTests(TestCase):
             direction_id=0,
             shape_id="s-test",
             start_date=date.today(),
-            run_status=status,
+            run_lifecycle_state=status,
         )
 
     # ------------------------------------------------------------------
@@ -127,7 +127,7 @@ class RunViewSetTests(TestCase):
     # ------------------------------------------------------------------
     def test_case_05_confirmed_valid(self):
         run = self.make_run("REGISTERED")
-        response = self.post({"run_status": "CONFIRMED", "run_id": run.id})
+        response = self.post({"run_lifecycle_state": "CONFIRMED", "run_id": run.id})
         body = response.json()
         show(
             5,
@@ -137,14 +137,14 @@ class RunViewSetTests(TestCase):
             200,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(body.get("run_status"), "IN_PROGRESS")
-        self.assertEqual(Run.objects.get(id=run.id).run_status, "IN_PROGRESS")
+        self.assertEqual(body.get("run_lifecycle_state"), "IN_PROGRESS")
+        self.assertEqual(Run.objects.get(id=run.id).run_lifecycle_state, "IN_PROGRESS")
 
     # ------------------------------------------------------------------
     # POST CONFIRMED — run_id no existe → 404
     # ------------------------------------------------------------------
     def test_case_06_confirmed_run_not_found(self):
-        response = self.post({"run_status": "CONFIRMED", "run_id": 99999})
+        response = self.post({"run_lifecycle_state": "CONFIRMED", "run_id": 99999})
         body = response.json()
         show(6, "CONFIRMED run_id inexistente → 404", response.status_code, body, 404)
         self.assertEqual(response.status_code, 404)
@@ -154,7 +154,7 @@ class RunViewSetTests(TestCase):
     # ------------------------------------------------------------------
     def test_case_07_completed_valid(self):
         run = self.make_run("IN_PROGRESS")
-        response = self.post({"run_status": "COMPLETED", "run_id": run.id})
+        response = self.post({"run_lifecycle_state": "COMPLETED", "run_id": run.id})
         body = response.json()
         show(
             7,
@@ -164,25 +164,27 @@ class RunViewSetTests(TestCase):
             200,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(body.get("run_status"), "COMPLETED")
+        self.assertEqual(body.get("run_lifecycle_state"), "COMPLETED")
 
     # ------------------------------------------------------------------
     # POST COMPLETED — run no está IN_PROGRESS → 400
     # ------------------------------------------------------------------
     def test_case_08_completed_run_not_in_progress(self):
         run = self.make_run("REGISTERED")
-        response = self.post({"run_status": "COMPLETED", "run_id": run.id})
+        response = self.post({"run_lifecycle_state": "COMPLETED", "run_id": run.id})
         body = response.json()
         show(8, "COMPLETED run no IN_PROGRESS → 400", response.status_code, body, 400)
         self.assertEqual(response.status_code, 400)
 
     # ------------------------------------------------------------------
-    # POST — run_status desconocido → 400
+    # POST — run_lifecycle_state desconocido → 400
     # ------------------------------------------------------------------
-    def test_case_09_unknown_run_status(self):
-        response = self.post({"run_status": "INVENTED"})
+    def test_case_09_unknown_run_lifecycle_state(self):
+        response = self.post({"run_lifecycle_state": "INVENTED"})
         body = response.json()
-        show(9, "run_status desconocido → 400", response.status_code, body, 400)
+        show(
+            9, "run_lifecycle_state desconocido → 400", response.status_code, body, 400
+        )
         self.assertEqual(response.status_code, 400)
 
 

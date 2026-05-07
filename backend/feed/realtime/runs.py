@@ -41,12 +41,12 @@ def process_confirmation(payload):
     start_run_result = start_run.delay(payload).get(timeout=15)
     if start_run_result:
         updated = Run.objects.filter(id=payload.get("run_id")).update(
-            run_status="IN_PROGRESS"
+            run_lifecycle_state="IN_PROGRESS"
         )
         if not updated:
             return {"error": "run_id no encontrado"}, 404
         publish_event("RUN_START_SUCCEEDED", payload)
-        return {"run_status": "IN_PROGRESS"}, 200
+        return {"run_lifecycle_state": "IN_PROGRESS"}, 200
     else:
         publish_event("RUN_CONFIRMATION_FAILED", payload)
         return {"error": "No funcionó :("}, 400
@@ -56,7 +56,7 @@ def process_completion(payload):
     end_run_result = end_run.delay(payload).get(timeout=15)
     if end_run_result:  # Si end run se cumple:
         publish_event("RUN_COMPLETION_SUCCEEDED", payload)
-        return {"run_status": "COMPLETED"}, 200
+        return {"run_lifecycle_state": "COMPLETED"}, 200
     else:  # Si end run no se cumple:
         publish_event("RUN_COMPLETION_FAILED", payload)
         return {"error": "No se pudo completar el run"}, 400
@@ -64,4 +64,4 @@ def process_completion(payload):
 
 def process_interruption(payload):
     publish_event("RUN_INTERRUPTED", payload)
-    return {"run_status": "INTERRUPTED"}, 200
+    return {"run_lifecycle_state": "INTERRUPTED"}, 200
