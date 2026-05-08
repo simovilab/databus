@@ -179,7 +179,7 @@ CHANNEL_LAYERS = {
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
-LANGUAGE_CODE = "es-cr"
+LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "America/Costa_Rica"
 

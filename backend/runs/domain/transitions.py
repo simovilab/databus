@@ -9,6 +9,10 @@ from .events import RunLifecycleEvents
 
 @dataclass
 class Transition:
+    """
+    Represents a state transition in the run lifecycle.
+    """
+
     from_state: RunLifecycleStates
     event: RunLifecycleEvents
     to_state: RunLifecycleStates
@@ -22,9 +26,10 @@ TRANSITIONS = [
         event=RunLifecycleEvents.RUN_REQUESTED,
         to_state=RunLifecycleStates.VALIDATED,
         guards=[
-            RunLifecycleGuards.has_valid_gtfs,
-            RunLifecycleGuards.is_vehicle_available,
+            RunLifecycleGuards.is_gtfs_valid,
             RunLifecycleGuards.is_trip_available,
+            RunLifecycleGuards.is_vehicle_available,
+            RunLifecycleGuards.is_operator_available,
         ],
         actions=[RunLifecycleActions.update_run_lifecycle_state],
     ),

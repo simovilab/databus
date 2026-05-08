@@ -12,6 +12,7 @@ from runs.models import (
     Progression,
     Occupancy,
 )
+from runs.domain.events import RunLifecycleEvents
 from feed.models import *
 from django.contrib.auth.models import User
 from rest_framework import serializers
@@ -108,6 +109,31 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
         model = Run
         fields = "__all__"
         ordering = ["id"]
+
+
+class CreateRunSerializer(serializers.Serializer):
+    vehicle_id = serializers.CharField(max_length=100)
+    operator_id = serializers.CharField(max_length=100)
+    route_id = serializers.CharField(max_length=100)
+    trip_id = serializers.CharField(max_length=100)
+    direction_id = serializers.IntegerField(min_value=0)
+    shape_id = serializers.CharField(max_length=100)
+    schedule_relationship = serializers.ChoiceField(
+        choices=[
+            "SCHEDULED",
+            "ADDED",
+            "UNSCHEDULED",
+            "CANCELED",
+            "DUPLICATED",
+            "DELETED",
+        ]
+    )
+
+
+class UpdateRunSerializer(serializers.Serializer):
+    run_id = serializers.CharField(max_length=100)
+    event = serializers.ChoiceField(choices=RunLifecycleEvents)
+    details = serializers.JSONField()
 
 
 class PositionSerializer(serializers.HyperlinkedModelSerializer):

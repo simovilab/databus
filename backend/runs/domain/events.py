@@ -2,6 +2,10 @@ from enum import Enum
 
 
 class RunLifecycleEvents(str, Enum):
+    """
+    Defines all possible events that can trigger state transitions in the run lifecycle.
+    """
+
     # Lifecycle progression events
     RUN_REQUESTED = "run_requested"
     RUN_VALIDATED = "run_validated"

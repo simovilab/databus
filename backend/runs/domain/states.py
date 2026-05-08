@@ -2,6 +2,10 @@ from enum import Enum
 
 
 class RunLifecycleStates(str, Enum):
+    """
+    Defines the possible lifecycle states of a run.
+    """
+
     REQUESTED = "Requested"
     VALIDATED = "Validated"
     INITIALIZED = "Initialized"

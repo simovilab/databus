@@ -13,6 +13,7 @@ from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
 from realtime_engine.tasks import run_lifecycle_event
 from runs.services.exceptions import RunLifecycleError
+from runs.services.lifecycle import RunLifecycleService
 from runs.domain.events import RunLifecycleEvents
 from runs.domain.states import RunLifecycleStates
 from operations.models import (
@@ -53,7 +54,8 @@ from .serializers import (
     EquipmentSerializer,
     EquipmentLogSerializer,
     OperatorSerializer,
-    RunSerializer,
+    CreateRunSerializer,
+    UpdateRunSerializer,
     PositionSerializer,
     ProgressionSerializer,
     OccupancySerializer,
@@ -170,57 +172,111 @@ class OperatorViewSet(viewsets.ModelViewSet):
 # -------------
 
 
-class RunsViewSet(APIView):
-    queryset = Run.objects.all()
-    serializer_class = RunSerializer
-    authentication_classes = [TokenAuthentication]
+class CreateRunViewSet(APIView):
+    """
+    Endpoint to request the creation of a new run.
 
-    def get(self, request):
-        return Response({"message": "Hello world!"}, status=200)
+    It only allows the POST method with the new run data.
+    """
 
     def post(self, request):
-
+        service = RunLifecycleService()
+        # Serialization and validation of the input data
         try:
-            serializer = RunSerializer(data=request.data)
+            serializer = CreateRunSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
         except ValidationError as e:
             return Response(
-                {"status": "error", "errors": e.detail},
+                {"status": "error", "step": "serialization", "errors": e.detail},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        try:
-            payload = serializer.validated_data
-            run = Run.objects.create(**payload)
-            payload["run_id"] = run.id
-            run_lifecycle_event.delay(RunLifecycleEvents.RUN_REQUESTED, payload)
-        except RunLifecycleError as e:
+        # Operational validation of vehicle and operator existence
+        payload = dict(serializer.validated_data)
+        vehicle_id = payload.pop("vehicle_id", None)
+        operator_id = payload.pop("operator_id", None)
+        errors = {}
+        vehicle = Vehicle.objects.filter(id=vehicle_id).first()
+        if not vehicle:
+            errors["vehicle_id"] = "Vehicle not found"
+        operator_obj = Operator.objects.filter(id=operator_id).first()
+        if not operator_obj:
+            errors["operator_id"] = "Operator not found"
+        if errors:
             return Response(
-                {"status": "error", "errors": e.errors},
+                {"status": "error", "step": "operational_validation", "errors": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Registration of the run
+        try:
+            run = Run.objects.create(**payload)
+            run.vehicle.set([vehicle])
+            run.operator.set([operator_obj])
+            payload["run_id"] = run.id
+        except Exception as e:
+            return Response(
+                {
+                    "status": "error",
+                    "step": "registration",
+                    "errors": {"detail": f"Failed to register run: {str(e)}"},
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+        # GTFS validation (run_lifecycle_state = REQUESTED)
         try:
-            run_lifecycle_event.delay(RunLifecycleEvents.RUN_VALIDATED, payload)
+            service.process_event(RunLifecycleEvents.RUN_REQUESTED, payload)
         except RunLifecycleError as e:
             return Response(
-                {"status": "error", "errors": e.errors},
+                {"status": "error", "step": "gtfs_validation", "errors": e.errors},
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
+        # System initialization (run_lifecycle_state = VALIDATED)
         try:
-            run_lifecycle_event.delay(RunLifecycleEvents.RUN_INITIALIZED, payload)
+            service.process_event(RunLifecycleEvents.RUN_VALIDATED, payload)
         except RunLifecycleError as e:
             return Response(
-                {"status": "error", "errors": e.errors},
+                {"status": "error", "step": "initialization", "errors": e.errors},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
+        # If successful, give a 200 OK response (run_lifecycle_state = INITIALIZED)
         return Response(
-            {"run_id": run.id, "run_lifecycle_state": RunLifecycleStates.INITIALIZED},
+            {
+                "status": "success",
+                "run_id": run.id,
+                "run_lifecycle_state": RunLifecycleStates.INITIALIZED,
+            },
             status=status.HTTP_200_OK,
         )
 
 
-class RunViewSet(APIView):
-    pass
+class UpdateRunViewSet(APIView):
+    """
+    Endpoint to request an update of the lifecycle state of an existing run.
+
+    It only allows the PATCH method with the event to process.
+    """
+
+    def patch(self, request):
+        serializer = UpdateRunSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"status": "error", "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        payload = dict(serializer.validated_data)
+        run_id = payload.get("run_id")
+        run = Run.objects.filter(id=run_id).first()
+        if not run:
+            return Response(
+                {"status": "error", "errors": {"run_id": "Run not found"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        event = payload.get("event")
+        service = RunLifecycleService()
+        service.process_event(event, payload)
+        return Response(
+            {"status": "success", "detail": "Run update requested"},
+            status=status.HTTP_200_OK,
+        )
 
 
 class PositionViewSet(viewsets.ModelViewSet):

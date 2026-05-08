@@ -30,8 +30,8 @@ class Run(models.Model):
         blank=True,
         null=True,
         choices=[
-            ("SCHEDULED", "Scheduled"),
-            ("ADDED", "Added"),
+            ("SCHEDULED", "Scheduled in GTFS"),
+            ("ADDED", "Added to schedule"),
             ("UNSCHEDULED", "Unscheduled"),
             ("CANCELED", "Canceled"),
             ("DUPLICATED", "Duplicated"),

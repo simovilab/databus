@@ -3,7 +3,7 @@ from messages.publisher import publish_event
 from typing import Any
 from operations.models import Vehicle, Operator
 from runs.models import Run
-from runs.services import RunLifecycleService
+from runs.services.lifecycle import RunLifecycleService
 from feed.models import Feed, Trip
 import redis
 import os
