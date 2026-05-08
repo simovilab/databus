@@ -8,7 +8,7 @@ This processes handles the main events in a run lifecycle, such as creation, com
 
 ```mermaid
 stateDiagram-v2
-    [*] --> REQUESTED : 📣 request_run
+    [*] --> REQUESTED : 📣 run_requested
     REQUESTED --> VALIDATED : 📣 run_validated
     REQUESTED --> CANCELLED : 📣request_failed
     VALIDATED --> INITIALIZED : 📣 run_initialized
@@ -30,6 +30,20 @@ stateDiagram-v2
     CANCELLED --> [*]
     SHORT_TURNED --> [*]
 ```
+
+What happens inside a request-response cycle has to be synchronous
+
+- `POST api/create-run`
+  - response: `run_lifecycle_state = INITIALIZED`
+- `POST api/update-run`
+  - request: `event: RUN_CONFIRMED`
+    - response: `run_lifecycle_state = TRACKING`
+  - request: `event: RUN_COMPLETED`
+    - response: `run_lifecycle_state = COMPLETED`
+  - request: `event: RUN_INTERRUPTED`
+    - response: `run_lifecycle_state = INTERRUPTED`
+  - request: `event: RUN_SHORT_TURNED`
+    - response: `run_lifecycle_state = SHORT_TURNED`
 
 REQUESTED
 VALIDATED

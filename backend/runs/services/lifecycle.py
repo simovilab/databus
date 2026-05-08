@@ -17,6 +17,9 @@ class RunLifecycleService:
     ) -> RunLifecycleStates:
         run = self._load_run(payload)
         candidates = self.registry.find(run.run_lifecycle_state, event)
+        print(
+            f"Candidates for event '{event}' in state '{run.run_lifecycle_state}': {candidates}"
+        )
         for transition in candidates:
             if self._check_guards(run, transition, payload):
                 return self._apply_transition(run, transition, payload)

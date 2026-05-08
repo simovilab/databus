@@ -2,6 +2,9 @@ from typing import Any
 from datetime import datetime
 from runs.models import Run
 from runs.services.exceptions import RunLifecycleError
+import redis
+
+r = redis.Redis(host="state", port=6379, db=0)
 
 
 class RunLifecycleGuards:
@@ -78,8 +81,12 @@ class RunLifecycleGuards:
         return True
 
     @staticmethod
-    def has_valid_telemetry(run: Run, payload: dict[str, Any]) -> bool:
-        return payload["timestamp"] is not None
+    def is_vehicle_tracked(run: Run, payload: dict[str, Any]) -> bool:
+        return r.sismember("runs:tracking", str(run.id))
+
+    @staticmethod
+    def is_run_in_progress(run: Run, payload: dict[str, Any]) -> bool:
+        return r.sismember("runs:in_progress", str(run.id))
 
     @staticmethod
     def is_system_state_updated(run: Run, payload: dict[str, Any]) -> bool:

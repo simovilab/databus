@@ -45,6 +45,7 @@ class Run(models.Model):
         choices=choices,
         default=RunLifecycleStates.REQUESTED,
     )
+    last_event_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.route_id} / {self.trip_id} ({self.start_date})"

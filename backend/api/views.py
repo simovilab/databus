@@ -252,10 +252,11 @@ class UpdateRunViewSet(APIView):
     """
     Endpoint to request an update of the lifecycle state of an existing run.
 
-    It only allows the PATCH method with the event to process.
+    It only allows the POST method with the event to process.
     """
 
-    def patch(self, request):
+    def post(self, request):
+        service = RunLifecycleService()
         serializer = UpdateRunSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
@@ -271,10 +272,15 @@ class UpdateRunViewSet(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         event = payload.get("event")
-        service = RunLifecycleService()
-        service.process_event(event, payload)
+        try:
+            new_run_lifecycle_state = service.process_event(event, payload)
+        except RunLifecycleError as e:
+            return Response(
+                {"status": "error", "errors": e.errors},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         return Response(
-            {"status": "success", "detail": "Run update requested"},
+            {"status": "success", "run_lifecycle_state": new_run_lifecycle_state},
             status=status.HTTP_200_OK,
         )
 
