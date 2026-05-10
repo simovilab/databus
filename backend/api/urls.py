@@ -1,6 +1,5 @@
 from django.urls import include, path
 from rest_framework import routers
-from rest_framework.authtoken.views import obtain_auth_token
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView
 
 from . import views
@@ -42,6 +41,6 @@ urlpatterns = [
     path("which-shapes/", views.WhichShapesView.as_view(), name="which_shapes"),
     path("find-trips/", views.FindTripsView.as_view(), name="find_trips"),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
-    path("docs/schema/", views.get_schema, name="schema"),
+    path("docs/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", views.RedocView.as_view(url_name="schema"), name="api_docs"),
 ]

@@ -161,6 +161,13 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Databús API | bUCR",
+    "DESCRIPTION": (
+        "REST API for the Databús transit data system. "
+        "Manages runs, vehicle telemetry, GTFS Schedule data, and real-time feed publication."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
 }
 
 # Channels settings

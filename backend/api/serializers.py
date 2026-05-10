@@ -200,6 +200,7 @@ class GeoStopSerializer(GeoFeatureModelSerializer):
     class Meta:
         model = Stop
         geo_field = "stop_point"
+        id_field = None
         fields = "__all__"
 
 
@@ -242,6 +243,7 @@ class GeoShapeSerializer(GeoFeatureModelSerializer):
     class Meta:
         model = GeoShape
         geo_field = "geometry"
+        id_field = None
         fields = "__all__"
 
 
