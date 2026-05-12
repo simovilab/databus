@@ -185,7 +185,7 @@ class CreateRunViewSet(APIView):
         try:
             serializer = CreateRunSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-        except ValidationError as e:
+        except ValidationError as e:  # ad portas rejection for invalid input data
             return Response(
                 {"status": "error", "step": "serialization", "errors": e.detail},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -201,12 +201,12 @@ class CreateRunViewSet(APIView):
         operator_obj = Operator.objects.filter(id=operator_id).first()
         if not operator_obj:
             errors["operator_id"] = "Operator not found"
-        if errors:
+        if errors:  # ad portas rejection for invalid references to vehicle or operator
             return Response(
                 {"status": "error", "step": "operational_validation", "errors": errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # Registration of the run
+        # Registration of the run (event: RUN_REQUESTED, state: REQUESTED)
         try:
             run = Run.objects.create(**payload)
             run.vehicle.set([vehicle])
@@ -221,17 +221,20 @@ class CreateRunViewSet(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        # GTFS validation (run_lifecycle_state = REQUESTED)
+        # First transition: GTFS validation (run_lifecycle_state = REQUESTED)
         try:
             service.process_event(RunLifecycleEvents.RUN_REQUESTED, payload)
         except RunLifecycleError as e:
+            payload["guards"] = e.errors.attempts.guards
+            payload["actions"] = e.errors.attempts.actions
+            service.process_event(RunLifecycleEvents.RUN_REJECTED, payload)
             return Response(
                 {"status": "error", "step": "gtfs_validation", "errors": e.errors},
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
         # System initialization (run_lifecycle_state = VALIDATED)
         try:
-            service.process_event(RunLifecycleEvents.RUN_VALIDATED, payload)
+            service.process_event(RunLifecycleEvents.VALIDATE_RUN, payload)
         except RunLifecycleError as e:
             return Response(
                 {"status": "error", "step": "initialization", "errors": e.errors},

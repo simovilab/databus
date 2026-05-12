@@ -1,6 +1,6 @@
 from typing import Any, TYPE_CHECKING
 from django.utils.timezone import now
-from runs.models import Run, RunLifecycleEvent
+from runs.models import Run
 import redis
 
 if TYPE_CHECKING:
@@ -22,21 +22,6 @@ class RunLifecycleActions:
     # ------------------------------------------------------------------
     # Core (implemented)
     # ------------------------------------------------------------------
-
-    @staticmethod
-    def persist_lifecycle_event(
-        run: Run, transition: "Transition", payload: dict[str, Any]
-    ) -> bool:
-        """Append an immutable audit record to RunLifecycleEvent."""
-        RunLifecycleEvent.objects.create(  # type: ignore[attr-defined]
-            run=run,
-            event_type=transition.event.value,
-            from_state=transition.from_state.value,
-            to_state=transition.to_state.value,
-            payload=payload,
-            timestamp=now(),
-        )
-        return True
 
     @staticmethod
     def update_run_lifecycle_state(

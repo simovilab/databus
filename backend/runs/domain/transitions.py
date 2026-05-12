@@ -32,23 +32,16 @@ TRANSITIONS = [
             RunLifecycleGuards.is_vehicle_available,
             RunLifecycleGuards.is_operator_available,
         ],
-        actions=[
-            RunLifecycleActions.persist_lifecycle_event,
-            RunLifecycleActions.update_run_lifecycle_state,
-        ],
+        actions=[],
     ),
     # Registration rejected at validation stage
     Transition(
         from_state=RunLifecycleStates.REQUESTED,
         event=RunLifecycleEvents.RUN_REJECTED,
         to_state=RunLifecycleStates.CANCELLED,
-        guards=[
-            RunLifecycleGuards.is_validation_failure_recorded,
-        ],
+        guards=[],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_rejected,
-            RunLifecycleActions.release_resources,
             RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
@@ -57,13 +50,12 @@ TRANSITIONS = [
     # ------------------------------------------------------------------
     Transition(
         from_state=RunLifecycleStates.VALIDATED,
-        event=RunLifecycleEvents.RUN_VALIDATED,
+        event=RunLifecycleEvents.INITIALIZE_RUN,
         to_state=RunLifecycleStates.INITIALIZED,
         guards=[
             RunLifecycleGuards.is_system_state_updated,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.update_system_state,
             RunLifecycleActions.update_run_lifecycle_state,
         ],
@@ -77,7 +69,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_initialization_failure_recorded,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_rejected,
             RunLifecycleActions.release_resources,
             RunLifecycleActions.update_run_lifecycle_state,
@@ -92,20 +83,18 @@ TRANSITIONS = [
         to_state=RunLifecycleStates.CONFIRMED,
         guards=[],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # Cancelled before operator confirmation
     Transition(
         from_state=RunLifecycleStates.INITIALIZED,
-        event=RunLifecycleEvents.RUN_CANCELLED,
+        event=RunLifecycleEvents.CANCEL_RUN,
         to_state=RunLifecycleStates.CANCELLED,
         guards=[
             RunLifecycleGuards.is_cancellation_authorized,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_cancelled,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
@@ -123,7 +112,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_vehicle_tracked,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.add_to_tracking_set,
             RunLifecycleActions.update_run_lifecycle_state,
         ],
@@ -137,7 +125,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_confirmation_failure_recorded,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_rejected,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
@@ -147,13 +134,12 @@ TRANSITIONS = [
     # Cancelled after confirmation but before tracking
     Transition(
         from_state=RunLifecycleStates.CONFIRMED,
-        event=RunLifecycleEvents.RUN_CANCELLED,
+        event=RunLifecycleEvents.CANCEL_RUN,
         to_state=RunLifecycleStates.CANCELLED,
         guards=[
             RunLifecycleGuards.is_cancellation_authorized,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_cancelled,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
@@ -171,7 +157,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_run_in_progress,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.add_to_in_progress_set,
             RunLifecycleActions.update_run_lifecycle_state,
         ],
@@ -185,7 +170,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_telemetry_stale,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_tracking_lost,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.update_run_lifecycle_state,
@@ -194,13 +178,12 @@ TRANSITIONS = [
     # Cancelled while tracking (before run started)
     Transition(
         from_state=RunLifecycleStates.TRACKING,
-        event=RunLifecycleEvents.RUN_CANCELLED,
+        event=RunLifecycleEvents.CANCEL_RUN,
         to_state=RunLifecycleStates.CANCELLED,
         guards=[
             RunLifecycleGuards.is_cancellation_authorized,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_cancelled,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_system_state,
@@ -219,22 +202,19 @@ TRANSITIONS = [
             RunLifecycleGuards.is_telemetry_stale,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_tracking_lost,
             RunLifecycleActions.remove_from_tracking_set,
-            RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     Transition(
         from_state=RunLifecycleStates.IN_PROGRESS,
-        event=RunLifecycleEvents.RUN_INTERRUPTED,
+        event=RunLifecycleEvents.INTERRUPT_RUN,
         to_state=RunLifecycleStates.INTERRUPTED,
         guards=[
             RunLifecycleGuards.is_interruption_authorized,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_interrupted,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
@@ -244,14 +224,13 @@ TRANSITIONS = [
     ),
     Transition(
         from_state=RunLifecycleStates.IN_PROGRESS,
-        event=RunLifecycleEvents.RUN_SHORT_TURNED,
+        event=RunLifecycleEvents.SHORT_TURN_RUN,
         to_state=RunLifecycleStates.SHORT_TURNED,
         guards=[
             RunLifecycleGuards.is_short_turn_authorized,
             RunLifecycleGuards.is_short_turn_geometrically_valid,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_short_turned,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
@@ -260,13 +239,12 @@ TRANSITIONS = [
     ),
     Transition(
         from_state=RunLifecycleStates.IN_PROGRESS,
-        event=RunLifecycleEvents.RUN_COMPLETED,
+        event=RunLifecycleEvents.COMPLETE_RUN,
         to_state=RunLifecycleStates.COMPLETED,
         guards=[
             RunLifecycleGuards.is_at_terminal_stop,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_completed,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
@@ -286,7 +264,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_vehicle_tracked,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_tracking_restored,
             RunLifecycleActions.add_to_tracking_set,
             RunLifecycleActions.add_to_in_progress_set,
@@ -301,7 +278,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_telemetry_grace_period_exceeded,
         ],
         actions=[
-            RunLifecycleActions.persist_lifecycle_event,
             RunLifecycleActions.publish_run_interrupted,
             RunLifecycleActions.release_resources,
             RunLifecycleActions.update_run_lifecycle_state,

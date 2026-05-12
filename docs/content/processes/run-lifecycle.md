@@ -9,22 +9,22 @@ This processes handles the main events in a run lifecycle, such as creation, com
 ```mermaid
 stateDiagram-v2
     [*] --> REQUESTED : run_requested
-    REQUESTED --> VALIDATED : run_validated
-    REQUESTED --> CANCELLED : [request_failed]
-    VALIDATED --> INITIALIZED : run_initialized
-    VALIDATED --> CANCELLED : [validation_failed]
-    INITIALIZED --> CONFIRMED : run_confirmed
-    INITIALIZED --> CANCELLED : [initialization_failed]
+    REQUESTED --> VALIDATED : validate_run
+    REQUESTED --> CANCELLED : run_rejected
+    VALIDATED --> INITIALIZED : initialize_run
+    VALIDATED --> CANCELLED : run_rejected
+    INITIALIZED --> CONFIRMED : run_confirmed_by_operator
+    INITIALIZED --> CANCELLED : run_rejected
     CONFIRMED --> TRACKING : run_tracking_started
-    CONFIRMED --> CANCELLED : [confirmation_failed]
+    CONFIRMED --> CANCELLED : cancel_run
     TRACKING --> IN_PROGRESS : run_started
-    TRACKING --> CANCELLED : [tracking_failed]
-    IN_PROGRESS --> COMPLETED : run_completed
-    IN_PROGRESS --> INTERRUPTED : run_interrupted
+    TRACKING --> CANCELLED : cancel_run
+    IN_PROGRESS --> COMPLETED : complete_run
+    IN_PROGRESS --> INTERRUPTED : interrupt_run
+    IN_PROGRESS --> SHORT_TURNED : short_turn_run
     IN_PROGRESS --> NO_SIGNAL : run_tracking_lost
-    IN_PROGRESS --> SHORT_TURNED : run_short_turned
     NO_SIGNAL --> IN_PROGRESS : run_tracking_restored
-    NO_SIGNAL --> [*] : run_tracking_expired
+    NO_SIGNAL --> CANCELLED : run_tracking_expired
     COMPLETED --> [*]
     INTERRUPTED --> [*]
     CANCELLED --> [*]

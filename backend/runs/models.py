@@ -51,20 +51,21 @@ class Run(models.Model):
         return f"{self.route_id} / {self.trip_id} ({self.start_date})"
 
 
-class RunLifecycleEvent(models.Model):
+class RunLifecycleTransition(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
     run = models.ForeignKey(Run, on_delete=models.CASCADE)
-    event_type = models.CharField(max_length=128)
+    event_name = models.CharField(max_length=128)
     from_state = models.CharField(max_length=64, null=True)
     to_state = models.CharField(max_length=64, null=True)
-    payload = models.JSONField(default=dict)
+    guards = models.JSONField(default=dict, blank=True, null=True)
+    actions = models.JSONField(default=dict, blank=True, null=True)
     timestamp = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         indexes = [
             models.Index(fields=["run", "timestamp"]),
-            models.Index(fields=["event_type"]),
+            models.Index(fields=["event_name"]),
         ]
 
 
