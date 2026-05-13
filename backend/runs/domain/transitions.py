@@ -24,7 +24,7 @@ TRANSITIONS = [
     # ------------------------------------------------------------------
     Transition(
         from_state=RunLifecycleStates.REQUESTED,
-        event=RunLifecycleEvents.RUN_REQUESTED,
+        event=RunLifecycleEvents.VALIDATE_RUN,
         to_state=RunLifecycleStates.VALIDATED,
         guards=[
             RunLifecycleGuards.is_gtfs_valid,
@@ -32,16 +32,18 @@ TRANSITIONS = [
             RunLifecycleGuards.is_vehicle_available,
             RunLifecycleGuards.is_operator_available,
         ],
-        actions=[],
+        actions=[
+        ],
     ),
     # Registration rejected at validation stage
     Transition(
         from_state=RunLifecycleStates.REQUESTED,
         event=RunLifecycleEvents.RUN_REJECTED,
         to_state=RunLifecycleStates.CANCELLED,
-        guards=[],
+        guards=[
+
+        ],
         actions=[
-            RunLifecycleActions.publish_run_rejected,
         ],
     ),
     # ------------------------------------------------------------------
@@ -64,10 +66,8 @@ TRANSITIONS = [
         event=RunLifecycleEvents.RUN_REJECTED,
         to_state=RunLifecycleStates.CANCELLED,
         guards=[
-            RunLifecycleGuards.is_initialization_failure_recorded,
         ],
         actions=[
-            RunLifecycleActions.publish_run_rejected,
             RunLifecycleActions.release_resources,
         ],
     ),
@@ -78,20 +78,21 @@ TRANSITIONS = [
         from_state=RunLifecycleStates.INITIALIZED,
         event=RunLifecycleEvents.RUN_CONFIRMED_BY_OPERATOR,
         to_state=RunLifecycleStates.CONFIRMED,
-        guards=[],
+        guards=[
+
+        ],
         actions=[
         ],
     ),
     # Cancelled before operator confirmation
     Transition(
         from_state=RunLifecycleStates.INITIALIZED,
-        event=RunLifecycleEvents.CANCEL_RUN,
+        event=RunLifecycleEvents.RUN_REJECTED,
         to_state=RunLifecycleStates.CANCELLED,
         guards=[
             RunLifecycleGuards.is_cancellation_authorized,
         ],
         actions=[
-            RunLifecycleActions.publish_run_cancelled,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
         ],
@@ -110,20 +111,6 @@ TRANSITIONS = [
             RunLifecycleActions.add_to_tracking_set,
         ],
     ),
-    # Confirmation failed (system or operator failure during confirmation step)
-    Transition(
-        from_state=RunLifecycleStates.CONFIRMED,
-        event=RunLifecycleEvents.RUN_REJECTED,
-        to_state=RunLifecycleStates.CANCELLED,
-        guards=[
-            RunLifecycleGuards.is_confirmation_failure_recorded,
-        ],
-        actions=[
-            RunLifecycleActions.publish_run_rejected,
-            RunLifecycleActions.remove_from_system_state,
-            RunLifecycleActions.release_resources,
-        ],
-    ),
     # Cancelled after confirmation but before tracking
     Transition(
         from_state=RunLifecycleStates.CONFIRMED,
@@ -133,7 +120,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_cancellation_authorized,
         ],
         actions=[
-            RunLifecycleActions.publish_run_cancelled,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
         ],
@@ -152,19 +138,6 @@ TRANSITIONS = [
             RunLifecycleActions.add_to_in_progress_set,
         ],
     ),
-    # Tracking lost while waiting for run to start
-    Transition(
-        from_state=RunLifecycleStates.TRACKING,
-        event=RunLifecycleEvents.RUN_TRACKING_LOST,
-        to_state=RunLifecycleStates.NO_SIGNAL,
-        guards=[
-            RunLifecycleGuards.is_telemetry_stale,
-        ],
-        actions=[
-            RunLifecycleActions.publish_tracking_lost,
-            RunLifecycleActions.remove_from_tracking_set,
-        ],
-    ),
     # Cancelled while tracking (before run started)
     Transition(
         from_state=RunLifecycleStates.TRACKING,
@@ -174,7 +147,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_cancellation_authorized,
         ],
         actions=[
-            RunLifecycleActions.publish_run_cancelled,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
@@ -191,7 +163,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_telemetry_stale,
         ],
         actions=[
-            RunLifecycleActions.publish_tracking_lost,
             RunLifecycleActions.remove_from_tracking_set,
         ],
     ),
@@ -203,7 +174,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_interruption_authorized,
         ],
         actions=[
-            RunLifecycleActions.publish_run_interrupted,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
@@ -218,7 +188,7 @@ TRANSITIONS = [
             RunLifecycleGuards.is_short_turn_geometrically_valid,
         ],
         actions=[
-            RunLifecycleActions.publish_run_short_turned,
+            RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
         ],
@@ -231,7 +201,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_at_terminal_stop,
         ],
         actions=[
-            RunLifecycleActions.publish_run_completed,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
@@ -249,7 +218,6 @@ TRANSITIONS = [
             RunLifecycleGuards.is_vehicle_tracked,
         ],
         actions=[
-            RunLifecycleActions.publish_tracking_restored,
             RunLifecycleActions.add_to_tracking_set,
             RunLifecycleActions.add_to_in_progress_set,
         ],
@@ -257,12 +225,12 @@ TRANSITIONS = [
     Transition(
         from_state=RunLifecycleStates.NO_SIGNAL,
         event=RunLifecycleEvents.RUN_TRACKING_EXPIRED,
-        to_state=RunLifecycleStates.INTERRUPTED,
+        to_state=RunLifecycleStates.CANCELLED,
         guards=[
             RunLifecycleGuards.is_telemetry_grace_period_exceeded,
         ],
         actions=[
-            RunLifecycleActions.publish_run_interrupted,
+            RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
         ],
     ),
