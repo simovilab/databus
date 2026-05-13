@@ -1,22 +1,82 @@
 from django.conf import settings
 from django.http import FileResponse
 from django.contrib.auth import authenticate
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
-from django.views.decorators.csrf import csrf_exempt
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.views import SpectacularRedocView
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
-
-from schedule_engine.models import *
-from feed.models import Feed, Trip, StopTime, RouteStop
-from .serializers import *
-
-from datetime import datetime, timedelta
+from realtime_engine.tasks import run_lifecycle_event
+from runs.services.exceptions import RunLifecycleError
+from runs.services.lifecycle import RunLifecycleService
+from runs.domain.events import RunLifecycleEvents
+from runs.domain.states import RunLifecycleStates
+from operations.models import (
+    Vehicle,
+    Operator,
+    Company,
+    DataProvider,
+    Equipment,
+    EquipmentLog,
+)
+from runs.models import (
+    Run,
+    Position,
+    Progression,
+    Occupancy,
+)
+from feed.models import (
+    Feed,
+    Agency,
+    Trip,
+    Stop,
+    Route,
+    Calendar,
+    CalendarDate,
+    StopTime,
+    RouteStop,
+    Shape,
+    GeoShape,
+    FareAttribute,
+    FareRule,
+    FeedInfo,
+    TripTime,
+)
+from .serializers import (
+    CompanySerializer,
+    DataProviderSerializer,
+    VehicleSerializer,
+    EquipmentSerializer,
+    EquipmentLogSerializer,
+    OperatorSerializer,
+    CreateRunSerializer,
+    UpdateRunSerializer,
+    PositionSerializer,
+    ProgressionSerializer,
+    OccupancySerializer,
+    AgencySerializer,
+    StopSerializer,
+    GeoStopSerializer,
+    RouteSerializer,
+    CalendarSerializer,
+    CalendarDateSerializer,
+    ShapeSerializer,
+    GeoShapeSerializer,
+    TripSerializer,
+    StopTimeSerializer,
+    FareAttributeSerializer,
+    FareRuleSerializer,
+    FeedInfoSerializer,
+    ServiceTodaySerializer,
+    WhichShapesSerializer,
+    FindTripsSerializer,
+)
+from datetime import datetime
 
 
 def get_schema(request):
@@ -29,6 +89,11 @@ def get_schema(request):
 @method_decorator(xframe_options_exempt, name="dispatch")
 class RedocView(SpectacularRedocView):
     pass
+
+
+# -------------
+# Operations
+# -------------
 
 
 class LoginView(APIView):
@@ -102,19 +167,124 @@ class OperatorViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
-class RunViewSet(viewsets.ModelViewSet):
-    queryset = Run.objects.all()
-    serializer_class = RunSerializer
-    authentication_classes = [TokenAuthentication]
+# -------------
+# Runs
+# -------------
 
-    def create(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+
+class CreateRunViewSet(APIView):
+    """
+    Endpoint to request the creation of a new run.
+
+    It only allows the POST method with the new run data.
+    """
+
+    def post(self, request):
+        service = RunLifecycleService()
+        # Serialization and validation of the input data
+        try:
+            serializer = CreateRunSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:  # ad portas rejection for invalid input data
+            return Response(
+                {"status": "error", "step": "serialization", "errors": e.detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Operational validation of vehicle and operator existence
+        payload = dict(serializer.validated_data)
+        vehicle_id = payload.pop("vehicle_id", None)
+        operator_id = payload.pop("operator_id", None)
+        errors = {}
+        vehicle = Vehicle.objects.filter(id=vehicle_id).first()
+        if not vehicle:
+            errors["vehicle_id"] = "Vehicle not found"
+        operator_obj = Operator.objects.filter(id=operator_id).first()
+        if not operator_obj:
+            errors["operator_id"] = "Operator not found"
+        if errors:  # ad portas rejection for invalid references to vehicle or operator
+            return Response(
+                {"status": "error", "step": "operational_validation", "errors": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Registration of the run (event: RUN_REQUESTED, state: REQUESTED)
+        try:
+            run = Run.objects.create(**payload)
+            run.vehicle.set([vehicle])
+            run.operator.set([operator_obj])
+            payload["run_id"] = run.id
+        except Exception as e:
+            return Response(
+                {
+                    "status": "error",
+                    "step": "registration",
+                    "errors": {"detail": f"Failed to register run: {str(e)}"},
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        # First transition: GTFS validation (run_lifecycle_state = REQUESTED)
+        try:
+            service.process_event(RunLifecycleEvents.RUN_REQUESTED, payload)
+        except RunLifecycleError as e:
+            payload["guards"] = e.errors.attempts.guards
+            payload["actions"] = e.errors.attempts.actions
+            service.process_event(RunLifecycleEvents.RUN_REJECTED, payload)
+            return Response(
+                {"status": "error", "step": "gtfs_validation", "errors": e.errors},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        # System initialization (run_lifecycle_state = VALIDATED)
+        try:
+            service.process_event(RunLifecycleEvents.VALIDATE_RUN, payload)
+        except RunLifecycleError as e:
+            return Response(
+                {"status": "error", "step": "initialization", "errors": e.errors},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        # If successful, give a 200 OK response (run_lifecycle_state = INITIALIZED)
         return Response(
             {
-                "id": serializer.instance.id,
-            }
+                "status": "success",
+                "run_id": run.id,
+                "run_lifecycle_state": RunLifecycleStates.INITIALIZED,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class UpdateRunViewSet(APIView):
+    """
+    Endpoint to request an update of the lifecycle state of an existing run.
+
+    It only allows the POST method with the event to process.
+    """
+
+    def post(self, request):
+        service = RunLifecycleService()
+        serializer = UpdateRunSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"status": "error", "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        payload = dict(serializer.validated_data)
+        run_id = payload.get("run_id")
+        run = Run.objects.filter(id=run_id).first()
+        if not run:
+            return Response(
+                {"status": "error", "errors": {"run_id": "Run not found"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        event = payload.get("event")
+        try:
+            new_run_lifecycle_state = service.process_event(event, payload)
+        except RunLifecycleError as e:
+            return Response(
+                {"status": "error", "errors": e.errors},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(
+            {"status": "success", "run_lifecycle_state": new_run_lifecycle_state},
+            status=status.HTTP_200_OK,
         )
 
 
@@ -422,24 +592,26 @@ class FindTripsView(APIView):
                 .first()
             )
             if this_trip:
-                this_run_status = (
+                this_run_lifecycle_state = (
                     Run.objects.filter(
                         trip_id=trip.trip_id,
                         start_date=datetime.now().date(),
                         # TODO: check the criteria for selecting the runs
                     )
-                    .values("run_status")
+                    .values("run_lifecycle_state")
                     .first()
                 )
-                if this_run_status:
-                    run_status = this_run_status["run_status"]
+                if this_run_lifecycle_state:
+                    run_lifecycle_state = this_run_lifecycle_state[
+                        "run_lifecycle_state"
+                    ]
                 else:
-                    run_status = "UNKNOWN"
+                    run_lifecycle_state = "UNKNOWN"
                 selected_trips.append(
                     {
                         "trip_id": this_trip["trip_id"],
                         "trip_time": this_trip["trip_time"],
-                        "run_status": run_status,
+                        "run_lifecycle_state": run_lifecycle_state,
                         "direction_id": trip.direction_id,
                         "trip_headsign": trip.trip_headsign,
                     }

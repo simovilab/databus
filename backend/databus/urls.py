@@ -25,7 +25,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("website.urls")),
     path("api/", include("api.urls")),
-    path("schedule_engine/", include("schedule_engine.urls")),
+    path("feed/", include("feed.urls")),
 ]
 
 serve_static_flag = os.environ.get("DJANGO_SERVE_STATIC", "").lower() in (

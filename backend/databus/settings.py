@@ -34,14 +34,16 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 # Application definition
 
 INSTALLED_APPS = [
-    "daphne",
-    "channels",
     "gtfs",
     "feed.apps.FeedConfig",
     "schedule_engine.apps.ScheduleEngineConfig",
     "realtime_engine.apps.RealtimeEngineConfig",
+    "operations.apps.OperationsConfig",
     "website.apps.WebsiteConfig",
     "api.apps.ApiConfig",
+    "runs.apps.RunsConfig",
+    "daphne",
+    "channels",
     "rest_framework",
     "rest_framework.authtoken",
     "drf_spectacular",
@@ -177,7 +179,7 @@ CHANNEL_LAYERS = {
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
-LANGUAGE_CODE = "es-cr"
+LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "America/Costa_Rica"
 

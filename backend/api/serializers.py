@@ -1,17 +1,18 @@
-from schedule_engine.models import (
-    Company,
+from operations.models import (
     Company,
     Operator,
     DataProvider,
     Vehicle,
-    Vehicle,
     Equipment,
     EquipmentLog,
+)
+from runs.models import (
     Run,
     Position,
     Progression,
     Occupancy,
 )
+from runs.domain.events import RunLifecycleEvents
 from feed.models import *
 from django.contrib.auth.models import User
 from rest_framework import serializers
@@ -102,13 +103,37 @@ class EquipmentLogSerializer(serializers.HyperlinkedModelSerializer):
 
 class RunSerializer(serializers.HyperlinkedModelSerializer):
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
-    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     operator = serializers.PrimaryKeyRelatedField(queryset=Operator.objects.all())
 
     class Meta:
         model = Run
         fields = "__all__"
         ordering = ["id"]
+
+
+class CreateRunSerializer(serializers.Serializer):
+    vehicle_id = serializers.CharField(max_length=100)
+    operator_id = serializers.CharField(max_length=100)
+    route_id = serializers.CharField(max_length=100)
+    trip_id = serializers.CharField(max_length=100)
+    direction_id = serializers.IntegerField(min_value=0)
+    shape_id = serializers.CharField(max_length=100)
+    schedule_relationship = serializers.ChoiceField(
+        choices=[
+            "SCHEDULED",
+            "ADDED",
+            "UNSCHEDULED",
+            "CANCELED",
+            "DUPLICATED",
+            "DELETED",
+        ]
+    )
+
+
+class UpdateRunSerializer(serializers.Serializer):
+    run_id = serializers.CharField(max_length=100)
+    event = serializers.ChoiceField(choices=RunLifecycleEvents)
+    details = serializers.JSONField()
 
 
 class PositionSerializer(serializers.HyperlinkedModelSerializer):
@@ -306,7 +331,7 @@ class WhichShapesSerializer(serializers.Serializer):
 class FindTripsSerializer(serializers.Serializer):
     trip_id = serializers.CharField()
     trip_time = serializers.TimeField()
-    run_status = serializers.CharField()
+    run_lifecycle_state = serializers.CharField()
     direction_id = serializers.IntegerField()
     trip_headsign = serializers.CharField()
 

@@ -18,7 +18,7 @@ run = {
     "start_date": "2024-08-29",
     "schedule_relationship": "SCHEDULED",
     "shape_id": "desde_educacion_con_milla",
-    "run_status": "IN_PROGRESS",
+    "run_lifecycle_state": "IN_PROGRESS",
 }
 
 api_url = f"{api}run/"
