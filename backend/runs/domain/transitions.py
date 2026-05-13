@@ -42,7 +42,6 @@ TRANSITIONS = [
         guards=[],
         actions=[
             RunLifecycleActions.publish_run_rejected,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # ------------------------------------------------------------------
@@ -57,7 +56,6 @@ TRANSITIONS = [
         ],
         actions=[
             RunLifecycleActions.update_system_state,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # Initialization failed after validation passed
@@ -71,7 +69,6 @@ TRANSITIONS = [
         actions=[
             RunLifecycleActions.publish_run_rejected,
             RunLifecycleActions.release_resources,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # ------------------------------------------------------------------
@@ -83,7 +80,6 @@ TRANSITIONS = [
         to_state=RunLifecycleStates.CONFIRMED,
         guards=[],
         actions=[
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # Cancelled before operator confirmation
@@ -98,7 +94,6 @@ TRANSITIONS = [
             RunLifecycleActions.publish_run_cancelled,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # ------------------------------------------------------------------
@@ -113,7 +108,6 @@ TRANSITIONS = [
         ],
         actions=[
             RunLifecycleActions.add_to_tracking_set,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # Confirmation failed (system or operator failure during confirmation step)
@@ -128,7 +122,6 @@ TRANSITIONS = [
             RunLifecycleActions.publish_run_rejected,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # Cancelled after confirmation but before tracking
@@ -143,7 +136,6 @@ TRANSITIONS = [
             RunLifecycleActions.publish_run_cancelled,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # ------------------------------------------------------------------
@@ -158,7 +150,6 @@ TRANSITIONS = [
         ],
         actions=[
             RunLifecycleActions.add_to_in_progress_set,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # Tracking lost while waiting for run to start
@@ -172,7 +163,6 @@ TRANSITIONS = [
         actions=[
             RunLifecycleActions.publish_tracking_lost,
             RunLifecycleActions.remove_from_tracking_set,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # Cancelled while tracking (before run started)
@@ -188,7 +178,6 @@ TRANSITIONS = [
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_system_state,
             RunLifecycleActions.release_resources,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # ------------------------------------------------------------------
@@ -204,7 +193,6 @@ TRANSITIONS = [
         actions=[
             RunLifecycleActions.publish_tracking_lost,
             RunLifecycleActions.remove_from_tracking_set,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     Transition(
@@ -219,7 +207,6 @@ TRANSITIONS = [
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     Transition(
@@ -234,7 +221,6 @@ TRANSITIONS = [
             RunLifecycleActions.publish_run_short_turned,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     Transition(
@@ -249,7 +235,6 @@ TRANSITIONS = [
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     # ------------------------------------------------------------------
@@ -267,7 +252,6 @@ TRANSITIONS = [
             RunLifecycleActions.publish_tracking_restored,
             RunLifecycleActions.add_to_tracking_set,
             RunLifecycleActions.add_to_in_progress_set,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
     Transition(
@@ -280,7 +264,6 @@ TRANSITIONS = [
         actions=[
             RunLifecycleActions.publish_run_interrupted,
             RunLifecycleActions.release_resources,
-            RunLifecycleActions.update_run_lifecycle_state,
         ],
     ),
 ]
