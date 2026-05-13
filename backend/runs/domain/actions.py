@@ -24,15 +24,6 @@ class RunLifecycleActions:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def update_run_lifecycle_state(
-        run: Run, transition: "Transition", payload: dict[str, Any]
-    ) -> bool:
-        """Persist the new lifecycle state on the Run row."""
-        run.run_lifecycle_state = transition.to_state
-        run.save()
-        return True
-
-    @staticmethod
     def update_system_state(
         run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> bool:
@@ -113,76 +104,6 @@ class RunLifecycleActions:
         """
         return True  # TODO placeholder
 
-    # ------------------------------------------------------------------
-    # Event publishing
-    # ------------------------------------------------------------------
 
-    @staticmethod
-    def publish_run_rejected(
-        run: Run, transition: "Transition", payload: dict[str, Any]
-    ) -> bool:
-        """Publish runSubmissionRejected to the AMQP exchange.
+    
 
-        TODO: call publish_event("runSubmissionRejected", {"run_id": str(run.id), **payload})
-        """
-        return True  # TODO placeholder
-
-    @staticmethod
-    def publish_run_cancelled(
-        run: Run, transition: "Transition", payload: dict[str, Any]
-    ) -> bool:
-        """Publish runLifecycleCancelled to the AMQP exchange.
-
-        TODO: call publish_event("runLifecycleCancelled", {"run_id": str(run.id), **payload})
-        """
-        return True  # TODO placeholder
-
-    @staticmethod
-    def publish_run_interrupted(
-        run: Run, transition: "Transition", payload: dict[str, Any]
-    ) -> bool:
-        """Publish runLifecycleInterrupted to the AMQP exchange.
-
-        TODO: call publish_event("runLifecycleInterrupted", {"run_id": str(run.id), **payload})
-        """
-        return True  # TODO placeholder
-
-    @staticmethod
-    def publish_run_short_turned(
-        run: Run, transition: "Transition", payload: dict[str, Any]
-    ) -> bool:
-        """Publish runLifecycleShortTurned to the AMQP exchange.
-
-        TODO: call publish_event("runLifecycleShortTurned", {"run_id": str(run.id), **payload})
-        """
-        return True  # TODO placeholder
-
-    @staticmethod
-    def publish_tracking_lost(
-        run: Run, transition: "Transition", payload: dict[str, Any]
-    ) -> bool:
-        """Publish runTrackingLost to the AMQP exchange.
-
-        TODO: call publish_event("runTrackingLost", {"run_id": str(run.id), **payload})
-        """
-        return True  # TODO placeholder
-
-    @staticmethod
-    def publish_tracking_restored(
-        run: Run, transition: "Transition", payload: dict[str, Any]
-    ) -> bool:
-        """Publish runTrackingRestored to the AMQP exchange.
-
-        TODO: call publish_event("runTrackingRestored", {"run_id": str(run.id), **payload})
-        """
-        return True  # TODO placeholder
-
-    @staticmethod
-    def publish_run_completed(
-        run: Run, transition: "Transition", payload: dict[str, Any]
-    ) -> bool:
-        """Publish runLifecycleCompleted to the AMQP exchange.
-
-        TODO: call publish_event("runLifecycleCompleted", {"run_id": str(run.id), **payload})
-        """
-        return True  # TODO placeholder
