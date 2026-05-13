@@ -54,7 +54,7 @@ TRANSITIONS = [
         event=RunLifecycleEvents.INITIALIZE_RUN,
         to_state=RunLifecycleStates.INITIALIZED,
         guards=[
-            RunLifecycleGuards.is_system_state_updated,
+            RunLifecycleGuards.is_run_validated,
         ],
         actions=[
             RunLifecycleActions.update_system_state,
@@ -79,7 +79,6 @@ TRANSITIONS = [
         event=RunLifecycleEvents.RUN_CONFIRMED_BY_OPERATOR,
         to_state=RunLifecycleStates.CONFIRMED,
         guards=[
-
         ],
         actions=[
         ],
@@ -132,7 +131,7 @@ TRANSITIONS = [
         event=RunLifecycleEvents.RUN_STARTED,
         to_state=RunLifecycleStates.IN_PROGRESS,
         guards=[
-            RunLifecycleGuards.is_run_in_progress,
+            RunLifecycleGuards.is_vehicle_moving,
         ],
         actions=[
             RunLifecycleActions.add_to_in_progress_set,

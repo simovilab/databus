@@ -89,54 +89,12 @@ class RunLifecycleGuards:
         return bool(r.sismember("runs:tracking", str(run.id)))
 
     @staticmethod
-    def is_run_in_progress(run: Run, payload: dict[str, Any]) -> bool:
-        return bool(r.sismember("runs:in_progress", str(run.id)))
-
-    @staticmethod
-    def is_system_state_updated(run: Run, payload: dict[str, Any]) -> bool:
+    def is_run_validated(run: Run, payload: dict[str, Any]) -> bool:
         return True
 
     @staticmethod
     def is_vehicle_moving(run: Run, payload: dict[str, Any]) -> bool:
         return payload["speed"] > 5
-
-    # ------------------------------------------------------------------
-    # Rejection guards
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def is_validation_failure_recorded(run: Run, payload: dict[str, Any]) -> bool:
-        """GTFS or business-rule validation failed before the run was initialized.
-
-        Required payload keys:
-            rejection_reason (str): human-readable reason for rejection
-
-        TODO: verify the rejection_reason is present and non-empty so the audit
-        log is always meaningful.
-        """
-        return True  # TODO placeholder
-
-    @staticmethod
-    def is_initialization_failure_recorded(run: Run, payload: dict[str, Any]) -> bool:
-        """System-state initialization failed after GTFS validation passed.
-
-        Required payload keys:
-            rejection_reason (str): human-readable reason for the failure
-
-        TODO: verify the rejection_reason is present and non-empty.
-        """
-        return True  # TODO placeholder
-
-    @staticmethod
-    def is_confirmation_failure_recorded(run: Run, payload: dict[str, Any]) -> bool:
-        """Operator or system confirmation step failed for a CONFIRMED run.
-
-        Required payload keys:
-            rejection_reason (str): human-readable reason for the failure
-
-        TODO: verify the rejection_reason is present and non-empty.
-        """
-        return True  # TODO placeholder
 
     # ------------------------------------------------------------------
     # Cancellation / interruption / short-turn authority guards
