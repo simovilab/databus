@@ -17,12 +17,8 @@ backend/.gtfs-django-clone.lockdir
 
 # GTFS files
 feed/files/bUCR_GTFS.zip
-feed/files/trip_updates.pb
-feed/files/trip_updates.json
-feed/files/vehicle_positions.pb
-feed/files/vehicle_positions.json
-publisher/feed/files/*.pb
-publisher/feed/files/*.json
+backend/feed/files/*.pb
+backend/feed/files/*.json
 gtfs/
 
 # Zensical
