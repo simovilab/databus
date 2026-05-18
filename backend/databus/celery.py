@@ -28,6 +28,14 @@ def debug_task(self):
 # --------------------
 
 app.conf.beat_schedule = {
+    "build-vehicle-positions-every-15s": {
+        "task": "schedule_engine.tasks.build_vehicle_positions",
+        "schedule": timedelta(seconds=15),
+    },
+    "build-trip-updates-every-15s": {
+        "task": "schedule_engine.tasks.build_trip_updates",
+        "schedule": timedelta(seconds=15),
+    },
     "build-alerts-every-10s": {
         "task": "schedule_engine.tasks.build_alerts",
         "schedule": timedelta(seconds=10),
