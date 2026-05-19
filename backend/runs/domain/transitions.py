@@ -81,6 +81,7 @@ TRANSITIONS = [
         guards=[
         ],
         actions=[
+            RunLifecycleActions.sync_lifecycle_state,
         ],
     ),
     # Cancelled before operator confirmation
@@ -107,6 +108,7 @@ TRANSITIONS = [
             RunLifecycleGuards.is_vehicle_tracked,
         ],
         actions=[
+            RunLifecycleActions.sync_lifecycle_state,
             RunLifecycleActions.add_to_tracking_set,
         ],
     ),
@@ -134,6 +136,7 @@ TRANSITIONS = [
             RunLifecycleGuards.is_vehicle_moving,
         ],
         actions=[
+            RunLifecycleActions.sync_lifecycle_state,
             RunLifecycleActions.add_to_in_progress_set,
         ],
     ),
@@ -162,6 +165,7 @@ TRANSITIONS = [
             RunLifecycleGuards.is_telemetry_stale,
         ],
         actions=[
+            RunLifecycleActions.sync_lifecycle_state,
             RunLifecycleActions.remove_from_tracking_set,
         ],
     ),
@@ -217,6 +221,7 @@ TRANSITIONS = [
             RunLifecycleGuards.is_vehicle_tracked,
         ],
         actions=[
+            RunLifecycleActions.sync_lifecycle_state,
             RunLifecycleActions.add_to_tracking_set,
             RunLifecycleActions.add_to_in_progress_set,
         ],

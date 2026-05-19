@@ -40,4 +40,8 @@ app.conf.beat_schedule = {
         "task": "schedule_engine.tasks.build_alerts",
         "schedule": timedelta(seconds=10),
     },
+    "scan-stale-runs-every-30s": {
+        "task": "realtime_engine.tasks.scan_stale_runs",
+        "schedule": timedelta(seconds=30),
+    },
 }

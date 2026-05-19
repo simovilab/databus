@@ -51,10 +51,18 @@ class RunLifecycleService:
     ) -> tuple[bool, dict[str, bool]]:
         guards = {}
         is_valid = True
+        first_guard_error: RunLifecycleError | None = None
         for guard in transition.guards:
-            passed = guard(run, transition, payload)
+            try:
+                passed = guard(run, transition, payload)
+            except RunLifecycleError as exc:
+                passed = False
+                if first_guard_error is None:
+                    first_guard_error = exc
             is_valid = is_valid and passed
             guards[guard.__name__] = passed
+        if not is_valid and first_guard_error is not None:
+            raise first_guard_error
         return is_valid, guards
 
     def _execute_actions(
@@ -78,7 +86,7 @@ class RunLifecycleService:
 
     def _update_run_lifecycle_state(
         self, run: Run, transition: Transition, payload: dict[str, Any]
-    ) -> bool:
+    ) -> None:
         run.run_lifecycle_state = transition.to_state
         run.last_event_at = now()
         run.save()

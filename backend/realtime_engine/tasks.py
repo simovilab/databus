@@ -1,117 +1,84 @@
-from celery import shared_task
-from messages.publisher import publish_event
-from typing import Any
-from operations.models import Vehicle, Operator
-from runs.models import Run
-from runs.services.lifecycle import RunLifecycleService
-from feed.models import Feed, Trip
-import redis
+import logging
 import os
+from datetime import datetime, timezone
+from typing import Any
+
+import redis
+from celery import shared_task
+from django.utils.timezone import now
+
+from runs.services.lifecycle import RunLifecycleService
+from runs.domain.states import RunLifecycleStates
+
+logger = logging.getLogger(__name__)
 
 redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "state"), port=os.getenv("REDIS_PORT", 6379), db=0
+    host=os.getenv("REDIS_HOST", "state"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
+    db=0,
+    decode_responses=True,
 )
 
-
-@shared_task(queue="realtime_engine")
-def hello_world() -> None:
-    print("Hello, world!")
+TELEMETRY_GRACE_S = 60
+TELEMETRY_EXPIRY_S = 300
 
 
 @shared_task(queue="realtime_engine")
-def run_lifecycle_event(event: str, payload: dict[str, Any]) -> Run | None:
+def run_lifecycle_event(event: str, payload: dict[str, Any]) -> None:
+    from runs.domain.events import RunLifecycleEvents
+
     service = RunLifecycleService()
-    result = service.process_event(event, payload)
-    return result
-
-
-@shared_task(queue="realtime_engine")
-def validate_run(run_data: dict[str, Any]) -> bool:
-    # Validation against the system state in Redis.
-    # Verify that:
-    # 1. the vehicle is not currently in another run,
-    # 2. the trip_id is not already being executed by another run
-    return True  # Placeholder for actual validation logic. Always returns True for now.
-
-
-@shared_task(queue="realtime_engine")
-def initialize_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
-    """
-    Initializes a run in the database and the system state (Redis).
-
-    Args:
-        run_data (dict): Run request payload to initialize. Expected keys include
-            ``vehicle_id``, ``operator_id``, ``route_id``, ``trip_id``,
-            ``direction_id``, ``shape_id``, and ``schedule_relationship``.
-    Returns:
-        tuple[bool, str | None]: A tuple where the first value is ``True`` when the run was successfully initialized. The second value is the run ID on success, or ``None`` on failure.
-    """
     try:
-        run = Run.objects.create(
-            vehicle_id=run_data.get("vehicle_id"),
-            operator_id=run_data.get("operator_id"),
-            route_id=run_data.get("route_id"),
-            trip_id=run_data.get(
-                "trip_id"
-            ),  # Cuando no es SCHEDULED, alguien tiene que crear un nuevo trip_id
-            direction_id=int(run_data.get("direction_id")),
-            shape_id=run_data.get("shape_id"),
-            schedule_relationship=run_data.get("schedule_relationship"),
-            run_lifecycle_state="INITIALIZED",  # TODO: CONFIRMAR ESTADO ADECUADO
-        )
-        # Save run data (all) to Redis' "runs" key
-        redis_client.hset(f"run:{run.id}", mapping=run_data)
-        return (True, str(run.id))
-    except Exception as e:
-        publish_event(
-            "RUN_INITIALIZATION_ERROR",
-            {"error": str(e), **run_data},  # Error with payload
-        )
-        return (False, None)
-
-
-@shared_task(queue="realtime_engine")
-def register_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
-    if not validate_run(run_data):
-        publish_event("RUN_VALIDATION_FAILED", run_data)
-        return (False, None)
-
-    publish_event("RUN_VALIDATION_SUCCEEDED", run_data)
-    initialization_ok, run_id = initialize_run(run_data)
-    if initialization_ok:
-        publish_event("RUN_INITIALIZATION_SUCCEEDED", run_data)
-        return (True, run_id)
-
-    publish_event("RUN_INITIALIZATION_FAILED", run_data)
-    return (False, None)
-
-
-@shared_task(queue="realtime_engine")
-def start_run(run_data: dict[str, Any]) -> bool:
-    # Aquí iría la lógica de inicio del run_data
-    # Save run_id to Redis' runs:in_progress group
-    # redis_client.sadd("runs:in_progress", run_data.get("run_id"))
-    return True
-
-
-@shared_task(queue="realtime_engine")
-def end_run(run_data: dict[str, Any]) -> bool:
-    # Transitions an IN_PROGRESS run to COMPLETED. Returns False if the run is missing, in a non-completable state, or an erorr occurs.
-    run_id = run_data.get("run_id")
-    if run_id in (None, ""):
-        return False
+        evt = RunLifecycleEvents(event)
+    except ValueError:
+        logger.error("Unknown lifecycle event: %s", event)
+        return
     try:
-        run = Run.objects.filter(id=run_id).first()
-        if run is None:
-            return False
-        if run.run_lifecycle_state != "IN_PROGRESS":
-            return False
-        run.run_lifecycle_state = "COMPLETED"
-        run.save(update_fields=["run_lifecycle_state"])
-        return True
-    except Exception as e:
-        publish_event(
-            "RUN_COMPLETION_ERROR",
-            {"error": str(e), **run_data},
-        )
-        return False
+        service.process_event(evt, payload)
+    except Exception:
+        logger.exception("Lifecycle event %s failed for run %s", event, payload.get("run_id"))
+
+
+@shared_task(queue="realtime_engine")
+def scan_stale_runs() -> str:
+    """
+    Scans runs:tracking every 30 s.
+    - Grace exceeded (>60s, ≤300s) while IN_PROGRESS → RUN_TRACKING_LOST
+    - Expiry exceeded (>300s) while NO_SIGNAL → RUN_TRACKING_EXPIRED
+    """
+    run_ids = redis_client.smembers("runs:tracking")
+    fired = 0
+    for run_id in run_ids:
+        raw_last_seen = redis_client.get(f"runs:last_seen:{run_id}")
+        if not raw_last_seen:
+            continue
+        try:
+            last_seen = datetime.fromisoformat(raw_last_seen)
+            if last_seen.tzinfo is None:
+                last_seen = last_seen.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            continue
+
+        staleness = (now() - last_seen).total_seconds()
+        run_state = redis_client.hget(f"run:{run_id}", "run_lifecycle_state")
+
+        payload = {
+            "run_id": run_id,
+            "last_seen_at": raw_last_seen,
+            "actor_role": "system",
+        }
+
+        if (
+            TELEMETRY_GRACE_S < staleness <= TELEMETRY_EXPIRY_S
+            and run_state == RunLifecycleStates.IN_PROGRESS.value
+        ):
+            run_lifecycle_event.delay("run_tracking_lost", payload)
+            fired += 1
+        elif (
+            staleness > TELEMETRY_EXPIRY_S
+            and run_state == RunLifecycleStates.NO_SIGNAL.value
+        ):
+            run_lifecycle_event.delay("run_tracking_expired", payload)
+            fired += 1
+
+    return f"scan_stale_runs: checked {len(run_ids)} runs, fired {fired} events"

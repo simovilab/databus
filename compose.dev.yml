@@ -45,6 +45,32 @@ services:
       message-broker:
         condition: service_healthy
 
+  realtime-consumer:
+    build:
+      context: ./backend
+      target: realtime-consumer
+    environment:
+      - DJANGO_SETUP=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
+      - MQTT_HOST=telemetry-broker
+      - MQTT_PORT=1883
+    env_file:
+      - .env
+      - .env.dev
+    volumes:
+      - ./backend:/app
+      - backend_venv:/home/app/.venv
+    depends_on:
+      database:
+        condition: service_healthy
+      state:
+        condition: service_healthy
+      telemetry-broker:
+        condition: service_started
+      message-broker:
+        condition: service_healthy
+
   schedule-engine:
     build:
       context: ./backend

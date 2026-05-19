@@ -206,12 +206,14 @@ class CreateRunViewSet(APIView):
                 {"status": "error", "step": "operational_validation", "errors": errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # Registration of the run (event: RUN_REQUESTED, state: REQUESTED)
+        # Record creation puts the run in REQUESTED state (run_requested event)
         try:
             run = Run.objects.create(**payload)
             run.vehicle.set([vehicle])
             run.operator.set([operator_obj])
             payload["run_id"] = run.id
+            payload["vehicle_id"] = vehicle_id
+            payload["operator_id"] = operator_id
         except Exception as e:
             return Response(
                 {
@@ -221,26 +223,23 @@ class CreateRunViewSet(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        # First transition: GTFS validation (run_lifecycle_state = REQUESTED)
+        # REQUESTED → VALIDATED: GTFS consistency check
         try:
-            service.process_event(RunLifecycleEvents.RUN_REQUESTED, payload)
+            service.process_event(RunLifecycleEvents.VALIDATE_RUN, payload)
         except RunLifecycleError as e:
-            payload["guards"] = e.errors.attempts.guards
-            payload["actions"] = e.errors.attempts.actions
             service.process_event(RunLifecycleEvents.RUN_REJECTED, payload)
             return Response(
                 {"status": "error", "step": "gtfs_validation", "errors": e.errors},
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        # System initialization (run_lifecycle_state = VALIDATED)
+        # VALIDATED → INITIALIZED: write system state
         try:
-            service.process_event(RunLifecycleEvents.VALIDATE_RUN, payload)
+            service.process_event(RunLifecycleEvents.INITIALIZE_RUN, payload)
         except RunLifecycleError as e:
             return Response(
                 {"status": "error", "step": "initialization", "errors": e.errors},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        # If successful, give a 200 OK response (run_lifecycle_state = INITIALIZED)
         return Response(
             {
                 "status": "success",
@@ -276,7 +275,7 @@ class UpdateRunViewSet(APIView):
             )
         event = payload.get("event")
         try:
-            new_run_lifecycle_state = service.process_event(event, payload)
+            new_run_lifecycle_state, _guards, _actions = service.process_event(event, payload)
         except RunLifecycleError as e:
             return Response(
                 {"status": "error", "errors": e.errors},

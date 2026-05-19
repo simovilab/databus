@@ -84,3 +84,9 @@ FROM base AS scheduler
 # --------------------
 
 CMD ["uv", "run", "celery", "-A", "databus", "beat", "--loglevel=info"]
+
+# -------- MQTT consumer
+FROM base AS realtime-consumer
+# -----------------------
+
+CMD ["uv", "run", "python", "manage.py", "mqtt_consumer"]
