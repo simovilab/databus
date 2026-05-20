@@ -26,6 +26,7 @@ from operations.models import (
 )
 from runs.models import (
     Run,
+    RunLifecycleTransition,
     Position,
     Progression,
     Occupancy,
@@ -266,6 +267,12 @@ class UpdateRunViewSet(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         payload = dict(serializer.validated_data)
+        # Flatten `details` into payload so guards/actions can read fields like
+        # `actor_role` at the top level — matches the convention used by the
+        # internal Celery path (realtime_engine/tasks.py).
+        details = payload.pop("details", {}) or {}
+        if isinstance(details, dict):
+            payload.update(details)
         run_id = payload.get("run_id")
         run = Run.objects.filter(id=run_id).first()
         if not run:
@@ -283,6 +290,45 @@ class UpdateRunViewSet(APIView):
             )
         return Response(
             {"status": "success", "run_lifecycle_state": new_run_lifecycle_state},
+            status=status.HTTP_200_OK,
+        )
+
+
+class RunHistoryView(APIView):
+    """
+    Return the ordered list of FSM transitions for a run.
+
+    Read-only audit log derived from RunLifecycleTransition, which the
+    lifecycle service writes before any external side-effect (so the log
+    is authoritative even if a downstream action later fails).
+    """
+
+    def get(self, request, run_id):
+        if not Run.objects.filter(id=run_id).exists():
+            return Response(
+                {"status": "error", "errors": {"detail": f"run {run_id} not found"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        transitions = (
+            RunLifecycleTransition.objects
+            .filter(run_id=run_id)
+            .order_by("timestamp", "created_at")
+        )
+        return Response(
+            {
+                "run_id": str(run_id),
+                "transitions": [
+                    {
+                        "event": t.event_name,
+                        "from_state": t.from_state,
+                        "to_state": t.to_state,
+                        "timestamp": t.timestamp.isoformat(),
+                        "actions": t.actions or {},
+                        "guards": t.guards or {},
+                    }
+                    for t in transitions
+                ],
+            },
             status=status.HTTP_200_OK,
         )
 

@@ -165,8 +165,10 @@ TRANSITIONS = [
             RunLifecycleGuards.is_telemetry_stale,
         ],
         actions=[
+            # Keep the run in `runs:tracking` so scan_stale_runs can fire
+            # RUN_TRACKING_EXPIRED later. The set is the work queue, not a
+            # status flag — only fully-terminal transitions should remove from it.
             RunLifecycleActions.sync_lifecycle_state,
-            RunLifecycleActions.remove_from_tracking_set,
         ],
     ),
     Transition(
@@ -177,6 +179,7 @@ TRANSITIONS = [
             RunLifecycleGuards.is_interruption_authorized,
         ],
         actions=[
+            RunLifecycleActions.sync_lifecycle_state,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
@@ -191,6 +194,7 @@ TRANSITIONS = [
             RunLifecycleGuards.is_short_turn_geometrically_valid,
         ],
         actions=[
+            RunLifecycleActions.sync_lifecycle_state,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
@@ -204,6 +208,7 @@ TRANSITIONS = [
             RunLifecycleGuards.is_at_terminal_stop,
         ],
         actions=[
+            RunLifecycleActions.sync_lifecycle_state,
             RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
@@ -234,6 +239,8 @@ TRANSITIONS = [
             RunLifecycleGuards.is_telemetry_grace_period_exceeded,
         ],
         actions=[
+            RunLifecycleActions.sync_lifecycle_state,
+            RunLifecycleActions.remove_from_tracking_set,
             RunLifecycleActions.remove_from_in_progress_set,
             RunLifecycleActions.release_resources,
         ],
