@@ -109,13 +109,14 @@ End-to-end demo of a complete run lifecycle driven by MQTT telemetry from the si
 # Terminal 1 — start the full databus stack
 cd databus && bash scripts/dev.sh
 
-# Terminal 2 — load GTFS feed + bootstrap simulator-aligned runs
+# Terminal 2 — load GTFS feed
 docker compose -f compose.dev.yml exec orchestrator \
     uv run python manage.py loaddata gtfs.json
-docker compose -f compose.dev.yml exec orchestrator \
-    uv run python manage.py bootstrap_simulator_runs
 
 # Terminal 3 — start the simulator (wired to databus broker)
+# The simulator's scheduler posts to /api/create-run on each schedule entry's
+# start_time. The UI's Operator tab handles confirmation. No databus-side
+# bootstrap command is required.
 cd ../simulator && docker compose up simulator web
 
 # Terminal 4 — observe (optional)

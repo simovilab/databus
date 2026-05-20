@@ -40,6 +40,7 @@ urlpatterns = [
     # path("route-stops/", views.RouteStopView.as_view(), name="route_stops"),
     path("create-run/", views.CreateRunViewSet.as_view(), name="create_run"),
     path("update-run/", views.UpdateRunViewSet.as_view(), name="update_run"),
+    path("runs/<uuid:run_id>/history/", views.RunHistoryView.as_view(), name="run_history"),
     path("service-today/", views.ServiceTodayView.as_view(), name="service_today"),
     path("which-shapes/", views.WhichShapesView.as_view(), name="which_shapes"),
     path("find-trips/", views.FindTripsView.as_view(), name="find_trips"),

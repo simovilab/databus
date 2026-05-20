@@ -37,7 +37,7 @@ What happens inside a request-response cycle has to be synchronous
   - response: `run_lifecycle_state = INITIALIZED`
 - `POST api/update-run`
   - request: `event: RUN_CONFIRMED`
-    - response: `run_lifecycle_state = TRACKING`
+    - response: `run_lifecycle_state = CONFIRMED`
   - request: `event: RUN_COMPLETED`
     - response: `run_lifecycle_state = COMPLETED`
   - request: `event: RUN_INTERRUPTED`

@@ -17,6 +17,12 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
+# Register the MQTT consumer bootstep. The class is gated internally by
+# MQTT_CONSUMER_ENABLED so only the realtime-engine worker actually starts it.
+from realtime_engine.mqtt import MQTTConsumerStep  # noqa: E402
+
+app.steps["worker"].add(MQTTConsumerStep)
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

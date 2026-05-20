@@ -24,7 +24,7 @@ services:
       dockerfile: Docker/Dockerfile
       target: prod
     entrypoint: ["/app/Docker/docker-entrypoint.sh"]
-    command: ["uv", "run", "celery", "-A", "realtime", "worker", "-l", "info"]
+    command: ["uv", "run", "celery", "-A", "databus", "worker", "-l", "info"]
     env_file:
       - ../.env
       - ../.env.prod
@@ -40,18 +40,7 @@ services:
       dockerfile: Docker/Dockerfile
       target: prod
     entrypoint: ["/app/Docker/docker-entrypoint.sh"]
-    command:
-      [
-        "uv",
-        "run",
-        "celery",
-        "-A",
-        "realtime",
-        "beat",
-        "--scheduler",
-        "django_celery_beat.schedulers:DatabaseScheduler",
-        "--loglevel=info",
-      ]
+    command: ["uv", "run", "celery", "-A", "databus", "beat", "--loglevel=info"]
     env_file:
       - ../.env
       - ../.env.prod
