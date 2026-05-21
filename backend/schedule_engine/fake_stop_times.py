@@ -1,16 +1,20 @@
 # For the _fake_stop_times method (temporary!)
-from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
+import logging
 import random
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
-_CSV_FILE_PATH = "./schedule_engine/aux_files/route_stops.csv"
+import numpy as np
+import pandas as pd
+
+logger = logging.getLogger(__name__)
+
+_CSV_FILE_PATH = Path(__file__).resolve().parent / "aux_files" / "route_stops.csv"
 # Time in seconds
 _UNCERTAINTY_S = 120
 _TIME_OFFSET_MIN_S = 150
 _TIME_OFFSET_MAX_S = 300
-_DEPARTURE_OFFSET_MAX_S = 120
 _ARRIVAL_MAX_MIN = 5
 
 
@@ -40,69 +44,100 @@ def _generate_stop_entry(
     Returns:
         dict[str, Any]: A dictionary entry with stop time updates.
     """
-    departure_time = arrival_time + timedelta(
-        seconds=random.randint(0, _DEPARTURE_OFFSET_MAX_S)
-    )
     return {
-        "arrival": {"time": int(arrival_time.timestamp()), "uncertainty": uncertainty},
-        "departure": {
-            "time": int(departure_time.timestamp()),
-            "uncertainty": uncertainty,
-        },
-        "stop_id": stop_id,
-        "stop_sequence": stop_sequence,
+        "stop_sequence": int(stop_sequence),
+        "stop_id": str(stop_id),
+        "eta_posix": int(arrival_time.timestamp()),
+        "uncertainty": uncertainty,
     }
+
+
+def _safe_int(value, default: int = -1) -> int:
+    """Coerce a Redis-string value to int, returning ``default`` on failure."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def build_stop_time_updates(run, progression) -> list[dict[str, Any]]:
     """Generate fake stop times for the given run.
 
     Parameters:
-        run:
-        progression: An object containing current stop sequence and status.
+        run: Mapping with at least ``route_id`` and ``shape_id`` keys
+            (typically a Redis hash dict).
+        progression: Mapping with ``current_stop_sequence`` and
+            ``current_status`` keys (typically a Redis hash dict).
 
     Returns:
         list[dict[str, Any]]: A list of dictionaries with stop time updates.
-
-    Revisar en Progression por cuál parada está el viaje, y devolver los tiempos de llegada a las siguientes paradas, con la siguiente aproximación: 3 minutos de intervalo entre cada parada.
-
-    Ejemplos:
-    - current_stop_sequence = 5, current_status = "IN_TRANSIT_TO": Devolver los tiempos de llegada a las paradas 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 (última).
-    - current_stop_sequence = 5, current_status = "INCOMING_AT": Devolver los tiempos de llegada a las paradas 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 (última).
-    - current_stop_sequence = 5, current_status = "STOPPED_AT": Devolver los tiempos de llegada a las paradas 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 (última).
     """
     stop_time_update: list[dict[str, Any]] = []
-    route_stops = _load_route_stops(csv_file_path=_CSV_FILE_PATH)
 
-    filtered_stops = route_stops[
-        (route_stops["route_id"] == run.route_id)
-        & (route_stops["shape_id"] == run.shape_id)
-    ]
+    run = run or {}
+    progression = progression or {}
 
-    if filtered_stops.empty:
+    route_id = str(run.get("route_id") or "").strip()
+    shape_id = str(run.get("shape_id") or "").strip()
+    if not route_id:
+        logger.warning("build_stop_time_updates: run missing route_id (run=%s)", run)
         return stop_time_update
 
-    # Start with an invalid value to ensure the first comparison is always true
-    previous_stop_sequence = -1
+    try:
+        route_stops = _load_route_stops(csv_file_path=_CSV_FILE_PATH)
+    except FileNotFoundError:
+        logger.exception("Route stops CSV not found at %s", _CSV_FILE_PATH)
+        return stop_time_update
+
+    # Primary match: route_id AND shape_id
+    filtered_stops = route_stops[
+        (route_stops["route_id"].astype(str) == route_id)
+        & (route_stops["shape_id"].astype(str) == shape_id)
+    ]
+
+    # Fallback: match on route_id only (if shape_id is unknown or unmapped)
+    if filtered_stops.empty:
+        logger.info(
+            "No CSV rows for route_id=%r shape_id=%r — falling back to route_id only",
+            route_id,
+            shape_id,
+        )
+        filtered_stops = route_stops[
+            route_stops["route_id"].astype(str) == route_id
+        ]
+
+    if filtered_stops.empty:
+        logger.warning(
+            "build_stop_time_updates: no stops for route_id=%r (CSV has routes=%s)",
+            route_id,
+            sorted(route_stops["route_id"].astype(str).unique().tolist()),
+        )
+        return stop_time_update
+
+    # Ensure ascending order so we walk stops in sequence
+    filtered_stops = filtered_stops.sort_values("stop_sequence")
+
+    current_stop_sequence = _safe_int(
+        progression.get("current_stop_sequence"), default=-1
+    )
+    current_status = (progression.get("current_status") or "").upper()
+
     arrival_time = datetime.now() + timedelta(
         minutes=random.randint(0, _ARRIVAL_MAX_MIN)
     )
 
     for _, row in filtered_stops.iterrows():
-        stop_sequence = row["stop_sequence"]
+        stop_sequence = int(row["stop_sequence"])
 
-        if stop_sequence < progression.current_stop_sequence:
+        # Skip stops the vehicle has already passed
+        if stop_sequence < current_stop_sequence:
             continue
 
-        if stop_sequence < previous_stop_sequence:
-            # Modify the last entry to remove "departure"
-            if stop_time_update:
-                stop_time_update[-1].pop("departure", None)
-            break
-
+        # If the bus is currently stopped at this sequence, the next ETA is
+        # the following stop, so skip the current one.
         if (
-            progression.current_status == "STOPPED_AT"
-            and stop_sequence == progression.current_stop_sequence
+            current_status == "STOPPED_AT"
+            and stop_sequence == current_stop_sequence
         ):
             continue
 
@@ -113,9 +148,16 @@ def build_stop_time_updates(run, progression) -> list[dict[str, Any]]:
             uncertainty=_UNCERTAINTY_S,
         )
         stop_time_update.append(stop_entry)
-        previous_stop_sequence = stop_sequence
         arrival_time += timedelta(
             seconds=random.randint(_TIME_OFFSET_MIN_S, _TIME_OFFSET_MAX_S)
         )
 
+    logger.debug(
+        "build_stop_time_updates: route_id=%s shape_id=%s current_seq=%s status=%s -> %d stops",
+        route_id,
+        shape_id,
+        current_stop_sequence,
+        current_status,
+        len(stop_time_update),
+    )
     return stop_time_update
