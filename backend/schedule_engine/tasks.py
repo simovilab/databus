@@ -5,6 +5,7 @@ from asgiref.sync import async_to_sync
 import json
 import redis
 from datetime import datetime
+from django.conf import settings
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
 from .fake_stop_times import build_stop_time_updates
@@ -128,18 +129,23 @@ def build_vehicle_positions():
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
+    output_dir = settings.BASE_DIR / "feed" / "files"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     # Create and save JSON
     feed_message_json = json.dumps(feed_message)
-    with open("schedule_engine/files/vehicle_positions.json", "w") as f:
+    with open(output_dir / "vehicle_positions.json", "w") as f:
         f.write(feed_message_json)
 
     # Create and save Protobuf
-    feed_message_json = json.loads(feed_message_json)
-    feed_message_pb = json_format.ParseDict(feed_message_json, gtfs_rt.FeedMessage())
-    with open("schedule_engine/files/vehicle_positions.pb", "wb") as f:
+    feed_message_dict = json.loads(feed_message_json)
+    if "feed_version" in feed_message_dict.get("header", {}):
+        del feed_message_dict["header"]["feed_version"]
+    feed_message_pb = json_format.ParseDict(feed_message_dict, gtfs_rt.FeedMessage())
+    with open(output_dir / "vehicle_positions.pb", "wb") as f:
         f.write(feed_message_pb.SerializeToString())
 
-    return "FeedMessage VehiclePosition built successfully"
+    return f"FeedMessage VehiclePosition built successfully with {len(feed_message['entity'])} entities"
 
 
 @shared_task(queue="schedule_engine")
@@ -214,15 +220,20 @@ def build_trip_updates():
         # Append entity to feed message
         feed_message["entity"].append(entity)
 
+    output_dir = settings.BASE_DIR / "feed" / "files"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     # Create and save JSON
     feed_message_json = json.dumps(feed_message)
-    with open("schedule_engine/files/trip_updates.json", "w") as f:
+    with open(output_dir / "trip_updates.json", "w") as f:
         f.write(feed_message_json)
 
     # Create and save Protobuf
-    feed_message_json = json.loads(feed_message_json)
-    feed_message_pb = json_format.ParseDict(feed_message_json, gtfs_rt.FeedMessage())
-    with open("schedule_engine/files/trip_updates.pb", "wb") as f:
+    feed_message_dict = json.loads(feed_message_json)
+    if "feed_version" in feed_message_dict.get("header", {}):
+        del feed_message_dict["header"]["feed_version"]
+    feed_message_pb = json_format.ParseDict(feed_message_dict, gtfs_rt.FeedMessage())
+    with open(output_dir / "trip_updates.pb", "wb") as f:
         f.write(feed_message_pb.SerializeToString())
 
     # Send status update to WebSocket
