@@ -14,8 +14,8 @@ from django.utils.decorators import method_decorator
 from realtime_engine.tasks import run_lifecycle_event
 from runs.services.exceptions import RunLifecycleError
 from runs.services.lifecycle import RunLifecycleService
-from runs.domain.events import RunLifecycleEvents
-from runs.domain.states import RunLifecycleStates
+from runs.domain import RunLifecycleEvents
+from runs.domain import RunLifecycleStates
 from operations.models import (
     Vehicle,
     Operator,

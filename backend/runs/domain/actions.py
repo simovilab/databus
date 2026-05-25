@@ -3,7 +3,7 @@ from runs.models import Run
 import redis
 
 if TYPE_CHECKING:
-    from runs.domain.transitions import Transition
+    from runs.domain import Transition
 
 r = redis.Redis(host="state", port=6379, db=0)
 

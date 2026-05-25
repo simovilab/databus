@@ -20,7 +20,7 @@ import redis
 from celery import bootsteps
 from django.utils.timezone import now
 
-from runs.domain.states import RunLifecycleState
+from runs.domain import RunLifecycleStates
 
 logger = logging.getLogger(__name__)
 
@@ -91,20 +91,20 @@ def _maybe_fire_lifecycle_event(
         **data,
     }
 
-    if run_state == RunLifecycleState.CONFIRMED:
+    if run_state == RunLifecycleStates.CONFIRMED.value:
         r.sadd("runs:tracking", run_id)
         run_lifecycle_event.delay("run_tracking_started", payload)
 
-    elif run_state == RunLifecycleState.TRACKING and leaf == "position":
+    elif run_state == RunLifecycleStates.TRACKING.value and leaf == "position":
         speed = float(data.get("speed", 0))
         if speed > 0.5:
             run_lifecycle_event.delay("run_started", payload)
 
-    elif run_state == RunLifecycleState.NO_SIGNAL:
+    elif run_state == RunLifecycleStates.NO_SIGNAL.value:
         r.sadd("runs:tracking", run_id)
         run_lifecycle_event.delay("run_tracking_restored", payload)
 
-    elif run_state == RunLifecycleState.IN_PROGRESS and leaf == "progression":
+    elif run_state == RunLifecycleStates.IN_PROGRESS.value and leaf == "progression":
         current_status = data.get("current_status", "")
         stop_id = data.get("stop_id", "")
         if current_status == "STOPPED_AT" and stop_id:
