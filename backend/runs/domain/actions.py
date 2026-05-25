@@ -66,6 +66,7 @@ class RunLifecycleActions:
         # Write vehicle metadata so the GTFS-RT builders can populate VehicleDescriptor
         if vehicle_id:
             from operations.models import Vehicle as VehicleModel
+
             try:
                 v = VehicleModel.objects.get(id=vehicle_id)
                 vehicle_meta: dict[str, str] = {
@@ -76,7 +77,7 @@ class RunLifecycleActions:
                     vehicle_meta["license_plate"] = v.license_plate
                 if v.wheelchair_accessible:
                     vehicle_meta["wheelchair_accessible"] = v.wheelchair_accessible
-                pipe.hset(f"vehicle:{vehicle_id}:data", mapping=vehicle_meta)
+                pipe.hset(f"vehicle:{vehicle_id}:metadata", mapping=vehicle_meta)
             except Exception:
                 pass
 

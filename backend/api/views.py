@@ -56,7 +56,7 @@ from .serializers import (
     EquipmentLogSerializer,
     OperatorSerializer,
     CreateRunSerializer,
-    UpdateRunSerializer,
+    RunUpdateSerializer,
     PositionSerializer,
     ProgressionSerializer,
     OccupancySerializer,
@@ -251,16 +251,36 @@ class CreateRunViewSet(APIView):
         )
 
 
-class UpdateRunViewSet(APIView):
+class RunStateViewSet(APIView):
+    """
+    Endpoint to get the current lifecycle state of a run.
+
+    It only allows the GET method with the run_id as path parameter.
+    """
+
+    def get(self, request, run_id):
+        run = Run.objects.filter(id=run_id).first()
+        if not run:
+            return Response(
+                {"status": "error", "errors": {"run_id": "Run not found"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(
+            {"status": "success", "run_lifecycle_state": run.run_lifecycle_state},
+            status=status.HTTP_200_OK,
+        )
+
+
+class RunUpdateViewSet(APIView):
     """
     Endpoint to request an update of the lifecycle state of an existing run.
 
     It only allows the POST method with the event to process.
     """
 
-    def post(self, request):
+    def post(self, request, run_id):
         service = RunLifecycleService()
-        serializer = UpdateRunSerializer(data=request.data)
+        serializer = RunUpdateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
                 {"status": "error", "errors": serializer.errors},
@@ -273,16 +293,34 @@ class UpdateRunViewSet(APIView):
         details = payload.pop("details", {}) or {}
         if isinstance(details, dict):
             payload.update(details)
-        run_id = payload.get("run_id")
+        payload["run_id"] = run_id
         run = Run.objects.filter(id=run_id).first()
         if not run:
             return Response(
                 {"status": "error", "errors": {"run_id": "Run not found"}},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        # Ensure the effective event (after payload normalization) is valid.
         event = payload.get("event")
+        event_value = (
+            event.value if isinstance(event, RunLifecycleEvents) else str(event)
+        )
+        allowed_events = {e.value for e in RunLifecycleEvents}
+        if event_value not in allowed_events:
+            return Response(
+                {
+                    "status": "error",
+                    "errors": {
+                        "event": f"Invalid event '{event_value}'. Allowed values: {sorted(allowed_events)}"
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        payload["event"] = event_value
         try:
-            new_run_lifecycle_state, _guards, _actions = service.process_event(event, payload)
+            new_run_lifecycle_state, _guards, _actions = service.process_event(
+                event_value, payload
+            )
         except RunLifecycleError as e:
             return Response(
                 {"status": "error", "errors": e.errors},
@@ -309,10 +347,8 @@ class RunHistoryView(APIView):
                 {"status": "error", "errors": {"detail": f"run {run_id} not found"}},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        transitions = (
-            RunLifecycleTransition.objects
-            .filter(run_id=run_id)
-            .order_by("timestamp", "created_at")
+        transitions = RunLifecycleTransition.objects.filter(run_id=run_id).order_by(
+            "timestamp", "created_at"
         )
         return Response(
             {

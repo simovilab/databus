@@ -65,7 +65,7 @@ def build_vehicle_positions():
         position = r.hgetall(f"vehicle:{vehicle_id}:position")
         progression = r.hgetall(f"vehicle:{vehicle_id}:progression")
         occupancy = r.hgetall(f"vehicle:{vehicle_id}:occupancy")
-        vehicle_meta = r.hgetall(f"vehicle:{vehicle_id}:data")
+        vehicle_meta = r.hgetall(f"vehicle:{vehicle_id}:metadata")
 
         if not position and not progression and not occupancy:
             continue
@@ -103,7 +103,9 @@ def build_vehicle_positions():
         if vehicle_meta.get("license_plate"):
             v["vehicle"]["license_plate"] = vehicle_meta["license_plate"]
         if vehicle_meta.get("wheelchair_accessible"):
-            v["vehicle"]["wheelchair_accessible"] = vehicle_meta["wheelchair_accessible"]
+            v["vehicle"]["wheelchair_accessible"] = vehicle_meta[
+                "wheelchair_accessible"
+            ]
 
         if position:
             try:
@@ -124,7 +126,9 @@ def build_vehicle_positions():
         if progression:
             if progression.get("current_stop_sequence"):
                 try:
-                    v["current_stop_sequence"] = int(progression["current_stop_sequence"])
+                    v["current_stop_sequence"] = int(
+                        progression["current_stop_sequence"]
+                    )
                 except (ValueError, TypeError):
                     pass
             if progression.get("stop_id"):
@@ -185,7 +189,7 @@ def build_trip_updates():
 
         position = r.hgetall(f"vehicle:{vehicle_id}:position")
         progression = r.hgetall(f"vehicle:{vehicle_id}:progression")
-        vehicle_meta = r.hgetall(f"vehicle:{vehicle_id}:data")
+        metadata = r.hgetall(f"vehicle:{vehicle_id}:metadata")
 
         if not position and not progression:
             continue
@@ -217,29 +221,29 @@ def build_trip_updates():
             tu["trip"]["start_date"] = run["start_date"]
 
         tu["vehicle"] = {
-            "id": vehicle_meta.get("id", vehicle_id),
-            "label": vehicle_meta.get("label", vehicle_id),
+            "id": metadata.get("id", vehicle_id),
+            "label": metadata.get("label", vehicle_id),
         }
-        if vehicle_meta.get("license_plate"):
-            tu["vehicle"]["license_plate"] = vehicle_meta["license_plate"]
+        if metadata.get("license_plate"):
+            tu["vehicle"]["license_plate"] = metadata["license_plate"]
 
-        stop_time_updates = build_stop_time_updates(
-            run=run, progression=progression
-        )
+        stop_time_updates = build_stop_time_updates(run=run, progression=progression)
         tu["stop_time_update"] = []
         for update in stop_time_updates:
-            tu["stop_time_update"].append({
-                "stop_sequence": update["stop_sequence"],
-                "stop_id": update["stop_id"],
-                "arrival": {
-                    "time": update["eta_posix"],
-                    "uncertainty": update["uncertainty"],
-                },
-                "departure": {
-                    "time": update["eta_posix"],
-                    "uncertainty": update["uncertainty"],
-                },
-            })
+            tu["stop_time_update"].append(
+                {
+                    "stop_sequence": update["stop_sequence"],
+                    "stop_id": update["stop_id"],
+                    "arrival": {
+                        "time": update["eta_posix"],
+                        "uncertainty": update["uncertainty"],
+                    },
+                    "departure": {
+                        "time": update["eta_posix"],
+                        "uncertainty": update["uncertainty"],
+                    },
+                }
+            )
 
         feed_message["entity"].append(entity)
 

@@ -9,6 +9,7 @@ it and don't double-subscribe to the broker.
 
 Topic pattern: ``transit/vehicle/<vehicle_id>/{position,progression,occupancy}``.
 """
+
 import json
 import logging
 import os
@@ -18,6 +19,8 @@ import paho.mqtt.client as mqtt
 import redis
 from celery import bootsteps
 from django.utils.timezone import now
+
+from runs.domain.states import RunLifecycleState
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +32,7 @@ MQTT_CONSUMER_ENABLED = os.getenv("MQTT_CONSUMER_ENABLED", "false").lower() in (
     "yes",
 )
 
-_redis = redis.Redis(
+r = redis.Redis(
     host=os.getenv("REDIS_HOST", "state"),
     port=int(os.getenv("REDIS_PORT", "6379")),
     db=0,
@@ -57,18 +60,18 @@ def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
         logger.warning("Non-JSON payload on vehicle %s/%s — ignored", vehicle_id, leaf)
         return
 
-    run_id = _redis.get(f"vehicle:{vehicle_id}:current_run")
+    run_id = r.get(f"vehicle:{vehicle_id}:current_run")
     if not run_id:
         logger.debug("No active run for vehicle %s — dropping %s", vehicle_id, leaf)
         return
 
     if isinstance(data, dict):
-        _redis.hset(
+        r.hset(
             f"vehicle:{vehicle_id}:{leaf}",
             mapping={k: str(v) for k, v in data.items()},
         )
 
-    _redis.set(f"runs:last_seen:{run_id}", now().isoformat())
+    r.set(f"runs:last_seen:{run_id}", now().isoformat())
     _maybe_fire_lifecycle_event(run_id, vehicle_id, leaf, data)
 
 
@@ -77,7 +80,7 @@ def _maybe_fire_lifecycle_event(
 ) -> None:
     from realtime_engine.tasks import run_lifecycle_event
 
-    run_state = _redis.hget(f"run:{run_id}", "run_lifecycle_state")
+    run_state = r.hget(f"run:{run_id}", "run_lifecycle_state")
     if not run_state:
         return
 
@@ -88,26 +91,24 @@ def _maybe_fire_lifecycle_event(
         **data,
     }
 
-    if run_state == "Confirmed":
-        _redis.sadd("runs:tracking", run_id)
+    if run_state == RunLifecycleState.CONFIRMED:
+        r.sadd("runs:tracking", run_id)
         run_lifecycle_event.delay("run_tracking_started", payload)
 
-    elif run_state == "Tracking" and leaf == "position":
+    elif run_state == RunLifecycleState.TRACKING and leaf == "position":
         speed = float(data.get("speed", 0))
         if speed > 0.5:
             run_lifecycle_event.delay("run_started", payload)
 
-    elif run_state == "No Signal":
-        _redis.sadd("runs:tracking", run_id)
+    elif run_state == RunLifecycleState.NO_SIGNAL:
+        r.sadd("runs:tracking", run_id)
         run_lifecycle_event.delay("run_tracking_restored", payload)
 
-    elif run_state == "In Progress" and leaf == "progression":
+    elif run_state == RunLifecycleState.IN_PROGRESS and leaf == "progression":
         current_status = data.get("current_status", "")
         stop_id = data.get("stop_id", "")
         if current_status == "STOPPED_AT" and stop_id:
-            run_lifecycle_event.delay(
-                "complete_run", {**payload, "stop_id": stop_id}
-            )
+            run_lifecycle_event.delay("complete_run", {**payload, "stop_id": stop_id})
 
 
 def _on_connect(client: mqtt.Client, userdata, flags, rc) -> None:
@@ -128,9 +129,7 @@ def _on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage) -> None:
     try:
         _handle_telemetry(vehicle_id, leaf, msg.payload)
     except Exception:
-        logger.exception(
-            "Telemetry handling failed for %s/%s", vehicle_id, leaf
-        )
+        logger.exception("Telemetry handling failed for %s/%s", vehicle_id, leaf)
 
 
 def build_client() -> mqtt.Client:
@@ -144,7 +143,7 @@ def build_client() -> mqtt.Client:
 class MQTTConsumerStep(bootsteps.StartStopStep):
     """Celery worker bootstep that runs the MQTT subscriber in-process.
 
-    paho's ``loop_start()`` spawns its own background thread and handles
+    paho's `loop_start()` spawns its own background thread and handles
     reconnects internally, so the bootstep only orchestrates lifecycle:
     start on worker boot, stop on worker shutdown.
     """
@@ -162,9 +161,7 @@ class MQTTConsumerStep(bootsteps.StartStopStep):
                 os.getenv("MQTT_CONSUMER_ENABLED", "<unset>"),
             )
             return
-        logger.info(
-            "Starting MQTT consumer bootstep (%s:%s)", MQTT_HOST, MQTT_PORT
-        )
+        logger.info("Starting MQTT consumer bootstep (%s:%s)", MQTT_HOST, MQTT_PORT)
         client = build_client()
         try:
             client.connect_async(MQTT_HOST, MQTT_PORT, keepalive=60)

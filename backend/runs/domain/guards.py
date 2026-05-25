@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 r = redis.Redis(host="state", port=6379, db=0)
 
 TELEMETRY_GRACE_S = 60
-TELEMETRY_EXPIRY_S = 300
+TELEMETRY_EXPIRY_S = 600
 
 
 def _parse_last_seen(payload: dict[str, Any]) -> datetime | None:
@@ -49,7 +49,9 @@ class RunLifecycleGuards:
         if not trip_id:
             errors["trip_id"] = "trip_id is required"
         if direction_id not in [0, 1]:
-            errors["direction_id"] = f"direction_id must be 0 or 1, got '{direction_id}'"
+            errors["direction_id"] = (
+                f"direction_id must be 0 or 1, got '{direction_id}'"
+            )
         if not shape_id:
             errors["shape_id"] = "shape_id is required"
         if not schedule_relationship:
@@ -104,7 +106,9 @@ class RunLifecycleGuards:
         existing = r.get(f"vehicle:{vehicle_id}:current_run")
         if existing and existing.decode() != str(run.id):
             raise RunLifecycleError(
-                {"vehicle_id": f"Vehicle '{vehicle_id}' is already assigned to run {existing.decode()}"}
+                {
+                    "vehicle_id": f"Vehicle '{vehicle_id}' is already assigned to run {existing.decode()}"
+                }
             )
         return True
 
@@ -118,7 +122,9 @@ class RunLifecycleGuards:
         existing = r.get(f"trip:{trip_id}:current_run")
         if existing and existing.decode() != str(run.id):
             raise RunLifecycleError(
-                {"trip_id": f"Trip '{trip_id}' is already assigned to run {existing.decode()}"}
+                {
+                    "trip_id": f"Trip '{trip_id}' is already assigned to run {existing.decode()}"
+                }
             )
         return True
 
@@ -134,7 +140,9 @@ class RunLifecycleGuards:
         existing = r.get(f"operator:{operator_id}:current_run")
         if existing and existing.decode() != str(run.id):
             raise RunLifecycleError(
-                {"operator_id": f"Operator '{operator_id}' is already assigned to run {existing.decode()}"}
+                {
+                    "operator_id": f"Operator '{operator_id}' is already assigned to run {existing.decode()}"
+                }
             )
         return True
 
@@ -170,7 +178,9 @@ class RunLifecycleGuards:
         if actor_role in ("dispatcher", "operator"):
             return True
         raise RunLifecycleError(
-            {"actor_role": f"actor_role '{actor_role}' is not authorized to cancel runs"}
+            {
+                "actor_role": f"actor_role '{actor_role}' is not authorized to cancel runs"
+            }
         )
 
     @staticmethod
@@ -181,7 +191,9 @@ class RunLifecycleGuards:
         if actor_role in ("system", "dispatcher", "operator"):
             return True
         raise RunLifecycleError(
-            {"actor_role": f"actor_role '{actor_role}' is not authorized to interrupt runs"}
+            {
+                "actor_role": f"actor_role '{actor_role}' is not authorized to interrupt runs"
+            }
         )
 
     @staticmethod
@@ -192,7 +204,9 @@ class RunLifecycleGuards:
         if actor_role in ("dispatcher", "system"):
             return True
         raise RunLifecycleError(
-            {"actor_role": f"actor_role '{actor_role}' must be 'dispatcher' or 'system' to short-turn"}
+            {
+                "actor_role": f"actor_role '{actor_role}' must be 'dispatcher' or 'system' to short-turn"
+            }
         )
 
     @staticmethod
@@ -203,7 +217,9 @@ class RunLifecycleGuards:
 
         short_turn_stop_id = payload.get("short_turn_stop_id")
         if not short_turn_stop_id:
-            raise RunLifecycleError({"short_turn_stop_id": "short_turn_stop_id is required"})
+            raise RunLifecycleError(
+                {"short_turn_stop_id": "short_turn_stop_id is required"}
+            )
 
         trip_id = run.trip_id
         if not trip_id:
@@ -213,16 +229,22 @@ class RunLifecycleGuards:
         if not feed:
             raise RunLifecycleError({"feed": "No current GTFS feed found"})
 
-        stop_times = StopTime.objects.filter(feed=feed, trip_id=trip_id).order_by("stop_sequence")
+        stop_times = StopTime.objects.filter(feed=feed, trip_id=trip_id).order_by(
+            "stop_sequence"
+        )
         if not stop_times.exists():
-            raise RunLifecycleError({"trip_id": f"No stop times found for trip '{trip_id}'"})
+            raise RunLifecycleError(
+                {"trip_id": f"No stop times found for trip '{trip_id}'"}
+            )
 
         terminal = stop_times.last()
         stop_ids = list(stop_times.values_list("stop_id", flat=True))
 
         if short_turn_stop_id not in stop_ids:
             raise RunLifecycleError(
-                {"short_turn_stop_id": f"Stop '{short_turn_stop_id}' not on trip '{trip_id}'"}
+                {
+                    "short_turn_stop_id": f"Stop '{short_turn_stop_id}' not on trip '{trip_id}'"
+                }
             )
         if short_turn_stop_id == terminal.stop_id:
             raise RunLifecycleError(
@@ -298,11 +320,15 @@ class RunLifecycleGuards:
             .first()
         )
         if not terminal:
-            raise RunLifecycleError({"trip_id": f"No stop times found for trip '{trip_id}'"})
+            raise RunLifecycleError(
+                {"trip_id": f"No stop times found for trip '{trip_id}'"}
+            )
 
         if stop_id != terminal.stop_id:
             raise RunLifecycleError(
-                {"stop_id": f"Stop '{stop_id}' is not the terminal stop '{terminal.stop_id}'"}
+                {
+                    "stop_id": f"Stop '{stop_id}' is not the terminal stop '{terminal.stop_id}'"
+                }
             )
         return True
 

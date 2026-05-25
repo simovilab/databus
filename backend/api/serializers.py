@@ -130,8 +130,7 @@ class CreateRunSerializer(serializers.Serializer):
     )
 
 
-class UpdateRunSerializer(serializers.Serializer):
-    run_id = serializers.CharField(max_length=100)
+class RunUpdateSerializer(serializers.Serializer):
     event = serializers.ChoiceField(choices=RunLifecycleEvents)
     details = serializers.JSONField(required=False, default=dict)
 

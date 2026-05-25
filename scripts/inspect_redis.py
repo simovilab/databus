@@ -124,7 +124,7 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
 
     # Get all vehicle keys
     vehicle_keys = set()
-    for key in r.keys("vehicle:*:data"):
+    for key in r.keys("vehicle:*:metadata"):
         vehicle_id = key.split(":")[1]
         vehicle_keys.add(vehicle_id)
 
@@ -136,7 +136,7 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
 
     for vehicle_id in sorted(vehicle_keys):
         # Get vehicle data
-        vehicle_data = r.hgetall(f"vehicle:{vehicle_id}:data")
+        vehicle_data = r.hgetall(f"vehicle:{vehicle_id}:metadata")
         position = r.hgetall(f"vehicle:{vehicle_id}:position")
         progression = r.hgetall(f"vehicle:{vehicle_id}:progression")
         occupancy = r.hgetall(f"vehicle:{vehicle_id}:occupancy")
@@ -260,7 +260,7 @@ def inspect_summary(r: redis.Redis, show_age: bool = False) -> None:
     runs_count = len(r.smembers("runs:in_progress"))
 
     # Count vehicles
-    vehicle_keys = len(r.keys("vehicle:*:data"))
+    vehicle_keys = len(r.keys("vehicle:*:metadata"))
 
     # Count vehicles with recent data
     recent_count = 0

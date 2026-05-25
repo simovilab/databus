@@ -129,7 +129,7 @@ def delete_vehicle_data(r: redis.Redis, vehicle_id: str, dry_run: bool = False) 
     """
     # Keys to delete
     keys_to_delete = [
-        f"vehicle:{vehicle_id}:data",
+        f"vehicle:{vehicle_id}:metadata",
         f"vehicle:{vehicle_id}:position",
         f"vehicle:{vehicle_id}:progression",
         f"vehicle:{vehicle_id}:occupancy",
@@ -204,7 +204,7 @@ def force_cleanup_all(r: redis.Redis, dry_run: bool = False) -> int:
 
     # Get all vehicle-related keys
     patterns = [
-        "vehicle:*:data",
+        "vehicle:*:metadata",
         "vehicle:*:position",
         "vehicle:*:progression",
         "vehicle:*:occupancy",
