@@ -20,7 +20,7 @@ import redis
 from celery import bootsteps
 from django.utils.timezone import now
 
-from runs.domain import RunLifecycleStates
+from runs.domain.lifecycle import RunLifecycleStates
 
 logger = logging.getLogger(__name__)
 

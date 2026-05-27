@@ -1,6 +1,6 @@
 from django.contrib.gis.db import models
 from operations.models import Vehicle, Operator
-from runs.domain import RunLifecycleStates, choices
+from runs.domain.lifecycle import RunLifecycleStates, choices
 import uuid
 
 # Create your models here.

@@ -3,12 +3,12 @@ from runs.models import Run
 import redis
 
 if TYPE_CHECKING:
-    from runs.domain import Transition
+    from runs.domain.lifecycle import Transition
 
 r = redis.Redis(host="state", port=6379, db=0)
 
 
-class RunLifecycleActions:
+class RunProgressActions:
     """
     Ordering convention: every transition should list persist_lifecycle_event
     first so the audit record is written before any external side-effects. State

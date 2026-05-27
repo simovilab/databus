@@ -12,7 +12,7 @@ from runs.models import (
     Progression,
     Occupancy,
 )
-from runs.domain import RunLifecycleEvents
+from runs.domain.lifecycle import RunLifecycleEvents
 from feed.models import *
 from django.contrib.auth.models import User
 from rest_framework import serializers

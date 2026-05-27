@@ -8,7 +8,7 @@ from celery import shared_task
 from django.utils.timezone import now
 
 from runs.services.lifecycle import RunLifecycleService
-from runs.domain import RunLifecycleStates
+from runs.domain.lifecycle import RunLifecycleStates
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ TELEMETRY_EXPIRY_S = 300
 
 @shared_task(queue="realtime_engine")
 def run_lifecycle_event(event: str, payload: dict[str, Any]) -> None:
-    from runs.domain import RunLifecycleEvents
+    from runs.domain.lifecycle import RunLifecycleEvents
 
     service = RunLifecycleService()
     try:

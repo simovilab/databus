@@ -1,8 +1,8 @@
 from typing import Any
 from django.utils.timezone import now
-from runs.domain import RunLifecycleEvents
-from runs.domain import RunLifecycleStates
-from runs.domain import Transition
+from runs.domain.lifecycle import RunLifecycleEvents
+from runs.domain.lifecycle import RunLifecycleStates
+from runs.domain.lifecycle import Transition
 from runs.services.registry import TransitionRegistry
 from runs.services.exceptions import RunLifecycleError
 from runs.models import Run, RunLifecycleTransition

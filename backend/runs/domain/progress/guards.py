@@ -6,7 +6,7 @@ from runs.services.exceptions import RunLifecycleError
 import redis
 
 if TYPE_CHECKING:
-    from runs.domain import Transition
+    from runs.domain.lifecycle import Transition
 
 r = redis.Redis(host="state", port=6379, db=0)
 
@@ -29,7 +29,7 @@ def _parse_last_seen(payload: dict[str, Any]) -> datetime | None:
         return None
 
 
-class RunLifecycleGuards:
+class RunProgressGuards:
     @staticmethod
     def is_gtfs_valid(
         run: Run, transition: "Transition", payload: dict[str, Any]
@@ -330,10 +330,4 @@ class RunLifecycleGuards:
                     "stop_id": f"Stop '{stop_id}' is not the terminal stop '{terminal.stop_id}'"
                 }
             )
-        return True
-
-
-class RunProgressGuards:
-    @staticmethod
-    def telemetry_lost(run: Run, payload: dict[str, Any], now: datetime) -> bool:
         return True
