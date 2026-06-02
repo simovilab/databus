@@ -1,12 +1,12 @@
-"""Dispatch: turn telemetry / staleness into fired lifecycle events.
+"""Dispatch: turn telemetry / staleness into fired FSM events.
 
 Two layers:
 
 * **Pure planners** (``plan_telemetry_events`` / ``plan_scan_events``) decide which
-  events to fire given the current state and a message. No I/O — unit-testable.
+  events to fire given the current state(s) and a message. No I/O — unit-testable.
 * **Impure wrappers** (``detect_from_telemetry`` / ``detect_from_scan``) read run
   state from Redis, seed the few preconditions the lifecycle guards depend on, and
-  queue the resulting events onto the lifecycle Celery task.
+  queue the resulting events onto the right Celery task.
 
 ``mqtt.py`` and ``scan_stale_runs`` call only the wrappers; they hold no detection
 logic of their own.
@@ -22,6 +22,8 @@ from django.utils.timezone import now
 
 from runs.domain.detection.result import DetectionResult
 from runs.domain.detection import registry
+from runs.domain.lifecycle.states import RunLifecycleStates
+from runs.domain.progress.states import RunProgressStates
 
 r = redis.Redis(
     host=os.getenv("REDIS_HOST", "state"),
@@ -36,6 +38,8 @@ r = redis.Redis(
 # mirroring the original inline behaviour while keeping detectors pure.
 _TRACKING_SEED_EVENTS = {"run_tracking_started", "run_tracking_restored"}
 
+_DEFAULT_PROGRESS_STATE = RunProgressStates.IN_TRANSIT_TO.value
+
 
 # ---------------------------------------------------------------------------
 # Pure planners
@@ -44,6 +48,7 @@ _TRACKING_SEED_EVENTS = {"run_tracking_started", "run_tracking_restored"}
 
 def plan_telemetry_events(
     lifecycle_state: str | None,
+    progress_state: str | None,
     leaf: str,
     data: dict[str, Any],
     base_payload: dict[str, Any],
@@ -55,9 +60,10 @@ def plan_telemetry_events(
     for detector in detectors:
         if detector.fsm in fired_fsms:
             continue
-        if lifecycle_state is None:
+        state = progress_state if detector.fsm == "progress" else lifecycle_state
+        if state is None:
             continue
-        result = detector.detect(lifecycle_state, leaf, data, base_payload)
+        result = detector.detect(state, leaf, data, base_payload)
         if result is not None:
             results.append(result)
             fired_fsms.add(result.fsm)
@@ -86,12 +92,15 @@ def plan_scan_events(
 
 
 def _fire(result: DetectionResult, base_payload: dict[str, Any]) -> None:
-    from realtime_engine.tasks import run_lifecycle_event
+    from realtime_engine.tasks import run_lifecycle_event, run_progress_event
 
     payload = {**base_payload, **result.extra_payload}
-    if result.event in _TRACKING_SEED_EVENTS:
-        r.sadd("runs:tracking", base_payload["run_id"])
-    run_lifecycle_event.delay(result.event, payload)
+    if result.fsm == "progress":
+        run_progress_event.delay(result.event, payload)
+    else:
+        if result.event in _TRACKING_SEED_EVENTS:
+            r.sadd("runs:tracking", base_payload["run_id"])
+        run_lifecycle_event.delay(result.event, payload)
 
 
 def detect_from_telemetry(
@@ -101,13 +110,22 @@ def detect_from_telemetry(
     if not lifecycle_state:
         return
 
+    progress_state = r.hget(f"run:{run_id}", "run_progress_state")
+    # Seed the progress FSM's initial state the first time we see telemetry for a
+    # run that has reached IN_PROGRESS, so the FSM always has a from-state.
+    if not progress_state and lifecycle_state == RunLifecycleStates.IN_PROGRESS.value:
+        progress_state = _DEFAULT_PROGRESS_STATE
+        r.hset(f"run:{run_id}", "run_progress_state", progress_state)
+
     base_payload = {
         "run_id": run_id,
         "vehicle_id": vehicle_id,
         "last_seen_at": now().isoformat(),
         **data,
     }
-    for result in plan_telemetry_events(lifecycle_state, leaf, data, base_payload):
+    for result in plan_telemetry_events(
+        lifecycle_state, progress_state, leaf, data, base_payload
+    ):
         _fire(result, base_payload)
 
 

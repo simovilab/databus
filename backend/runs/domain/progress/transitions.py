@@ -9,7 +9,7 @@ from .events import RunProgressEvents
 
 @dataclass
 class Transition:
-    """Represents a state transition in the run lifecycle."""
+    """Represents a state transition in the progress FSM."""
 
     from_state: RunProgressStates
     event: RunProgressEvents
@@ -18,225 +18,40 @@ class Transition:
     actions: List[Callable]
 
 
+# Standard per-stop cycle:
+#   IN_TRANSIT_TO → INCOMING_AT → STOPPED_AT → IN_TRANSIT_TO (next stop)
+# plus the common shortcuts vehicles report (arriving without an INCOMING_AT
+# ping, or passing a stop they were incoming to without stopping).
+#
+# There are no from==to transitions: repeated identical statuses are absorbed by
+# the detector (it only emits on a status *change*), so the FSM never needs to
+# self-loop. Every transition is gated on the run being IN_PROGRESS.
+_GUARDS = [RunProgressGuards.is_run_in_progress]
+_ACTIONS = [
+    RunProgressActions.sync_progress_state,
+    RunProgressActions.persist_progress_event,
+]
+
+
+def _t(from_state, event, to_state) -> Transition:
+    return Transition(
+        from_state=from_state,
+        event=event,
+        to_state=to_state,
+        guards=list(_GUARDS),
+        actions=list(_ACTIONS),
+    )
+
+
 TRANSITIONS = [
-    # ------------------------------------------------------------------
-    # Registration: REQUESTED → VALIDATED
-    # ------------------------------------------------------------------
-    Transition(
-        from_state=RunProgressStates.REQUESTED,
-        event=RunProgressEvents.VALIDATE_RUN,
-        to_state=RunProgressStates.VALIDATED,
-        guards=[
-            RunProgressGuards.is_gtfs_valid,
-            RunProgressGuards.is_trip_available,
-            RunProgressGuards.is_vehicle_available,
-            RunProgressGuards.is_operator_available,
-        ],
-        actions=[],
-    ),
-    # Registration rejected at validation stage
-    Transition(
-        from_state=RunProgressStates.REQUESTED,
-        event=RunProgressEvents.RUN_REJECTED,
-        to_state=RunProgressStates.CANCELLED,
-        guards=[],
-        actions=[],
-    ),
-    # ------------------------------------------------------------------
-    # Initialization: VALIDATED → INITIALIZED
-    # ------------------------------------------------------------------
-    Transition(
-        from_state=RunProgressStates.VALIDATED,
-        event=RunProgressEvents.INITIALIZE_RUN,
-        to_state=RunProgressStates.INITIALIZED,
-        guards=[
-            RunProgressGuards.is_run_validated,
-        ],
-        actions=[
-            RunProgressActions.update_system_state,
-        ],
-    ),
-    # Initialization failed after validation passed
-    Transition(
-        from_state=RunProgressStates.VALIDATED,
-        event=RunProgressEvents.RUN_REJECTED,
-        to_state=RunProgressStates.CANCELLED,
-        guards=[],
-        actions=[
-            RunProgressActions.release_resources,
-        ],
-    ),
-    # ------------------------------------------------------------------
-    # Operator confirmation: INITIALIZED → CONFIRMED
-    # ------------------------------------------------------------------
-    Transition(
-        from_state=RunProgressStates.INITIALIZED,
-        event=RunProgressEvents.RUN_CONFIRMED_BY_OPERATOR,
-        to_state=RunProgressStates.CONFIRMED,
-        guards=[],
-        actions=[
-            RunProgressActions.sync_lifecycle_state,
-        ],
-    ),
-    # Cancelled before operator confirmation
-    Transition(
-        from_state=RunProgressStates.INITIALIZED,
-        event=RunProgressEvents.RUN_REJECTED,
-        to_state=RunProgressStates.CANCELLED,
-        guards=[
-            RunProgressGuards.is_cancellation_authorized,
-        ],
-        actions=[
-            RunProgressActions.remove_from_system_state,
-            RunProgressActions.release_resources,
-        ],
-    ),
-    # ------------------------------------------------------------------
-    # Tracking started: CONFIRMED → TRACKING
-    # ------------------------------------------------------------------
-    Transition(
-        from_state=RunProgressStates.CONFIRMED,
-        event=RunProgressEvents.RUN_TRACKING_STARTED,
-        to_state=RunProgressStates.TRACKING,
-        guards=[
-            RunProgressGuards.is_vehicle_tracked,
-        ],
-        actions=[
-            RunProgressActions.sync_lifecycle_state,
-            RunProgressActions.add_to_tracking_set,
-        ],
-    ),
-    # Cancelled after confirmation but before tracking
-    Transition(
-        from_state=RunProgressStates.CONFIRMED,
-        event=RunProgressEvents.CANCEL_RUN,
-        to_state=RunProgressStates.CANCELLED,
-        guards=[
-            RunProgressGuards.is_cancellation_authorized,
-        ],
-        actions=[
-            RunProgressActions.remove_from_system_state,
-            RunProgressActions.release_resources,
-        ],
-    ),
-    # ------------------------------------------------------------------
-    # Run started: TRACKING → IN_PROGRESS
-    # ------------------------------------------------------------------
-    Transition(
-        from_state=RunProgressStates.TRACKING,
-        event=RunProgressEvents.RUN_STARTED,
-        to_state=RunProgressStates.IN_PROGRESS,
-        guards=[
-            RunProgressGuards.is_vehicle_moving,
-        ],
-        actions=[
-            RunProgressActions.sync_lifecycle_state,
-            RunProgressActions.add_to_in_progress_set,
-        ],
-    ),
-    # Cancelled while tracking (before run started)
-    Transition(
-        from_state=RunProgressStates.TRACKING,
-        event=RunProgressEvents.CANCEL_RUN,
-        to_state=RunProgressStates.CANCELLED,
-        guards=[
-            RunProgressGuards.is_cancellation_authorized,
-        ],
-        actions=[
-            RunProgressActions.remove_from_tracking_set,
-            RunProgressActions.remove_from_system_state,
-            RunProgressActions.release_resources,
-        ],
-    ),
-    # ------------------------------------------------------------------
-    # In progress: deviation events
-    # ------------------------------------------------------------------
-    Transition(
-        from_state=RunProgressStates.IN_PROGRESS,
-        event=RunProgressEvents.RUN_TRACKING_LOST,
-        to_state=RunProgressStates.NO_SIGNAL,
-        guards=[
-            RunProgressGuards.is_telemetry_stale,
-        ],
-        actions=[
-            # Keep the run in `runs:tracking` so scan_stale_runs can fire
-            # RUN_TRACKING_EXPIRED later. The set is the work queue, not a
-            # status flag — only fully-terminal transitions should remove from it.
-            RunProgressActions.sync_lifecycle_state,
-        ],
-    ),
-    Transition(
-        from_state=RunProgressStates.IN_PROGRESS,
-        event=RunProgressEvents.INTERRUPT_RUN,
-        to_state=RunProgressStates.INTERRUPTED,
-        guards=[
-            RunProgressGuards.is_interruption_authorized,
-        ],
-        actions=[
-            RunProgressActions.sync_lifecycle_state,
-            RunProgressActions.remove_from_tracking_set,
-            RunProgressActions.remove_from_in_progress_set,
-            RunProgressActions.release_resources,
-        ],
-    ),
-    Transition(
-        from_state=RunProgressStates.IN_PROGRESS,
-        event=RunProgressEvents.SHORT_TURN_RUN,
-        to_state=RunProgressStates.SHORT_TURNED,
-        guards=[
-            RunProgressGuards.is_short_turn_authorized,
-            RunProgressGuards.is_short_turn_geometrically_valid,
-        ],
-        actions=[
-            RunProgressActions.sync_lifecycle_state,
-            RunProgressActions.remove_from_tracking_set,
-            RunProgressActions.remove_from_in_progress_set,
-            RunProgressActions.release_resources,
-        ],
-    ),
-    Transition(
-        from_state=RunProgressStates.IN_PROGRESS,
-        event=RunProgressEvents.COMPLETE_RUN,
-        to_state=RunProgressStates.COMPLETED,
-        guards=[
-            RunProgressGuards.is_at_terminal_stop,
-        ],
-        actions=[
-            RunProgressActions.sync_lifecycle_state,
-            RunProgressActions.remove_from_tracking_set,
-            RunProgressActions.remove_from_in_progress_set,
-            RunProgressActions.release_resources,
-        ],
-    ),
-    # ------------------------------------------------------------------
-    # No signal: recovery or expiry
-    # ------------------------------------------------------------------
-    Transition(
-        from_state=RunProgressStates.NO_SIGNAL,
-        event=RunProgressEvents.RUN_TRACKING_RESTORED,
-        to_state=RunProgressStates.IN_PROGRESS,
-        guards=[
-            RunProgressGuards.is_telemetry_fresh,
-            RunProgressGuards.is_vehicle_tracked,
-        ],
-        actions=[
-            RunProgressActions.sync_lifecycle_state,
-            RunProgressActions.add_to_tracking_set,
-            RunProgressActions.add_to_in_progress_set,
-        ],
-    ),
-    Transition(
-        from_state=RunProgressStates.NO_SIGNAL,
-        event=RunProgressEvents.RUN_TRACKING_EXPIRED,
-        to_state=RunProgressStates.CANCELLED,
-        guards=[
-            RunProgressGuards.is_telemetry_grace_period_exceeded,
-        ],
-        actions=[
-            RunProgressActions.sync_lifecycle_state,
-            RunProgressActions.remove_from_tracking_set,
-            RunProgressActions.remove_from_in_progress_set,
-            RunProgressActions.release_resources,
-        ],
-    ),
+    # Approaching / arriving at the current stop
+    _t(RunProgressStates.IN_TRANSIT_TO, RunProgressEvents.VEHICLE_INCOMING, RunProgressStates.INCOMING_AT),
+    _t(RunProgressStates.IN_TRANSIT_TO, RunProgressEvents.VEHICLE_STOPPED, RunProgressStates.STOPPED_AT),
+    _t(RunProgressStates.INCOMING_AT, RunProgressEvents.VEHICLE_STOPPED, RunProgressStates.STOPPED_AT),
+    # Departing toward the next stop
+    _t(RunProgressStates.STOPPED_AT, RunProgressEvents.VEHICLE_IN_TRANSIT, RunProgressStates.IN_TRANSIT_TO),
+    # Passed a stop it was incoming to without registering a stop
+    _t(RunProgressStates.INCOMING_AT, RunProgressEvents.VEHICLE_IN_TRANSIT, RunProgressStates.IN_TRANSIT_TO),
+    # Re-approaching after a stop (rare; e.g. layover re-report)
+    _t(RunProgressStates.STOPPED_AT, RunProgressEvents.VEHICLE_INCOMING, RunProgressStates.INCOMING_AT),
 ]

@@ -38,6 +38,25 @@ def run_lifecycle_event(event: str, payload: dict[str, Any]) -> None:
 
 
 @shared_task(queue="realtime_engine")
+def run_progress_event(event: str, payload: dict[str, Any]) -> None:
+    from runs.domain.progress import RunProgressEvents
+    from runs.services.progress import RunProgressService
+
+    service = RunProgressService()
+    try:
+        evt = RunProgressEvents(event)
+    except ValueError:
+        logger.error("Unknown progress event: %s", event)
+        return
+    try:
+        service.process_event(evt, payload)
+    except Exception:
+        logger.exception(
+            "Progress event %s failed for run %s", event, payload.get("run_id")
+        )
+
+
+@shared_task(queue="realtime_engine")
 def scan_stale_runs() -> str:
     """Scan ``runs:tracking`` every 30 s and let the detection layer decide.
 

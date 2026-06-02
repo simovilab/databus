@@ -1,4 +1,4 @@
-"""Pure unit tests for lifecycle detectors — no Django/Redis required.
+"""Pure unit tests for detectors — no Django/Redis required.
 
 Detectors are pure functions of (state, telemetry) → DetectionResult | None.
 """
@@ -6,12 +6,14 @@ Detectors are pure functions of (state, telemetry) → DetectionResult | None.
 import pytest
 
 from runs.domain.lifecycle.states import RunLifecycleStates
+from runs.domain.progress.states import RunProgressStates
 from runs.domain.detection.lifecycle_detectors import (
     RunTrackingStartedDetector,
     RunStartedDetector,
     RunTrackingRestoredDetector,
     RunCompletedDetector,
 )
+from runs.domain.detection.progress_detectors import VehicleStatusDetector
 from runs.domain.detection.periodic_detectors import (
     RunTrackingLostDetector,
     RunTrackingExpiredDetector,
@@ -78,6 +80,41 @@ def test_completed_silent_without_stop_id():
 def test_completed_silent_when_not_stopped():
     data = {"current_status": "IN_TRANSIT_TO", "stop_id": "X"}
     assert RunCompletedDetector.detect(IN_PROGRESS, "progression", data, {}) is None
+
+
+# --------------------------------------------------------------------------
+# Progress detector (change-only)
+# --------------------------------------------------------------------------
+
+
+def test_progress_emits_event_on_status_change():
+    data = {"current_status": "STOPPED_AT", "stop_id": "S2", "current_stop_sequence": 4}
+    res = VehicleStatusDetector.detect(
+        RunProgressStates.IN_TRANSIT_TO.value, "progression", data, {}
+    )
+    assert res is not None
+    assert res.fsm == "progress"
+    assert res.event == "vehicle_stopped"
+    assert res.extra_payload["stop_id"] == "S2"
+    assert res.extra_payload["current_stop_sequence"] == 4
+
+
+def test_progress_silent_when_status_unchanged():
+    data = {"current_status": "IN_TRANSIT_TO"}
+    res = VehicleStatusDetector.detect(
+        RunProgressStates.IN_TRANSIT_TO.value, "progression", data, {}
+    )
+    assert res is None
+
+
+def test_progress_ignores_non_progression_leaf():
+    data = {"current_status": "STOPPED_AT"}
+    assert VehicleStatusDetector.detect("IN_TRANSIT_TO", "position", data, {}) is None
+
+
+def test_progress_ignores_unknown_status():
+    data = {"current_status": "WAT"}
+    assert VehicleStatusDetector.detect("IN_TRANSIT_TO", "progression", data, {}) is None
 
 
 # --------------------------------------------------------------------------

@@ -1,61 +1,84 @@
+"""Progress FSM service.
+
+Mirrors :class:`RunLifecycleService` (load → find candidate transitions → check
+guards → run actions) but for the progress FSM. Two deliberate differences:
+
+* The current state lives in Redis (``run:{id}`` hash, ``run_progress_state``),
+  not on the ``Run`` model — progress changes too frequently for a DB write per
+  ping, and ``RunProgressEvent`` already provides the durable audit trail.
+* State persistence is done by the transition's *actions*
+  (``sync_progress_state`` + ``persist_progress_event``), so the service only
+  orchestrates; it does not write the run row.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any
+
+import redis
+
+from runs.domain.progress import TRANSITIONS, RunProgressStates
+from runs.domain.progress.transitions import Transition
+from runs.services.registry import TransitionRegistry
+from runs.services.exceptions import RunLifecycleError
 from runs.models import Run
+
+r = redis.Redis(
+    host=os.getenv("REDIS_HOST", "state"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
+    db=0,
+    decode_responses=True,
+)
+
+_DEFAULT_STATE = RunProgressStates.IN_TRANSIT_TO.value
 
 
 class RunProgressService:
-    def process_event(self, event, payload):
+    def __init__(self) -> None:
+        self.registry = TransitionRegistry(TRANSITIONS)
+
+    def process_event(self, event, payload: dict[str, Any]):
         run = self._load_run(payload)
-        if not self._is_active(run):
-            return None
-        context = self._build_context(run, payload)
-        detected_events = self._detect_events(run, event, payload, context)
-        return self._persist_events(run, detected_events)
+        state = self._current_state(run)
+        candidates = self.registry.find(state, event)
+        for transition in candidates:
+            is_valid, guards = self._check_guards(run, transition, payload)
+            if is_valid:
+                self._execute_actions(run, transition, payload)
+                return transition.to_state
+            # guards failed → not a valid transition; keep trying candidates
+        raise RunLifecycleError(
+            {
+                "detail": (
+                    f"No valid progress transition for event '{event}' "
+                    f"from state '{state}'."
+                )
+            }
+        )
 
-    def _load_run(self, payload):
-        run_id = payload.get("run_id")
-        return Run.objects.get(id=run_id)
+    def _load_run(self, payload: dict[str, Any]) -> Run:
+        return Run.objects.get(id=payload.get("run_id"))
 
-    def _is_active(self, run):
-        return run.run_lifecycle_state == "IN_PROGRESS"
+    def _current_state(self, run: Run) -> str:
+        return r.hget(f"run:{run.id}", "run_progress_state") or _DEFAULT_STATE
 
-    def _build_context(self, run, payload):
-        context = {
-            "timestamp": payload.get("timestamp"),
-            "position": payload.get("position"),
-            "speed": payload.get("speed"),
-            # TODO:
-            # - last known position (Redis)
-            # - stop sequence (GTFS)
-            # - shape
-        }
-        return context
+    def _check_guards(
+        self, run: Run, transition: Transition, payload: dict[str, Any]
+    ) -> tuple[bool, dict[str, bool]]:
+        guards: dict[str, bool] = {}
+        is_valid = True
+        for guard in transition.guards:
+            try:
+                passed = guard(run, transition, payload)
+            except RunLifecycleError:
+                passed = False
+            guards[guard.__name__] = passed
+            is_valid = is_valid and passed
+        return is_valid, guards
 
-    def _detect_events(self, run, event, payload, context):
-        detected = []
-        if event == "vehicle_position_updated":
-            detected.extend(self._detect_stop_events(run, context))
-            detected.extend(self._detect_movement_events(run, context))
-        return detected
-
-    def _detect_stop_events(self, run, context):
-        events = []
-        current_stop = 1  # self._infer_current_stop(run, context)
-        if current_stop and not self._was_at_stop(run, current_stop):
-            events.append(
-                {
-                    "type": "vehicle_arrived_at_stop",
-                    "stop_id": current_stop,
-                    "timestamp": context["timestamp"],
-                }
-            )
-        return events
-
-    def _detect_movement_events(self, run, context):
-        events = []
-        if context["speed"] > 5:
-            events.append(
-                {
-                    "type": "vehicle_moving",
-                    "timestamp": context["timestamp"],
-                }
-            )
-        return events
+    def _execute_actions(
+        self, run: Run, transition: Transition, payload: dict[str, Any]
+    ) -> None:
+        for action in transition.actions:
+            action(run, transition, payload)

@@ -11,6 +11,7 @@ from runs.domain.detection.lifecycle_detectors import (
     RunTrackingRestoredDetector,
     RunCompletedDetector,
 )
+from runs.domain.detection.progress_detectors import VehicleStatusDetector
 from runs.domain.detection.periodic_detectors import (
     RunTrackingLostDetector,
     RunTrackingExpiredDetector,
@@ -22,6 +23,7 @@ TELEMETRY_DETECTORS = [
     RunStartedDetector,
     RunTrackingRestoredDetector,
     RunCompletedDetector,
+    VehicleStatusDetector,
 ]
 
 # Evaluated by the periodic staleness scan.
