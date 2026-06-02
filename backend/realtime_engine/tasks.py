@@ -8,7 +8,6 @@ from celery import shared_task
 from django.utils.timezone import now
 
 from runs.services.lifecycle import RunLifecycleService
-from runs.domain.lifecycle import RunLifecycleStates
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +17,6 @@ redis_client = redis.Redis(
     db=0,
     decode_responses=True,
 )
-
-TELEMETRY_GRACE_S = 60
-TELEMETRY_EXPIRY_S = 300
 
 
 @shared_task(queue="realtime_engine")
@@ -43,11 +39,14 @@ def run_lifecycle_event(event: str, payload: dict[str, Any]) -> None:
 
 @shared_task(queue="realtime_engine")
 def scan_stale_runs() -> str:
+    """Scan ``runs:tracking`` every 30 s and let the detection layer decide.
+
+    The staleness windows and the IN_PROGRESS/NO_SIGNAL conditions live in the
+    periodic detectors (``runs.domain.detection``); this task only computes how
+    long each run has been quiet and hands it to the dispatcher.
     """
-    Scans runs:tracking every 30 s.
-    - Grace exceeded (>60s, ≤300s) while IN_PROGRESS → RUN_TRACKING_LOST
-    - Expiry exceeded (>300s) while NO_SIGNAL → RUN_TRACKING_EXPIRED
-    """
+    from runs.domain.detection.dispatch import detect_from_scan
+
     run_ids = redis_client.smembers("runs:tracking")
     fired = 0
     for run_id in run_ids:
@@ -62,25 +61,6 @@ def scan_stale_runs() -> str:
             continue
 
         staleness = (now() - last_seen).total_seconds()
-        run_state = redis_client.hget(f"run:{run_id}", "run_lifecycle_state")
-
-        payload = {
-            "run_id": run_id,
-            "last_seen_at": raw_last_seen,
-            "actor_role": "system",
-        }
-
-        if (
-            TELEMETRY_GRACE_S < staleness <= TELEMETRY_EXPIRY_S
-            and run_state == RunLifecycleStates.IN_PROGRESS.value
-        ):
-            run_lifecycle_event.delay("run_tracking_lost", payload)
-            fired += 1
-        elif (
-            staleness > TELEMETRY_EXPIRY_S
-            and run_state == RunLifecycleStates.NO_SIGNAL.value
-        ):
-            run_lifecycle_event.delay("run_tracking_expired", payload)
-            fired += 1
+        fired += detect_from_scan(run_id, staleness, raw_last_seen)
 
     return f"scan_stale_runs: checked {len(run_ids)} runs, fired {fired} events"

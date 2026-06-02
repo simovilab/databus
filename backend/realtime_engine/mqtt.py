@@ -13,14 +13,11 @@ Topic pattern: ``transit/vehicle/<vehicle_id>/{position,progression,occupancy}``
 import json
 import logging
 import os
-from typing import Any
 
 import paho.mqtt.client as mqtt
 import redis
 from celery import bootsteps
 from django.utils.timezone import now
-
-from runs.domain.lifecycle import RunLifecycleStates
 
 logger = logging.getLogger(__name__)
 
@@ -72,43 +69,12 @@ def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
         )
 
     r.set(f"runs:last_seen:{run_id}", now().isoformat())
-    _maybe_fire_lifecycle_event(run_id, vehicle_id, leaf, data)
 
+    # All detection heuristics live in runs.domain.detection; this consumer only
+    # ingests telemetry and delegates.
+    from runs.domain.detection.dispatch import detect_from_telemetry
 
-def _maybe_fire_lifecycle_event(
-    run_id: str, vehicle_id: str, leaf: str, data: dict[str, Any]
-) -> None:
-    from realtime_engine.tasks import run_lifecycle_event
-
-    run_state = r.hget(f"run:{run_id}", "run_lifecycle_state")
-    if not run_state:
-        return
-
-    payload = {
-        "run_id": run_id,
-        "vehicle_id": vehicle_id,
-        "last_seen_at": now().isoformat(),
-        **data,
-    }
-
-    if run_state == RunLifecycleStates.CONFIRMED.value:
-        r.sadd("runs:tracking", run_id)
-        run_lifecycle_event.delay("run_tracking_started", payload)
-
-    elif run_state == RunLifecycleStates.TRACKING.value and leaf == "position":
-        speed = float(data.get("speed", 0))
-        if speed > 0.5:
-            run_lifecycle_event.delay("run_started", payload)
-
-    elif run_state == RunLifecycleStates.NO_SIGNAL.value:
-        r.sadd("runs:tracking", run_id)
-        run_lifecycle_event.delay("run_tracking_restored", payload)
-
-    elif run_state == RunLifecycleStates.IN_PROGRESS.value and leaf == "progression":
-        current_status = data.get("current_status", "")
-        stop_id = data.get("stop_id", "")
-        if current_status == "STOPPED_AT" and stop_id:
-            run_lifecycle_event.delay("complete_run", {**payload, "stop_id": stop_id})
+    detect_from_telemetry(run_id, vehicle_id, leaf, data)
 
 
 def _on_connect(client: mqtt.Client, userdata, flags, rc) -> None:

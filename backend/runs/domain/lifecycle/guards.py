@@ -3,15 +3,13 @@ from datetime import datetime, timezone
 from django.utils.timezone import now
 from runs.models import Run
 from runs.services.exceptions import RunLifecycleError
+from runs.domain.detection.thresholds import TELEMETRY_GRACE_S, TELEMETRY_EXPIRY_S
 import redis
 
 if TYPE_CHECKING:
     from runs.domain.lifecycle import Transition
 
 r = redis.Redis(host="state", port=6379, db=0)
-
-TELEMETRY_GRACE_S = 60
-TELEMETRY_EXPIRY_S = 600
 
 
 def _parse_last_seen(payload: dict[str, Any]) -> datetime | None:
