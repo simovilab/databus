@@ -10,6 +10,7 @@ name: databus-prod
 #     RABBITMQ_DOMAIN        – RabbitMQ management UI
 #     ANALYTICS_DOMAIN       – Prefect dashboard
 #     FLOWER_DOMAIN          – Celery Flower dashboard
+#     DOCS_DOMAIN            – Project documentation site
 #     CERT_RESOLVER          – Traefik cert resolver name (default: letsencrypt)
 #
 #   Credentials:
@@ -281,28 +282,39 @@ services:
       - "traefik.http.services.flower.loadbalancer.server.port=5555"
       - "traefik.docker.network=traefik_proxy"
 
+  # ── Documentation (static site) ────────────────────────────────────────
+  docs:
+    image: nginx:alpine
+    volumes:
+      - ./docs/site:/usr/share/nginx/html:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docs.rule=Host(`${DOCS_DOMAIN}`)"
+      - "traefik.http.routers.docs.entrypoints=websecure"
+      - "traefik.http.routers.docs.tls=true"
+      - "traefik.http.routers.docs.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.routers.docs.middlewares=security-headers@file,compression@file"
+      - "traefik.http.services.docs.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik_proxy"
+
   # ── Nuxt frontend ────────────────────────────────────────────────────────
-  # NOTE: the current frontend Dockerfile does not COPY source code (it
-  # relies on a bind mount). For a fully baked production image, add a
-  # multi-stage build that copies source, runs `pnpm build`, and serves
-  # the .output directory. The bind mount + entrypoint override below
-  # works as a transitional approach.
   user-interface:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: prod
     environment:
       - NUXT_PUBLIC_API_BASE=https://${ORCHESTRATOR_DOMAIN}
       - NUXT_PORT=3000
-      - NODE_ENV=production
     env_file:
       - .env
       - .env.prod
-    volumes:
-      - ./frontend:/app
-      - ui_node_modules:/app/node_modules
-    entrypoint: ["sh", "-c"]
-    command: ["pnpm install --frozen-lockfile && pnpm build && node .output/server/index.mjs"]
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -328,7 +340,6 @@ volumes:
   message_broker_data:
   backend_venv:
   static_files:
-  ui_node_modules:
 
 networks:
   internal:

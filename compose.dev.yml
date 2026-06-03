@@ -169,6 +169,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: dev
     environment:
       - NUXT_PUBLIC_API_BASE=http://orchestrator:8000
       - NUXT_PORT=3000
