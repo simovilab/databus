@@ -1,119 +1,180 @@
-<img width="250" alt="databus" src="https://github.com/user-attachments/assets/b2ad45ac-83e5-44cf-a93e-898868763530" />
-
 # Databús
 
-![Static Badge](https://img.shields.io/badge/web_framework-Django-white?logo=django)
+![Static Badge](https://img.shields.io/badge/backend-Django-white?logo=django)
+![Static Badge](https://img.shields.io/badge/task_queue-Celery-white?logo=celery)
 ![Static Badge](https://img.shields.io/badge/package_manager-uv-white?logo=uv)
+![Static Badge](https://img.shields.io/badge/frontend-Nuxt-white?logo=nuxt)
+![Static Badge](https://img.shields.io/badge/database-PostgreSQL-white?logo=postgresql)
+![Static Badge](https://img.shields.io/badge/memory-Redis-white?logo=redis)
+![Static Badge](https://img.shields.io/badge/broker-RabbitMQ-white?logo=rabbitmq)
+![Static Badge](https://img.shields.io/badge/workflow-Prefect-white?logo=prefect)
+![Static Badge](https://img.shields.io/badge/mqtt-NanoMQ-white?logo=mqtt)
+![Static Badge](https://img.shields.io/badge/infrastructure-Docker-white?logo=docker)
 
-Core backend server implementing GTFS Schedule and GTFS Realtime specifications for comprehensive transit data management. Provides RESTful API endpoints for static schedule data (routes, stops, trips) and real-time vehicle information (positions, alerts, service updates) with PostgreSQL/PostGIS storage and real-time data validation.
+A distributed transit data system implementing GTFS Schedule and GTFS Realtime specifications. The system is composed of independent services coordinated via message brokers: a Django control plane, Celery workers for real-time processing and feed generation, MQTT telemetry ingestion, a Nuxt frontend, and Prefect for batch analytics — all orchestrated through Docker Compose.
 
-## ✨ Features
+<img width="250" alt="databus" src="https://github.com/user-attachments/assets/b2ad45ac-83e5-44cf-a93e-898868763530" />
 
-- 🚌 **GTFS Schedule & Realtime Support** - Full implementation of GTFS specifications
-- 🌐 **RESTful API** - Comprehensive endpoints for transit data access
-- 📊 **Real-time Data Processing** - Live vehicle positions, alerts, and service updates
-- 🗺️ **Geospatial Support** - PostgreSQL/PostGIS for location-based queries
-- 🔄 **Background Processing** - Celery integration for data validation and updates
-- 🏢 **Multi-tenant Architecture** - Support for multiple transit agencies
+## Architecture
 
-## 🚀 Getting Started
+| Service              | Role                                          | Tech                   |
+| -------------------- | --------------------------------------------- | ---------------------- |
+| **orchestrator**     | Control plane, REST API, admin                | Django / Daphne (ASGI) |
+| **realtime-engine**  | Processes MQTT telemetry, updates Redis state | Celery worker          |
+| **schedule-engine**  | Processes schedules tasks                     | Celery worker          |
+| **scheduler**        | Triggers periodic tasks                       | Celery Beat            |
+| **user-interface**   | Web frontend                                  | Nuxt                   |
+| **database**         | Durable persistence                           | PostgreSQL + PostGIS   |
+| **state**            | Authoritative real-time state                 | Redis                  |
+| **message-broker**   | Async messaging                               | RabbitMQ               |
+| **telemetry-broker** | Vehicle telemetry ingestion                   | NanoMQ (MQTT)          |
+| **analytics-engine** | Batch processing and ML                       | Prefect                |
+| **task-monitoring**  | Celery task dashboard                         | Flower                 |
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed service mandates, message semantics, and data flow diagrams. See [MODEL.md](MODEL.md) for functional diagrams and state machine flows.
+
+## Getting Started
 
 ### Prerequisites
 
-- Python 3.11+
-- Redis server
-- PostgreSQL 12+ with PostGIS extension
+- Docker Engine 24+ and Docker Compose v2
 - Git
 
-### Installation
+### Setup
 
-1. **Clone the repository**
+```bash
+git clone https://github.com/simovilab/databus.git
+cd databus
+cp .env.example .env   # edit with your values
+./scripts/dev.sh
+```
 
-   ```bash
-   git clone https://github.com/simovilab/databus.git
-   cd databus
-   ```
+The startup script initializes Git submodules, pulls images, builds containers, and waits for all services to become healthy. On first run this takes 1–2 minutes.
 
-2. **Set up virtual environment** (recommended)
+### Development URLs
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+| URL                             | Description                       |
+| ------------------------------- | --------------------------------- |
+| http://localhost:8000           | Orchestrator / API                |
+| http://localhost:8000/admin     | Django admin                      |
+| http://localhost:8000/api/      | REST API root                     |
+| http://localhost:8000/api/docs/ | API documentation (ReDoc)         |
+| http://localhost:3000           | Nuxt frontend                     |
+| http://localhost:15672          | RabbitMQ management (guest/guest) |
+| http://localhost:4200           | Prefect dashboard                 |
+| http://localhost:5555           | Flower (Celery monitoring)        |
 
-3. **Install dependencies**
+### Common commands
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+# Logs
+docker compose -f compose.dev.yml logs -f              # all services
+docker compose -f compose.dev.yml logs -f orchestrator  # single service
 
-4. **Configure environment**
+# Django management
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py migrate
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py createsuperuser
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py shell
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata gtfs.json
 
-   ```bash
-   cp .env.example .env  # Create and edit your environment variables
-   ```
+# Stop
+docker compose -f compose.dev.yml down
+```
 
-5. **Set up database**
-   ```bash
-   python manage.py migrate
-   python manage.py createsuperuser  # Optional: create admin user
-   ```
+### Code quality
 
-### Running the Application
+```bash
+# From backend/
+ruff check .
+ruff format .
+mypy .
+pytest
+```
 
-1. **Start Redis server** (in separate terminal)
+## Production Deployment
 
-   ```bash
-   redis-server
-   ```
+Production runs on Docker Compose behind a [Traefik](https://traefik.io/) reverse proxy that handles TLS termination via Let's Encrypt. All HTTP traffic goes through port **443**; MQTT through port **8883** (TLS). No services expose ports directly to the host.
 
-2. **Start Celery worker** (in separate terminal)
+### Quick start
 
-   ```bash
-   celery -A realtime worker -l info
-   ```
+```bash
+cp .env.example .env   # add production domains and credentials (see below)
+./scripts/prod.sh
+```
 
-3. **Start Django development server**
-   ```bash
-   python manage.py runserver
-   ```
+### Required environment variables
 
-The application will be available at `http://localhost:8000`
+```bash
+# Domain routing (Traefik)
+ORCHESTRATOR_DOMAIN=api.example.com
+UI_DOMAIN=app.example.com
+MQTT_DOMAIN=mqtt.example.com
+RABBITMQ_DOMAIN=rabbitmq.example.com
+ANALYTICS_DOMAIN=analytics.example.com
+FLOWER_DOMAIN=flower.example.com
+DOCS_DOMAIN=docs.example.com
+CERT_RESOLVER=letsencrypt
 
-## 🚀 Usage
+# Credentials
+SECRET_KEY=<generate-a-strong-key>
+DB_PASSWORD=<strong-password>
+REDIS_PASSWORD=<strong-password>
+RABBITMQ_USER=databus
+RABBITMQ_PASS=<strong-password>
+```
 
-| Endpoint            | Description                                    |
-| ------------------- | ---------------------------------------------- |
-| `/api/`             | REST API root - browse all available endpoints |
-| `/api/docs/`        | Interactive API documentation (ReDoc)          |
-| `/api/docs/schema/` | OpenAPI schema                                 |
-| `/admin/`           | Django admin interface                         |
-| `/feed/`            | GTFS feed endpoints                            |
+### Production services
 
-## 📚 Documentation
+| Service          | Domain variable       | Description                |
+| ---------------- | --------------------- | -------------------------- |
+| orchestrator     | `ORCHESTRATOR_DOMAIN` | Django API and admin       |
+| user-interface   | `UI_DOMAIN`           | Nuxt frontend              |
+| telemetry-broker | `MQTT_DOMAIN`         | MQTT over TLS (port 8883)  |
+| message-broker   | `RABBITMQ_DOMAIN`     | RabbitMQ management UI     |
+| analytics-engine | `ANALYTICS_DOMAIN`    | Prefect dashboard          |
+| task-monitoring  | `FLOWER_DOMAIN`       | Celery Flower              |
+| docs             | `DOCS_DOMAIN`         | Documentation site (nginx) |
 
-- **[HOWTO.md](HOWTO.md)** - Complete guide for setting up a development environment with Docker
-- **[docs/development.md](docs/development.md)** - Functional development notes and data specifications (Spanish)
-- **[docs/deployment.md](docs/deployment.md)** - Production deployment with Celery and systemd
-- **[docs/api.md](docs/api.md)** - API specification and data formats
-- **[docs/obe.md](docs/obe.md)** - On-board equipment specifications
-- **[WARP.md](WARP.md)** - Development guidance for Warp terminal users
+Internal-only (not exposed): `database`, `state`, `realtime-engine`, `schedule-engine`, `scheduler`.
 
-For the full documentation site, run `mkdocs serve` and visit http://localhost:8000
+### Common operations
 
-## 🛣️ Roadmap
+```bash
+# Rebuild and restart after code changes
+docker compose -f compose.prod.yml build orchestrator user-interface
+docker compose -f compose.prod.yml up -d orchestrator user-interface
 
-Where is this going? Check SIMOVI's [roadmap](https://github.com/simovilab/context/blob/main/roadmap.md).
+# Django management
+docker compose -f compose.prod.yml exec orchestrator uv run python manage.py migrate
+docker compose -f compose.prod.yml exec orchestrator uv run python manage.py createsuperuser
 
-## 🤝 Contributing
+# Stop
+docker compose -f compose.prod.yml down
+```
 
-Help is welcome! See the [guidelines](https://github.com/simovilab/.github/blob/main/CONTRIBUTING.md).
+## Documentation
 
-## 📞 Contact
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Service mandates, message semantics, and design principles
+- [MODEL.md](MODEL.md) — Functional diagrams and state machine flows
+- [HOWTO.md](HOWTO.md) — Step-by-step development environment guide
+- [docs/development.md](docs/development.md) — Functional development notes (Spanish)
+- [docs/deployment.md](docs/deployment.md) — Legacy systemd deployment reference
+- [docs/api.md](docs/api.md) — API specification and data formats
+- [docs/obe.md](docs/obe.md) — On-board equipment specifications
+
+## Roadmap
+
+SIMOVI's [roadmap](https://github.com/simovilab/context/blob/main/roadmap.md).
+
+## Contributing
+
+See the [guidelines](https://github.com/simovilab/.github/blob/main/CONTRIBUTING.md).
+
+## Contact
 
 - Email: simovi@ucr.ac.cr
 - Website: [simovi.org](https://simovi.org)
 
-## 📄 License
+## License
 
 Apache 2.0
