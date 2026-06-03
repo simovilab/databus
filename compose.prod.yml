@@ -1,95 +1,337 @@
 name: databus-prod
+
+# ---------------------------------------------------------------------------
+# Required environment variables (set in .env):
+#
+#   Domain routing (Traefik):
+#     ORCHESTRATOR_DOMAIN    – Django API / admin
+#     UI_DOMAIN              – Nuxt frontend
+#     MQTT_DOMAIN            – MQTT over TLS (port 8883)
+#     RABBITMQ_DOMAIN        – RabbitMQ management UI
+#     ANALYTICS_DOMAIN       – Prefect dashboard
+#     FLOWER_DOMAIN          – Celery Flower dashboard
+#     CERT_RESOLVER          – Traefik cert resolver name (default: letsencrypt)
+#
+#   Credentials:
+#     SECRET_KEY             – Django secret key
+#     DB_PASSWORD            – PostgreSQL password
+#     REDIS_PASSWORD         – Redis password
+#     RABBITMQ_USER / RABBITMQ_PASS – RabbitMQ credentials
+# ---------------------------------------------------------------------------
+
 services:
-  web:
+
+  # ── Django (Daphne ASGI) ──────────────────────────────────────────────────
+  orchestrator:
     build:
-      context: ..
-      dockerfile: Docker/Dockerfile
+      context: ./backend
       target: prod
-    ports:
-      - "8000:8000"
+    environment:
+      - DJANGO_SETUP=True
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
     env_file:
-      - ../.env
-      - ../.env.prod
+      - .env
+      - .env.prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     volumes:
-      - static:/app/staticfiles
+      - backend_venv:/home/app/.venv
+      - static_files:/app/staticfiles
     depends_on:
-      db:
+      database:
         condition: service_healthy
-      redis:
+      state:
         condition: service_healthy
+    networks:
+      - internal
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.orchestrator.rule=Host(`${ORCHESTRATOR_DOMAIN}`)"
+      - "traefik.http.routers.orchestrator.entrypoints=websecure"
+      - "traefik.http.routers.orchestrator.tls=true"
+      - "traefik.http.routers.orchestrator.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.routers.orchestrator.middlewares=security-headers@file,rate-limit@file,compression@file"
+      - "traefik.http.services.orchestrator.loadbalancer.server.port=8000"
+      - "traefik.docker.network=traefik_proxy"
 
-  worker:
+  # ── Celery worker: real-time processing ───────────────────────────────────
+  realtime-engine:
     build:
-      context: ..
-      dockerfile: Docker/Dockerfile
-      target: prod
-    entrypoint: ["/app/Docker/docker-entrypoint.sh"]
-    command: ["uv", "run", "celery", "-A", "realtime", "worker", "-l", "info"]
+      context: ./backend
+      target: realtime-engine
+    environment:
+      - DJANGO_SETUP=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
     env_file:
-      - ../.env
-      - ../.env.prod
+      - .env
+      - .env.prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - backend_venv:/home/app/.venv
     depends_on:
-      db:
+      database:
         condition: service_healthy
-      redis:
+      state:
         condition: service_healthy
+      message-broker:
+        condition: service_healthy
+    networks:
+      - internal
 
-  beat:
+  # ── Celery worker: schedule processing ────────────────────────────────────
+  schedule-engine:
     build:
-      context: ..
-      dockerfile: Docker/Dockerfile
-      target: prod
-    entrypoint: ["/app/Docker/docker-entrypoint.sh"]
-    command:
-      [
-        "uv",
-        "run",
-        "celery",
-        "-A",
-        "realtime",
-        "beat",
-        "--scheduler",
-        "django_celery_beat.schedulers:DatabaseScheduler",
-        "--loglevel=info",
-      ]
+      context: ./backend
+      target: schedule-engine
+    environment:
+      - DJANGO_SETUP=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
     env_file:
-      - ../.env
-      - ../.env.prod
+      - .env
+      - .env.prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - backend_venv:/home/app/.venv
     depends_on:
-      db:
+      database:
         condition: service_healthy
-      redis:
+      state:
         condition: service_healthy
+      message-broker:
+        condition: service_healthy
+    networks:
+      - internal
 
-  db:
-    image: postgis/postgis:15-3.3
+  # ── Celery Beat ───────────────────────────────────────────────────────────
+  scheduler:
+    build:
+      context: ./backend
+      target: scheduler
+    environment:
+      - DJANGO_SETUP=False
+      - UV_PROJECT_ENVIRONMENT=/home/app/.venv
+      - PYTHONPYCACHEPREFIX=/tmp/pycache
     env_file:
-      - ../.env
-      - ../.env.prod
+      - .env
+      - .env.prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - backend_venv:/home/app/.venv
+    depends_on:
+      database:
+        condition: service_healthy
+      state:
+        condition: service_healthy
+      message-broker:
+        condition: service_healthy
+    networks:
+      - internal
+
+  # ── PostgreSQL + PostGIS ──────────────────────────────────────────────────
+  database:
+    build:
+      context: ./database
     environment:
       - POSTGRES_DB=${DB_NAME:-databus}
       - POSTGRES_USER=${DB_USER:-postgres}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - database_data:/var/lib/postgresql
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: ["CMD", "pg_isready", "-U", "${DB_USER:-postgres}", "-d", "${DB_NAME:-databus}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
-  redis:
+  # ── Redis (authoritative real-time state) ─────────────────────────────────
+  state:
     image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     volumes:
-      - redis_data:/data
+      - state_data:/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a $$REDIS_PASSWORD ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
+
+  # ── NanoMQ (MQTT telemetry ingestion) ─────────────────────────────────────
+  # Traefik terminates TLS on :8883 and forwards plain MQTT to NanoMQ :1883.
+  telemetry-broker:
+    image: emqx/nanomq:0.24.9-full
+    volumes:
+      - ./telemetry-broker/nanomq.conf:/etc/nanomq.conf:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.tcp.routers.mqtt.rule=HostSNI(`${MQTT_DOMAIN}`)"
+      - "traefik.tcp.routers.mqtt.entrypoints=mqtt"
+      - "traefik.tcp.routers.mqtt.tls=true"
+      - "traefik.tcp.routers.mqtt.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      - "traefik.tcp.services.mqtt.loadbalancer.server.port=1883"
+      - "traefik.docker.network=traefik_proxy"
+
+  # ── RabbitMQ (AMQP message broker) ────────────────────────────────────────
+  message-broker:
+    image: rabbitmq:4-management
+    volumes:
+      - ./message-broker/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - message_broker_data:/var/lib/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      # Management UI only; AMQP stays internal.
+      - "traefik.http.routers.rabbitmq.rule=Host(`${RABBITMQ_DOMAIN}`)"
+      - "traefik.http.routers.rabbitmq.entrypoints=websecure"
+      - "traefik.http.routers.rabbitmq.tls=true"
+      - "traefik.http.routers.rabbitmq.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.routers.rabbitmq.middlewares=security-headers@file,rate-limit@file"
+      - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
+      - "traefik.docker.network=traefik_proxy"
+
+  # ── Prefect (analytics dashboard) ────────────────────────────────────────
+  analytics-engine:
+    image: prefecthq/prefect:3-latest
+    environment:
+      - PREFECT_SERVER_API_HOST=0.0.0.0
+      - PREFECT_API_URL=https://${ANALYTICS_DOMAIN}/api
+    volumes:
+      - ./analytics-engine:/prefect
+    working_dir: /prefect
+    command: prefect server start
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.analytics.rule=Host(`${ANALYTICS_DOMAIN}`)"
+      - "traefik.http.routers.analytics.entrypoints=websecure"
+      - "traefik.http.routers.analytics.tls=true"
+      - "traefik.http.routers.analytics.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.routers.analytics.middlewares=security-headers@file,rate-limit@file"
+      - "traefik.http.services.analytics.loadbalancer.server.port=4200"
+      - "traefik.docker.network=traefik_proxy"
+
+  # ── Flower (Celery monitoring) ────────────────────────────────────────────
+  task-monitoring:
+    image: mher/flower:2.0
+    environment:
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS}@message-broker:5672//
+      - TZ=America/Costa_Rica
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      message-broker:
+        condition: service_healthy
+    networks:
+      - internal
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.flower.rule=Host(`${FLOWER_DOMAIN}`)"
+      - "traefik.http.routers.flower.entrypoints=websecure"
+      - "traefik.http.routers.flower.tls=true"
+      - "traefik.http.routers.flower.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.routers.flower.middlewares=security-headers@file,rate-limit@file"
+      - "traefik.http.services.flower.loadbalancer.server.port=5555"
+      - "traefik.docker.network=traefik_proxy"
+
+  # ── Nuxt frontend ────────────────────────────────────────────────────────
+  # NOTE: the current frontend Dockerfile does not COPY source code (it
+  # relies on a bind mount). For a fully baked production image, add a
+  # multi-stage build that copies source, runs `pnpm build`, and serves
+  # the .output directory. The bind mount + entrypoint override below
+  # works as a transitional approach.
+  user-interface:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      - NUXT_PUBLIC_API_BASE=https://${ORCHESTRATOR_DOMAIN}
+      - NUXT_PORT=3000
+      - NODE_ENV=production
+    env_file:
+      - .env
+      - .env.prod
+    volumes:
+      - ./frontend:/app
+      - ui_node_modules:/app/node_modules
+    entrypoint: ["sh", "-c"]
+    command: ["pnpm install --frozen-lockfile && pnpm build && node .output/server/index.mjs"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      orchestrator:
+        condition: service_started
+    networks:
+      - internal
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ui.rule=Host(`${UI_DOMAIN}`)"
+      - "traefik.http.routers.ui.entrypoints=websecure"
+      - "traefik.http.routers.ui.tls=true"
+      - "traefik.http.routers.ui.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.routers.ui.middlewares=security-headers@file,compression@file"
+      - "traefik.http.services.ui.loadbalancer.server.port=3000"
+      - "traefik.docker.network=traefik_proxy"
 
 volumes:
-  postgres_data:
-  redis_data:
-  static:
+  database_data:
+  state_data:
+  message_broker_data:
+  backend_venv:
+  static_files:
+  ui_node_modules:
+
+networks:
+  internal:
+    name: databus_internal
+  traefik_proxy:
+    external: true
