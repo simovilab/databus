@@ -96,7 +96,7 @@ class Position(models.Model):
     is_new = models.BooleanField(default=True)
 
 
-class Progression(models.Model):
+class VehicleStopStatus(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     current_stop_sequence = models.PositiveIntegerField(blank=True, null=True)
@@ -111,6 +111,11 @@ class Progression(models.Model):
             ("IN_TRANSIT_TO", "En tránsito a la parada"),
         ],
     )
+
+
+class CongestionLevel(models.Model):
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
+    timestamp = models.DateTimeField(auto_now_add=True)
     congestion_level = models.CharField(
         max_length=100,
         blank=True,
@@ -124,10 +129,8 @@ class Progression(models.Model):
         ],
     )
 
-    is_new = models.BooleanField(default=True)
 
-
-class Occupancy(models.Model):
+class OccupancyStatus(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     occupancy_status = models.CharField(
@@ -161,3 +164,31 @@ class Occupancy(models.Model):
     )
 
     is_new = models.BooleanField(default=True)
+
+
+"""
+Mapping for GTFS Realtime VehiclePosition to our data model:
+
+Run:
+- trip (Redis (hash): run:<run_id>:trip)
+- vehicle (Redis (hash): run:<run_id>:vehicle)
+
+Position:
+- position (Redis (hash): run:<run_id>:position)
+
+VehicleStopStatus:
+- current_stop_sequence (Redis (string): run:<run_id>:current_stop_sequence)
+- stop_id (Redis (string): run:<run_id>:stop_id)
+- current_status (Redis (string): run:<run_id>:current_status)
+
+CongestionLevel:
+- congestion_level (Redis (string): run:<run_id>:congestion_level)
+
+OccupancyStatus:
+- occupancy_status (Redis (string): run:<run_id>:occupancy_status)
+- occupancy_percentage (Redis (string): run:<run_id>:occupancy_percentage)
+
+Not mapped:
+- multi_carriage_details (omitted)
+- timestamp
+"""

@@ -55,17 +55,21 @@ def build_vehicle_positions():
     runs_in_progress = r.smembers("runs:in_progress")
 
     for run_id in runs_in_progress:
-        run = r.hgetall(f"run:{run_id}")
+        run = r.hgetall(f"run:{run_id}")  # run:<run_id>:trip
         if not run:
             continue
-        vehicle_id = run.get("vehicle", "")
+        vehicle_id = run.get("vehicle", "")  # run:<run_id>:vehicle
         if not vehicle_id:
             continue
 
-        position = r.hgetall(f"vehicle:{vehicle_id}:position")
+        position = r.hgetall(
+            f"vehicle:{vehicle_id}:position"
+        )  # run:<run_id>:position (hash)
         progression = r.hgetall(f"vehicle:{vehicle_id}:progression")
         occupancy = r.hgetall(f"vehicle:{vehicle_id}:occupancy")
-        vehicle_meta = r.hgetall(f"vehicle:{vehicle_id}:metadata")
+        vehicle_meta = r.hgetall(
+            f"vehicle:{vehicle_id}:metadata"
+        )  # run:<run_id>:vehicle
 
         if not position and not progression and not occupancy:
             continue

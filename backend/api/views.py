@@ -28,8 +28,9 @@ from runs.models import (
     Run,
     RunLifecycleTransition,
     Position,
-    Progression,
-    Occupancy,
+    VehicleStopStatus,
+    CongestionLevel,
+    OccupancyStatus,
 )
 from feed.models import (
     Feed,
@@ -58,8 +59,9 @@ from .serializers import (
     CreateRunSerializer,
     RunUpdateSerializer,
     PositionSerializer,
-    ProgressionSerializer,
-    OccupancySerializer,
+    VehicleStopStatusSerializer,
+    CongestionLevelSerializer,
+    OccupancyStatusSerializer,
     AgencySerializer,
     StopSerializer,
     GeoStopSerializer,
@@ -375,15 +377,21 @@ class PositionViewSet(viewsets.ModelViewSet):
     authentication_classes = [TokenAuthentication]
 
 
-class ProgressionViewSet(viewsets.ModelViewSet):
-    queryset = Progression.objects.all()
-    serializer_class = ProgressionSerializer
+class VehicleStopStatusViewSet(viewsets.ModelViewSet):
+    queryset = VehicleStopStatus.objects.all()
+    serializer_class = VehicleStopStatusSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class CongestionLevelViewSet(viewsets.ModelViewSet):
+    queryset = CongestionLevel.objects.all()
+    serializer_class = CongestionLevelSerializer
     authentication_classes = [TokenAuthentication]
 
 
 class OccupancyViewSet(viewsets.ModelViewSet):
-    queryset = Occupancy.objects.all()
-    serializer_class = OccupancySerializer
+    queryset = OccupancyStatus.objects.all()
+    serializer_class = OccupancyStatusSerializer
     authentication_classes = [TokenAuthentication]
 
 

@@ -9,8 +9,9 @@ from operations.models import (
 from runs.models import (
     Run,
     Position,
-    Progression,
-    Occupancy,
+    VehicleStopStatus,
+    CongestionLevel,
+    OccupancyStatus,
 )
 from runs.domain.lifecycle import RunLifecycleEvents
 from feed.models import *
@@ -174,23 +175,31 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
     #     return Position.objects.create(point=point, **validated_data)
 
 
-class ProgressionSerializer(serializers.HyperlinkedModelSerializer):
-    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+class VehicleStopStatusSerializer(serializers.HyperlinkedModelSerializer):
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
     class Meta:
-        model = Progression
+        model = VehicleStopStatus
         fields = "__all__"
         fields = "__all__"
         ordering = ["id"]
 
 
-class OccupancySerializer(serializers.HyperlinkedModelSerializer):
-    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+class CongestionLevelSerializer(serializers.HyperlinkedModelSerializer):
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
     class Meta:
-        model = Occupancy
+        model = CongestionLevel
+        fields = "__all__"
+        fields = "__all__"
+        ordering = ["id"]
+
+
+class OccupancyStatusSerializer(serializers.HyperlinkedModelSerializer):
+    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
+
+    class Meta:
+        model = OccupancyStatus
         fields = "__all__"
         fields = "__all__"
         ordering = ["id"]
