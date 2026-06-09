@@ -243,6 +243,52 @@ def test_no_active_run_drops_all_telemetry(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Test 8 — Successful position ingest calls produce_stop_status once
+# ---------------------------------------------------------------------------
+
+
+def test_valid_position_calls_produce_stop_status(monkeypatch):
+    """After a valid position write, produce_stop_status must be called once.
+
+    The call is guarded (exceptions are swallowed); this test verifies the
+    happy-path invocation with the correct (run_id, vehicle_id) args.
+    """
+    fake_r = _fake_redis()
+    monkeypatch.setattr(mqtt_module, "r", fake_r)
+    monkeypatch.setattr(mqtt_module, "now", _fake_now)
+
+    with (
+        patch("runs.domain.detection.dispatch.detect_from_telemetry"),
+        patch(
+            "runs.domain.progression.producer.produce_stop_status"
+        ) as mock_produce,
+    ):
+        _handle_telemetry(VEHICLE_ID, "position", _encode(_VALID_POSITION))
+
+    mock_produce.assert_called_once_with(RUN_ID, VEHICLE_ID)
+
+
+def test_produce_stop_status_exception_does_not_propagate(monkeypatch):
+    """A failure in produce_stop_status must be swallowed — ingestion continues."""
+    fake_r = _fake_redis()
+    monkeypatch.setattr(mqtt_module, "r", fake_r)
+    monkeypatch.setattr(mqtt_module, "now", _fake_now)
+
+    with (
+        patch("runs.domain.detection.dispatch.detect_from_telemetry"),
+        patch(
+            "runs.domain.progression.producer.produce_stop_status",
+            side_effect=RuntimeError("boom"),
+        ),
+    ):
+        # Must not raise — the guard swallows the exception
+        _handle_telemetry(VEHICLE_ID, "position", _encode(_VALID_POSITION))
+
+    # Position still written despite the failure
+    assert fake_r.hset.call_count >= 1
+
+
 def test_on_connect_subscribes_position_and_occupancy_only():
     """_on_connect must subscribe to exactly 'position' and 'occupancy'.
 
