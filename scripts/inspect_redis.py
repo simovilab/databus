@@ -138,8 +138,14 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
         # Get vehicle data
         vehicle_data = r.hgetall(f"vehicle:{vehicle_id}:metadata")
         position = r.hgetall(f"vehicle:{vehicle_id}:position")
-        progression = r.hgetall(f"vehicle:{vehicle_id}:progression")
         occupancy = r.hgetall(f"vehicle:{vehicle_id}:occupancy")
+
+        # Resolve the current run for this vehicle (vehicle → run linkage).
+        # Stop status and congestion are run-keyed because they depend on the
+        # assigned trip; vehicle:*:progression is decommissioned.
+        run_id = r.get(f"vehicle:{vehicle_id}:current_run")
+        stop_status = r.hgetall(f"run:{run_id}:vehicle_stop_status") if run_id else {}
+        congestion = r.hgetall(f"run:{run_id}:congestion_level") if run_id else {}
 
         print(f"  {vehicle_id}")
 
@@ -169,15 +175,22 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
         else:
             print(f"    Position: [NO DATA]")
 
-        # Progression
-        if progression:
-            print(f"    Progression:")
-            print(f"      Stop Seq:  {progression.get('current_stop_sequence', 'N/A')}")
-            print(f"      Stop ID:   {progression.get('stop_id', 'N/A')}")
-            print(f"      Status:    {progression.get('current_status', 'N/A')}")
-            print(f"      Congest:   {progression.get('congestion_level', 'N/A')}")
+        # Stop status (run:<run_id>:vehicle_stop_status — server-computed, run-keyed)
+        if stop_status:
+            print(f"    Stop Status (run:{run_id}):")
+            print(f"      Stop Seq:  {stop_status.get('current_stop_sequence', 'N/A')}")
+            print(f"      Stop ID:   {stop_status.get('stop_id', 'N/A')}")
+            print(f"      Status:    {stop_status.get('current_status', 'N/A')}")
         else:
-            print(f"    Progression: [NO DATA]")
+            run_label = f"run:{run_id}" if run_id else "no current run"
+            print(f"    Stop Status ({run_label}): [NO DATA]")
+
+        # Congestion level (run:<run_id>:congestion_level — server-computed, deferred)
+        if congestion:
+            print(f"    Congestion:")
+            print(f"      Level:     {congestion.get('congestion_level', 'N/A')}")
+        else:
+            print(f"    Congestion: [NO DATA]")
 
         # Occupancy
         if occupancy:

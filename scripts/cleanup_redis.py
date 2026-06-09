@@ -127,11 +127,13 @@ def delete_vehicle_data(r: redis.Redis, vehicle_id: str, dry_run: bool = False) 
     Returns:
         Number of keys deleted (or would be deleted)
     """
-    # Keys to delete
+    # Keys to delete (vehicle-scoped edge data only).
+    # Run-keyed stop-status and congestion hashes (run:<id>:vehicle_stop_status,
+    # run:<id>:congestion_level) are cleaned via the run path / force_cleanup_all.
+    # vehicle:<id>:progression is decommissioned — no longer written.
     keys_to_delete = [
         f"vehicle:{vehicle_id}:metadata",
         f"vehicle:{vehicle_id}:position",
-        f"vehicle:{vehicle_id}:progression",
         f"vehicle:{vehicle_id}:occupancy",
     ]
 
@@ -202,12 +204,15 @@ def force_cleanup_all(r: redis.Redis, dry_run: bool = False) -> int:
     """
     deleted_count = 0
 
-    # Get all vehicle-related keys
+    # Get all vehicle-keyed and run-keyed entity keys.
+    # vehicle:*:progression is decommissioned — omitted intentionally.
     patterns = [
         "vehicle:*:metadata",
         "vehicle:*:position",
-        "vehicle:*:progression",
         "vehicle:*:occupancy",
+        "run:*:trip",
+        "run:*:vehicle_stop_status",
+        "run:*:congestion_level",
     ]
 
     for pattern in patterns:
