@@ -7,7 +7,16 @@ only activates when ``MQTT_CONSUMER_ENABLED`` is truthy. Compose sets this only
 on the realtime-engine service, so other workers (schedule-engine, beat) skip
 it and don't double-subscribe to the broker.
 
-Topic pattern: ``transit/vehicle/<vehicle_id>/{position,progression,occupancy}``.
+Topic pattern: ``transit/vehicle/<vehicle_id>/{position,occupancy}``.
+
+Topic routing:
+- ``position`` and ``occupancy`` are edge-sensed and written to
+  ``vehicle:<id>:position`` / ``vehicle:<id>:occupancy`` via the telemetry
+  contract (``runs.domain.telemetry``).
+- ``progression`` is decommissioned server-side; we no longer subscribe even
+  though the simulator may still publish it.
+- ``occupancy_status`` is a server policy decision: the edge-sent value is
+  discarded and recomputed with ``occupancy.classify_status`` at write time.
 """
 
 import json
@@ -18,6 +27,8 @@ import paho.mqtt.client as mqtt
 import redis
 from celery import bootsteps
 from django.utils.timezone import now
+
+from runs.domain.telemetry import keys, occupancy, position
 
 logger = logging.getLogger(__name__)
 
@@ -57,21 +68,64 @@ def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
         logger.warning("Non-JSON payload on vehicle %s/%s — ignored", vehicle_id, leaf)
         return
 
-    run_id = r.get(f"vehicle:{vehicle_id}:current_run")
+    run_id = r.get(keys.current_run_key(vehicle_id))
     if not run_id:
         logger.debug("No active run for vehicle %s — dropping %s", vehicle_id, leaf)
         return
 
-    if isinstance(data, dict):
-        r.hset(
-            f"vehicle:{vehicle_id}:{leaf}",
-            mapping={k: str(v) for k, v in data.items()},
-        )
+    if leaf == "position":
+        try:
+            mapping = position.validate_for_write(data)
+        except ValueError:
+            logger.warning(
+                "Invalid position payload for vehicle %s — dropped: %r",
+                vehicle_id,
+                data,
+            )
+            return
+        r.hset(keys.position_key(vehicle_id), mapping=mapping)
 
-    r.set(f"runs:last_seen:{run_id}", now().isoformat())
+    elif leaf == "occupancy":
+        # occupancy_status is server policy — discard any edge-sent value and
+        # recompute it from the raw percentage.
+        raw_pct = data.get("occupancy_percentage")
+        try:
+            pct = int(raw_pct) if raw_pct is not None else None
+        except (ValueError, TypeError):
+            pct = None
+
+        occ_payload = {
+            k: v
+            for k, v in data.items()
+            if k != occupancy.OCCUPANCY_STATUS
+        }
+        occ_payload[occupancy.OCCUPANCY_STATUS] = occupancy.classify_status(pct)
+
+        try:
+            mapping = occupancy.validate_for_write(occ_payload)
+        except ValueError:
+            logger.warning(
+                "Invalid occupancy payload for vehicle %s — dropped: %r",
+                vehicle_id,
+                data,
+            )
+            return
+        r.hset(keys.occupancy_key(vehicle_id), mapping=mapping)
+
+    else:
+        # Unknown leaf (e.g. legacy 'progression' still published by simulator).
+        # Drop silently at debug level — a bad payload must not crash ingestion.
+        logger.debug(
+            "Unknown telemetry leaf '%s' for vehicle %s — dropped",
+            leaf,
+            vehicle_id,
+        )
+        return
+
+    r.set(keys.last_seen_key(run_id), now().isoformat())
 
     # All detection heuristics live in runs.domain.detection; this consumer only
-    # ingests telemetry and delegates.
+    # ingests telemetry and delegates.  Pass the raw data dict as before.
     from runs.domain.detection.dispatch import detect_from_telemetry
 
     detect_from_telemetry(run_id, vehicle_id, leaf, data)
@@ -81,8 +135,8 @@ def _on_connect(client: mqtt.Client, userdata, flags, rc) -> None:
     if rc == 0:
         logger.info("MQTT connected: %s:%s", MQTT_HOST, MQTT_PORT)
         client.subscribe("transit/vehicle/+/position", qos=0)
-        client.subscribe("transit/vehicle/+/progression", qos=0)
         client.subscribe("transit/vehicle/+/occupancy", qos=0)
+        # 'progression' is intentionally NOT subscribed — decommissioned.
     else:
         logger.error("MQTT connection refused: rc=%d", rc)
 
