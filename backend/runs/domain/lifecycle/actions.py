@@ -1,6 +1,7 @@
 from typing import Any, TYPE_CHECKING
 from runs.models import Run
 import redis
+from runs.domain.telemetry import keys, trip
 
 if TYPE_CHECKING:
     from runs.domain.lifecycle import Transition
@@ -54,6 +55,13 @@ class RunLifecycleActions:
 
         pipe = r.pipeline()
         pipe.hset(run_key, mapping=mapping)
+
+        # Write the GTFS-RT-shaped TripDescriptor projection so the feed builders
+        # read run:<id>:trip as-is instead of hand-picking the trip subset out of
+        # the flat run hash. Values are already in `mapping`; this is additive.
+        trip_mapping = trip.project_from_run_hash(mapping)
+        if trip_mapping.get("trip_id"):
+            pipe.hset(keys.trip_key(str(run.id)), mapping=trip_mapping)
 
         # Claim assignment keys so availability guards have a signal to read
         if vehicle_id:
