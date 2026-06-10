@@ -68,6 +68,7 @@ class ShapeGeometry:
 
 def build_polyline(
     points: list[tuple[float, float, int]],
+    dists_m: list[float] | None = None,
 ) -> list[tuple[float, float, float]]:
     """Convert raw GTFS shape rows to a cumulative-distance polyline.
 
@@ -76,17 +77,27 @@ def build_polyline(
     points:
         List of ``(lat, lon, shape_pt_sequence)`` tuples, pre-sorted by
         ``shape_pt_sequence`` ascending (the caller is responsible for ordering).
+    dists_m:
+        Optional parallel list of along-shape distances in **metres**
+        (converted from GTFS ``shape_dist_traveled`` which is in kilometres:
+        ``float(km) * 1000.0``).  When usable — same length as *points*, no
+        ``None`` entries, non-decreasing, and its total falls within
+        ``[0.5, 2.0] × haversine_total`` — these values replace the
+        haversine-computed cumulative column.  The first value is normalised to
+        0.0 so the polyline always starts at 0.  If *any* check fails the
+        function falls back silently to cumulative haversine (current
+        behaviour).
 
     Returns
     -------
-    list of ``(lat, lon, cum_dist_m)`` tuples.  First point has
-    ``cum_dist_m = 0.0``; subsequent points add the haversine distance from
-    the previous point.
+    list of ``(lat, lon, cum_dist_m)`` tuples.  First point always has
+    ``cum_dist_m = 0.0``.
     """
     if not points:
         return []
 
-    result: list[tuple[float, float, float]] = []
+    # ---- cumulative haversine (always computed; used as fallback) -----------
+    haversine_result: list[tuple[float, float, float]] = []
     cum = 0.0
     prev_lat: float | None = None
     prev_lon: float | None = None
@@ -96,10 +107,54 @@ def build_polyline(
             cum = 0.0
         else:
             cum += haversine_m(prev_lat, prev_lon, lat, lon)
-        result.append((lat, lon, cum))
+        haversine_result.append((lat, lon, cum))
         prev_lat, prev_lon = lat, lon
 
+    # ---- decide whether to use provided dists_m ----------------------------
+    if dists_m is not None:
+        use_provided = _validate_dists_m(dists_m, len(points), haversine_result[-1][2])
+    else:
+        use_provided = False
+
+    if not use_provided:
+        return haversine_result
+
+    # Normalise so first entry is 0.0.
+    offset = dists_m[0]
+    result: list[tuple[float, float, float]] = []
+    for i, (lat, lon, _seq) in enumerate(points):
+        result.append((lat, lon, float(dists_m[i]) - offset))
     return result
+
+
+def _validate_dists_m(
+    dists_m: list[float],
+    n_points: int,
+    haversine_total_m: float,
+) -> bool:
+    """Return True iff *dists_m* passes all usability checks."""
+    # 1. Same length.
+    if len(dists_m) != n_points:
+        return False
+
+    # 2. No None / missing entries.
+    if any(d is None for d in dists_m):
+        return False
+
+    # 3. Non-decreasing.
+    for i in range(1, len(dists_m)):
+        if float(dists_m[i]) < float(dists_m[i - 1]):
+            return False
+
+    # 4. Sanity band: total must be within [0.5, 2.0] × haversine total.
+    # Guard against edge case of a single-point polyline (total == 0).
+    total = float(dists_m[-1]) - float(dists_m[0])
+    if haversine_total_m > 0.0:
+        ratio = total / haversine_total_m
+        if not (0.5 <= ratio <= 2.0):
+            return False
+
+    return True
 
 
 def build_stops(
@@ -141,6 +196,7 @@ def assemble_geometry(
     trip_id: str,
     shape_points: list[tuple[float, float, int]],
     stop_rows: list[dict],
+    shape_dists_m: list[float] | None = None,
 ) -> ShapeGeometry:
     """Assemble a ShapeGeometry from raw GTFS rows.
 
@@ -155,12 +211,14 @@ def assemble_geometry(
     stop_rows:
         List of dicts ``{stop_id, stop_sequence, lat, lon}`` ordered by
         ``stop_sequence`` ascending.
+    shape_dists_m:
+        Optional along-shape distances in metres (see ``build_polyline``).
 
     Returns
     -------
     ShapeGeometry (frozen, hashable).
     """
-    polyline = build_polyline(shape_points)
+    polyline = build_polyline(shape_points, dists_m=shape_dists_m)
     stops = build_stops(stop_rows, polyline)
     return ShapeGeometry(
         shape_id=shape_id,
@@ -215,14 +273,32 @@ def load_shape_geometry(
     shape_qs = (
         Shape.objects.filter(feed=feed, shape_id=shape_id)
         .order_by("shape_pt_sequence")
-        .values_list("shape_pt_lat", "shape_pt_lon", "shape_pt_sequence")
+        .values_list(
+            "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence",
+            "shape_dist_traveled",
+        )
     )
-    shape_points = [
-        (float(lat), float(lon), int(seq))
-        for lat, lon, seq in shape_qs
-    ]
+    shape_points = []
+    raw_dists: list[float | None] = []
+    for lat, lon, seq, dist in shape_qs:
+        shape_points.append((float(lat), float(lon), int(seq)))
+        if dist is None or dist == "":
+            raw_dists.append(None)
+        else:
+            try:
+                raw_dists.append(float(dist) * 1000.0)  # km → m
+            except (ValueError, TypeError):
+                raw_dists.append(None)
+
     if not shape_points:
         return None
+
+    # Use shape_dist_traveled only when every point has a value.
+    shape_dists_m: list[float] | None
+    if any(d is None for d in raw_dists):
+        shape_dists_m = None
+    else:
+        shape_dists_m = raw_dists  # type: ignore[assignment]
 
     # ---- Stop-time rows for the trip ----------------------------------------
     stop_time_qs = (
@@ -260,7 +336,7 @@ def load_shape_geometry(
     if not stop_rows:
         return None
 
-    return assemble_geometry(shape_id, trip_id, shape_points, stop_rows)
+    return assemble_geometry(shape_id, trip_id, shape_points, stop_rows, shape_dists_m)
 
 
 # ---------------------------------------------------------------------------

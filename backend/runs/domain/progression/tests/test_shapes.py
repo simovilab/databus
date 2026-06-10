@@ -20,6 +20,7 @@ from runs.domain.progression.shapes import (
     build_stops,
     get_shape_geometry,
     invalidate_cache,
+    _validate_dists_m,
 )
 
 
@@ -273,3 +274,228 @@ class TestCache:
         assert len(_shapes_mod._CACHE) == 1
         invalidate_cache()
         assert len(_shapes_mod._CACHE) == 0
+
+
+# ---------------------------------------------------------------------------
+# build_polyline — shape_dist_traveled (dists_m) parameter (Commit 1)
+# ---------------------------------------------------------------------------
+
+
+class TestBuildPolylineWithDists:
+    """Tests for the optional dists_m parameter introduced in Commit 1."""
+
+    def _raw(self, n: int = 4) -> list[tuple[float, float, int]]:
+        """n points along the prime meridian, ~111 km apart."""
+        return [(float(i), 0.0, i) for i in range(n)]
+
+    def test_uses_provided_dists_when_usable(self):
+        """When dists_m is valid, cum_dist_m must come from dists_m, not haversine."""
+        raw = self._raw(4)
+        # Provide distances in a different but valid scale (still within 0.5-2.0× haversine).
+        haversine_poly = build_polyline(raw)
+        haversine_total = haversine_poly[-1][2]
+        # Scale to ~0.9× haversine to keep within [0.5, 2.0].
+        scale = 0.9
+        dists_m = [haversine_total * scale * i / 3 for i in range(4)]
+        result = build_polyline(raw, dists_m=dists_m)
+        assert result[0][2] == pytest.approx(0.0, abs=1e-9)
+        assert result[-1][2] == pytest.approx(dists_m[-1] - dists_m[0], rel=1e-9)
+
+    def test_falls_back_when_dists_m_is_none(self):
+        """None dists_m → haversine cumulative (same as no-arg call)."""
+        raw = self._raw(3)
+        result_no_arg = build_polyline(raw)
+        result_none = build_polyline(raw, dists_m=None)
+        for a, b in zip(result_no_arg, result_none):
+            assert a[2] == pytest.approx(b[2], rel=1e-12)
+
+    def test_falls_back_when_wrong_length(self):
+        """dists_m with wrong length → haversine fallback."""
+        raw = self._raw(4)
+        haversine_poly = build_polyline(raw)
+        result = build_polyline(raw, dists_m=[0.0, 1000.0])  # length 2, need 4
+        for a, b in zip(haversine_poly, result):
+            assert a[2] == pytest.approx(b[2], rel=1e-12)
+
+    def test_falls_back_when_has_none_entry(self):
+        """dists_m with a None entry → haversine fallback."""
+        raw = self._raw(3)
+        haversine_poly = build_polyline(raw)
+        result = build_polyline(raw, dists_m=[0.0, None, 200_000.0])
+        for a, b in zip(haversine_poly, result):
+            assert a[2] == pytest.approx(b[2], rel=1e-12)
+
+    def test_falls_back_when_non_monotonic(self):
+        """dists_m that decreases → haversine fallback."""
+        raw = self._raw(3)
+        haversine_poly = build_polyline(raw)
+        # Total is within band but the middle entry goes DOWN.
+        total = haversine_poly[-1][2]
+        bad = [0.0, total * 0.8, total * 0.6]  # not non-decreasing
+        result = build_polyline(raw, dists_m=bad)
+        for a, b in zip(haversine_poly, result):
+            assert a[2] == pytest.approx(b[2], rel=1e-12)
+
+    def test_falls_back_when_outside_sanity_band(self):
+        """dists_m total vastly larger than haversine → haversine fallback."""
+        raw = self._raw(3)
+        haversine_poly = build_polyline(raw)
+        total = haversine_poly[-1][2]
+        # 3× the haversine total — outside the [0.5, 2.0] band.
+        bad = [0.0, total * 1.5, total * 3.0]
+        result = build_polyline(raw, dists_m=bad)
+        for a, b in zip(haversine_poly, result):
+            assert a[2] == pytest.approx(b[2], rel=1e-12)
+
+    def test_first_point_always_zero(self):
+        """Even when dists_m does not start at 0, the result is normalised."""
+        raw = self._raw(3)
+        haversine_poly = build_polyline(raw)
+        total = haversine_poly[-1][2]
+        # Start at an arbitrary offset (still within band relative to total).
+        offset = 500.0
+        dists_m = [offset, offset + total * 0.5, offset + total * 0.9]
+        result = build_polyline(raw, dists_m=dists_m)
+        assert result[0][2] == pytest.approx(0.0, abs=1e-9)
+
+    def test_validate_dists_m_too_short(self):
+        assert _validate_dists_m([0.0, 100.0], 3, 200_000.0) is False
+
+    def test_validate_dists_m_passes(self):
+        assert _validate_dists_m([0.0, 100_000.0, 200_000.0], 3, 200_000.0) is True
+
+    def test_validate_dists_m_ratio_below_band(self):
+        # dists total = 50 000, haversine = 200 000 → ratio = 0.25 < 0.5
+        assert _validate_dists_m([0.0, 25_000.0, 50_000.0], 3, 200_000.0) is False
+
+    def test_validate_dists_m_ratio_above_band(self):
+        # dists total = 600 000, haversine = 200 000 → ratio = 3.0 > 2.0
+        assert _validate_dists_m([0.0, 300_000.0, 600_000.0], 3, 200_000.0) is False
+
+
+# ---------------------------------------------------------------------------
+# assign_stops_monotonic + loop-back test (Commit 2)
+# ---------------------------------------------------------------------------
+
+
+class TestAssignStopsMonotonic:
+    """Tests for the DP-based monotonic stop assignment introduced in Commit 2."""
+
+    def test_empty_stops_returns_empty(self):
+        from runs.domain.progression.shapes import assign_stops_monotonic
+
+        poly = build_polyline([(0.0, 0.0, 0), (1.0, 0.0, 1), (2.0, 0.0, 2)])
+        assert assign_stops_monotonic([], poly) == []
+
+    def test_single_stop(self):
+        from runs.domain.progression.shapes import assign_stops_monotonic
+
+        poly = build_polyline([(0.0, 0.0, 0), (1.0, 0.0, 1)])
+        stops = [{"stop_id": "A", "stop_sequence": 1, "lat": 0.0, "lon": 0.0}]
+        result = assign_stops_monotonic(stops, poly)
+        assert len(result) == 1
+        assert result[0] == pytest.approx(0.0, abs=10.0)
+
+    def test_monotonic_straight_shape(self):
+        """Stops on a straight shape must get monotonically non-decreasing progress_m."""
+        from runs.domain.progression.shapes import assign_stops_monotonic
+
+        raw = [(float(i), 0.0, i) for i in range(5)]
+        poly = build_polyline(raw)
+        stops = [
+            {"stop_id": f"S{i}", "stop_sequence": i, "lat": float(i), "lon": 0.0}
+            for i in range(5)
+        ]
+        result = assign_stops_monotonic(stops, poly)
+        assert len(result) == 5
+        for i in range(1, len(result)):
+            assert result[i] >= result[i - 1], f"Not monotonic at index {i}: {result}"
+
+    def test_no_segments_edge_case(self):
+        """Single-point polyline (no segments) — all stops get the same progress."""
+        from runs.domain.progression.shapes import assign_stops_monotonic
+
+        poly = build_polyline([(5.0, 10.0, 0)])
+        stops = [
+            {"stop_id": "A", "stop_sequence": 1, "lat": 5.0, "lon": 10.0},
+            {"stop_id": "B", "stop_sequence": 2, "lat": 5.001, "lon": 10.001},
+        ]
+        result = assign_stops_monotonic(stops, poly)
+        assert len(result) == 2
+        assert result[0] == pytest.approx(0.0, abs=1e-9)
+        assert result[1] == pytest.approx(0.0, abs=1e-9)
+
+    def test_loop_back_shape_dp_assigns_correct_pass(self):
+        """The key regression test: a shape that doubles back.
+
+        Shape geometry (all on the equator, east-west):
+
+            A(0, 0) ---> B(0, 1) ---> C(0, 2) ---> D(0, 1.5) ---> E(0, 0.5)
+
+        The route goes east to lon=2, then turns around and heads west,
+        ending near lon=0.5.  Crucially, stop S3 is at (0, 0.6), which is
+        physically close to the EARLY part of the route (near A, lon 0-1) but
+        is actually on the RETURN leg (segment D→E covers lon 1.5 → 0.5).
+
+        Naive global nearest-segment projection snaps S3 to the first segment
+        A→B (small progress_m ≈ distance from A to lon=0.6, ~66 700 m).
+
+        DP monotonic assignment must keep S3 on the return leg, yielding a
+        progress_m larger than S2's progress_m — approximately
+          A→B + B→C + C→D + along D→E to lon=0.6.
+        """
+        from runs.domain.progression.shapes import assign_stops_monotonic
+        from runs.domain.progression.geo import project_point_to_polyline
+
+        # Shape points: east then looping back west.
+        raw = [
+            (0.0, 0.0, 0),   # A — start
+            (0.0, 1.0, 1),   # B — 1° east
+            (0.0, 2.0, 2),   # C — 2° east (turn-around)
+            (0.0, 1.5, 3),   # D — heading back west
+            (0.0, 0.5, 4),   # E — end (close to start side)
+        ]
+        poly = build_polyline(raw)
+
+        # Three stops:
+        # S1 — at A (start), expected small progress_m.
+        # S2 — at C (turn-around), expected large progress_m.
+        # S3 — at (0, 0.6), physically near A→B but must be on return leg D→E.
+        stops = [
+            {"stop_id": "S1", "stop_sequence": 1, "lat": 0.0, "lon": 0.0},
+            {"stop_id": "S2", "stop_sequence": 2, "lat": 0.0, "lon": 2.0},
+            {"stop_id": "S3", "stop_sequence": 3, "lat": 0.0, "lon": 0.6},
+        ]
+
+        dp_result = assign_stops_monotonic(stops, poly)
+
+        # 1. Three values returned.
+        assert len(dp_result) == 3
+
+        # 2. Monotonically non-decreasing.
+        for i in range(1, len(dp_result)):
+            assert dp_result[i] >= dp_result[i - 1], (
+                f"DP result not monotonic: {dp_result}"
+            )
+
+        # 3. S1 is near the start — progress_m should be small (< 50 km).
+        assert dp_result[0] < 50_000.0, f"S1 progress too large: {dp_result[0]}"
+
+        # 4. S2 is at the turn-around — progress_m ≈ haversine A→B→C ≈ 222 km.
+        assert dp_result[1] > 150_000.0, f"S2 progress too small: {dp_result[1]}"
+
+        # 5. S3 must be assigned the RETURN leg, not the outbound.
+        #    Total outbound A→B→C ≈ 222 km; return D→E partial ≈ 55 km past C.
+        #    So S3's progress_m must be > S2's progress_m (it's after S2).
+        assert dp_result[2] > dp_result[1], (
+            f"S3 ({dp_result[2]:.1f} m) should be > S2 ({dp_result[1]:.1f} m)"
+        )
+
+        # 6. Contrast: naive global nearest-segment gives a WRONG small value.
+        naive_proj = project_point_to_polyline(0.0, 0.6, poly)
+        naive_s3_progress = naive_proj["progress_m"]
+        # Naive snaps to the first pass (A→B segment), so progress is small.
+        assert naive_s3_progress < dp_result[2], (
+            f"Expected naive ({naive_s3_progress:.1f} m) < DP ({dp_result[2]:.1f} m) "
+            f"for the loop-back stop"
+        )
