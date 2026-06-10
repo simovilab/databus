@@ -94,6 +94,16 @@ def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
                 vehicle_id,
                 run_id,
             )
+        # Seam: compute and cache the stop-time-updates projection.
+        try:
+            from runs.domain.progression.stop_times import produce_stop_times
+            produce_stop_times(run_id, vehicle_id)
+        except Exception:
+            logger.exception(
+                "stop-time-updates production failed for vehicle %s run %s",
+                vehicle_id,
+                run_id,
+            )
 
     elif leaf == "occupancy":
         # occupancy_status is server policy — discard any edge-sent value and

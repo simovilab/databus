@@ -20,11 +20,10 @@ from runs.domain.telemetry import (
     keys,
     occupancy,
     position,
+    stop_time_updates,
     trip,
     vehicle_stop_status,
 )
-
-from .fake_stop_times import build_stop_time_updates
 
 
 # ---------------------------------------------------------------------------
@@ -197,22 +196,24 @@ def build_trip_update_entity(r, run_id: str) -> dict | None:
         tu["vehicle"]["license_plate"] = meta["license_plate"]
 
     # --- stop time updates ----------------------------------------------
-    # Pass the raw stop_status hash as `progression=`; fake_stop_times reads
-    # current_stop_sequence and current_status from it — which this hash provides.
-    stop_time_updates = build_stop_time_updates(run=run, progression=stop_status_raw)
+    # Read the pre-computed projection written by the stop-times producer.
+    # Missing/empty projection → empty list → honest skip (no stop_time_update
+    # entries in the feed).
+    raw = r.get(keys.stop_time_updates_key(run_id))
+    entries = stop_time_updates.from_redis(raw)
     tu["stop_time_update"] = []
-    for update in stop_time_updates:
+    for u in entries:
         tu["stop_time_update"].append(
             {
-                "stop_sequence": update["stop_sequence"],
-                "stop_id": update["stop_id"],
+                "stop_sequence": u["stop_sequence"],
+                "stop_id": u["stop_id"],
                 "arrival": {
-                    "time": update["eta_posix"],
-                    "uncertainty": update["uncertainty"],
+                    "time": u["arrival_time"],
+                    "uncertainty": u["uncertainty"],
                 },
                 "departure": {
-                    "time": update["eta_posix"],
-                    "uncertainty": update["uncertainty"],
+                    "time": u["departure_time"],
+                    "uncertainty": u["uncertainty"],
                 },
             }
         )

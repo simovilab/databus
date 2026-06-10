@@ -18,6 +18,7 @@ import pytest
 from google.protobuf import json_format
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 
+from runs.domain.telemetry import keys, stop_time_updates
 from schedule_engine.builders import (
     build_trip_updates_feed,
     build_vehicle_position_entity,
@@ -38,10 +39,11 @@ class FakeRedis:
     Supports:
     - ``hgetall(key) -> dict[str, str]``  (empty dict when absent)
     - ``smembers(key) -> set[str]``       (empty set when absent)
+    - ``get(key) -> str | None``          (None when absent or value is not a str)
     """
 
     def __init__(self, data: dict | None = None):
-        # data maps key -> value where value is either a dict (hash) or set (set)
+        # data maps key -> value where value is either a dict (hash), set, or str
         self._data: dict = data or {}
 
     def hgetall(self, key: str) -> dict:
@@ -52,6 +54,10 @@ class FakeRedis:
         val = self._data.get(key, set())
         return set(val) if isinstance(val, set) else set()
 
+    def get(self, key: str) -> str | None:
+        val = self._data.get(key)
+        return val if isinstance(val, str) else None
+
 
 # ---------------------------------------------------------------------------
 # Shared seed data helpers
@@ -59,6 +65,23 @@ class FakeRedis:
 
 RUN_ID = "run-001"
 VEHICLE_ID = "vehicle-42"
+
+
+_STOP_TIME_ENTRY_1 = {
+    "stop_sequence": 3,
+    "stop_id": "stop-99",
+    "arrival_time": 1700001000,
+    "departure_time": 1700001000,
+    "uncertainty": 120,
+}
+
+_STOP_TIME_ENTRY_2 = {
+    "stop_sequence": 4,
+    "stop_id": "stop-100",
+    "arrival_time": 1700001300,
+    "departure_time": 1700001300,
+    "uncertainty": 120,
+}
 
 
 def _full_redis_data() -> dict:
@@ -105,6 +128,10 @@ def _full_redis_data() -> dict:
             "stop_id": "stop-99",
             "current_status": "IN_TRANSIT_TO",
         },
+        # stop-time-updates projection (JSON string, written by stop_times producer)
+        keys.stop_time_updates_key(RUN_ID): stop_time_updates.to_redis(
+            [_STOP_TIME_ENTRY_1, _STOP_TIME_ENTRY_2]
+        ),
         # vehicle metadata
         f"vehicle:{VEHICLE_ID}:metadata": {
             "id": VEHICLE_ID,
@@ -431,8 +458,32 @@ class TestBuildTripUpdatesFeed:
     def test_stop_time_update_key_present(self):
         tu = self.feed["entity"][0]["trip_update"]
         assert "stop_time_update" in tu
-        # The route_id in test data may not be in the CSV; list may be empty — that's fine.
         assert isinstance(tu["stop_time_update"], list)
+
+    def test_stop_time_update_entries_from_projection(self):
+        """Entries must come from the seeded projection, reshaped to nested arrival/departure."""
+        tu = self.feed["entity"][0]["trip_update"]
+        updates = tu["stop_time_update"]
+        assert len(updates) == 2
+        # First entry
+        assert updates[0]["stop_sequence"] == 3
+        assert updates[0]["stop_id"] == "stop-99"
+        assert updates[0]["arrival"]["time"] == 1700001000
+        assert updates[0]["arrival"]["uncertainty"] == 120
+        assert updates[0]["departure"]["time"] == 1700001000
+        assert updates[0]["departure"]["uncertainty"] == 120
+        # Second entry
+        assert updates[1]["stop_sequence"] == 4
+        assert updates[1]["stop_id"] == "stop-100"
+        assert updates[1]["arrival"]["time"] == 1700001300
+
+    def test_stop_time_update_proto_gate(self):
+        """The full feed with stop_time_updates must round-trip through proto."""
+        assert self.proto_msg is not None
+        entity = self.proto_msg.entity[0]
+        assert entity.trip_update.stop_time_update[0].stop_sequence == 3
+        assert entity.trip_update.stop_time_update[0].stop_id == "stop-99"
+        assert entity.trip_update.stop_time_update[0].arrival.time == 1700001000
 
     def test_skip_when_no_position_and_no_stop_status(self):
         data = {
@@ -460,6 +511,26 @@ class TestBuildTripUpdatesFeed:
         assert len(feed["entity"]) == 1
         tu = feed["entity"][0]["trip_update"]
         assert tu["trip"]["trip_id"] == "trip-abc"
+
+    def test_missing_projection_yields_no_stop_time_update_entries(self):
+        """When the stop_time_updates projection key is absent, stop_time_update is []."""
+        data = _full_redis_data()
+        # Remove the projection key
+        del data[keys.stop_time_updates_key(RUN_ID)]
+        r = FakeRedis(data)
+        feed = build_trip_updates_feed(r)
+        assert len(feed["entity"]) == 1
+        tu = feed["entity"][0]["trip_update"]
+        assert tu["stop_time_update"] == []
+
+    def test_empty_projection_yields_no_stop_time_update_entries(self):
+        """When the projection is an empty JSON array, stop_time_update is []."""
+        data = _full_redis_data()
+        data[keys.stop_time_updates_key(RUN_ID)] = stop_time_updates.to_redis([])
+        r = FakeRedis(data)
+        feed = build_trip_updates_feed(r)
+        tu = feed["entity"][0]["trip_update"]
+        assert tu["stop_time_update"] == []
 
 
 # ---------------------------------------------------------------------------
