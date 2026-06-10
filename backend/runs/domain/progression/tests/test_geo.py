@@ -13,7 +13,11 @@ import math
 
 import pytest
 
-from runs.domain.progression.geo import haversine_m, project_point_to_polyline
+from runs.domain.progression.geo import (
+    haversine_m,
+    project_point_to_polyline,
+    project_point_to_segment,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -162,3 +166,73 @@ class TestProjectPointToPolyline:
         result = project_point_to_polyline(0.5, 0.5, poly)
         assert result["progress_m"] >= 0.0
         assert result["cross_track_m"] >= 0.0
+
+
+# ---------------------------------------------------------------------------
+# project_point_to_segment (Commit 2)
+# ---------------------------------------------------------------------------
+
+
+class TestProjectPointToSegment:
+    """Correctness tests for the per-segment projection primitive."""
+
+    def _seg(self) -> tuple[tuple, tuple]:
+        """A 1° E-W segment at the equator: (0,0) → (0,1)."""
+        from runs.domain.progression.shapes import build_polyline
+
+        poly = build_polyline([(0.0, 0.0, 0), (0.0, 1.0, 1)])
+        return poly[0], poly[1]
+
+    def test_point_on_line_gives_zero_cross_track(self):
+        """A point exactly on the segment midpoint: cross_track ≈ 0."""
+        seg_start, seg_end = self._seg()
+        pm, ct = project_point_to_segment(0.0, 0.5, seg_start, seg_end)
+        assert ct == pytest.approx(0.0, abs=2.0)
+
+    def test_point_on_line_gives_correct_progress(self):
+        """Midpoint on a 1° E-W segment: progress_m ≈ half the total length."""
+        seg_start, seg_end = self._seg()
+        total = seg_end[2]
+        pm, ct = project_point_to_segment(0.0, 0.5, seg_start, seg_end)
+        assert pm == pytest.approx(total / 2.0, rel=0.01)
+
+    def test_perpendicular_offset_cross_track(self):
+        """Point 0.01° north of midpoint: cross_track ≈ haversine of 0.01°."""
+        seg_start, seg_end = self._seg()
+        offset_deg = 0.01
+        expected_ct = haversine_m(0.0, 0.0, offset_deg, 0.0)
+        pm, ct = project_point_to_segment(offset_deg, 0.5, seg_start, seg_end)
+        assert ct == pytest.approx(expected_ct, rel=0.05)
+
+    def test_t_clamp_before_start(self):
+        """Point 'behind' segment start: foot = seg_start, progress = cum0."""
+        seg_start, seg_end = self._seg()
+        pm, ct = project_point_to_segment(0.0, -0.5, seg_start, seg_end)
+        assert pm == pytest.approx(seg_start[2], abs=1.0)
+
+    def test_t_clamp_after_end(self):
+        """Point 'beyond' segment end: foot = seg_end, progress ≈ cum_end."""
+        seg_start, seg_end = self._seg()
+        pm, ct = project_point_to_segment(0.0, 1.5, seg_start, seg_end)
+        assert pm == pytest.approx(seg_end[2], rel=0.01)
+
+    def test_returns_two_floats(self):
+        seg_start, seg_end = self._seg()
+        result = project_point_to_segment(0.0, 0.5, seg_start, seg_end)
+        assert len(result) == 2
+        assert all(isinstance(v, float) for v in result)
+
+    def test_cross_track_non_negative(self):
+        seg_start, seg_end = self._seg()
+        _, ct = project_point_to_segment(0.001, 0.3, seg_start, seg_end)
+        assert ct >= 0.0
+
+    def test_degenerate_segment_uses_haversine(self):
+        """Zero-length segment: cross_track = haversine distance to the point."""
+        # Both endpoints at the same location.
+        seg_start = (0.0, 0.0, 0.0)
+        seg_end = (0.0, 0.0, 0.0)  # same → seg_len < 1e-9
+        pm, ct = project_point_to_segment(0.0, 0.01, seg_start, seg_end)
+        expected_ct = haversine_m(0.0, 0.0, 0.0, 0.01)
+        assert ct == pytest.approx(expected_ct, rel=0.01)
+        assert pm == pytest.approx(0.0, abs=1e-9)

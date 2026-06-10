@@ -1,8 +1,10 @@
 """Pure geometry primitives for map-matching — no I/O, stdlib math only.
 
-Two public functions:
-    haversine_m            — great-circle distance in metres (ported from sim)
-    project_point_to_polyline — project a GPS point onto a cumulative polyline
+Public functions:
+    haversine_m                — great-circle distance in metres (ported from sim)
+    project_point_to_segment   — project a GPS point onto a single polyline segment
+    project_point_to_polyline  — project a GPS point onto a cumulative polyline
+                                 (global search; used by compute.py for live vehicles)
 """
 
 from __future__ import annotations
@@ -29,6 +31,71 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     dl = math.radians(lon2 - lon1)
     a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * r * math.asin(math.sqrt(a))
+
+
+# ---------------------------------------------------------------------------
+# Per-segment primitive
+# ---------------------------------------------------------------------------
+
+
+def project_point_to_segment(
+    lat: float,
+    lon: float,
+    seg_start: tuple[float, float, float],
+    seg_end: tuple[float, float, float],
+) -> tuple[float, float]:
+    """Project a GPS point onto a single polyline segment.
+
+    Uses the same local-equirectangular math as ``project_point_to_polyline``
+    (centred on *seg_start*; t clamped to [0, 1]).
+
+    Parameters
+    ----------
+    lat, lon:
+        Observed WGS-84 position.
+    seg_start, seg_end:
+        ``(lat, lon, cum_dist_m)`` tuples as produced by ``build_polyline``.
+
+    Returns
+    -------
+    ``(progress_m, cross_track_m)`` where
+
+    * ``progress_m``    – ``cum_dist_m`` of *seg_start* + along-track distance
+                          from *seg_start* to the foot of perpendicular.
+    * ``cross_track_m`` – perpendicular distance from the point to the segment
+                          (always >= 0).
+
+    Degenerate segment (length < 1e-9 m): the foot is *seg_start*;
+    ``cross_track_m`` is the haversine distance from the point to *seg_start*.
+    """
+    lat0, lon0, cum0 = seg_start
+    lat1, lon1, cum1 = seg_end
+
+    seg_len_m = cum1 - cum0
+    if seg_len_m < 1e-9:
+        d = haversine_m(lat, lon, lat0, lon0)
+        return (cum0, d)
+
+    cos_lat0 = math.cos(math.radians(lat0))
+
+    dx_seg = _R * cos_lat0 * math.radians(lon1 - lon0)
+    dy_seg = _R * math.radians(lat1 - lat0)
+
+    dx_pt = _R * cos_lat0 * math.radians(lon - lon0)
+    dy_pt = _R * math.radians(lat - lat0)
+
+    seg_len_sq = dx_seg ** 2 + dy_seg ** 2
+    t = (dx_pt * dx_seg + dy_pt * dy_seg) / seg_len_sq
+    t = max(0.0, min(1.0, t))
+
+    fx = dx_seg * t
+    fy = dy_seg * t
+
+    cross_m = math.sqrt((dx_pt - fx) ** 2 + (dy_pt - fy) ** 2)
+    along_m = t * math.sqrt(seg_len_sq)
+    progress_m = cum0 + along_m
+
+    return (progress_m, cross_m)
 
 
 # ---------------------------------------------------------------------------
@@ -84,54 +151,9 @@ def project_point_to_polyline(
     best_seg = 0
 
     for i in range(len(polyline) - 1):
-        lat0, lon0, cum0 = polyline[i]
-        lat1, lon1, cum1 = polyline[i + 1]
-
-        seg_len_m = cum1 - cum0
-        if seg_len_m < 1e-9:
-            # Degenerate (duplicate) segment — treat as a single point.
-            d = haversine_m(lat, lon, lat0, lon0)
-            if d < best_cross_m:
-                best_cross_m = d
-                best_progress_m = cum0
-                best_seg = i
-            continue
-
-        # Local equirectangular projection centred on segment start.
-        # x = R * cos(lat0) * Δlon_rad  (easting, metres)
-        # y = R * Δlat_rad              (northing, metres)
-        cos_lat0 = math.cos(math.radians(lat0))
-
-        # Segment vector in local metres.
-        dx_seg = _R * cos_lat0 * math.radians(lon1 - lon0)
-        dy_seg = _R * math.radians(lat1 - lat0)
-
-        # Point vector relative to segment start, in local metres.
-        dx_pt = _R * cos_lat0 * math.radians(lon - lon0)
-        dy_pt = _R * math.radians(lat - lat0)
-
-        # Scalar projection parameter t ∈ [0, 1].
-        seg_len_sq = dx_seg ** 2 + dy_seg ** 2  # = seg_len_m² but more numerically clean
-        t = (dx_pt * dx_seg + dy_pt * dy_seg) / seg_len_sq
-        t = max(0.0, min(1.0, t))
-
-        # Foot of perpendicular in local metres.
-        fx = dx_seg * t
-        fy = dy_seg * t
-
-        # Perpendicular (cross-track) distance.
-        cross_m = math.sqrt((dx_pt - fx) ** 2 + (dy_pt - fy) ** 2)
-
-        # Along-track distance from segment start to foot.
-        along_m = math.sqrt(fx ** 2 + fy ** 2)
-
-        # Signed check: if t=0 the foot is at the start; dot product with the
-        # point vector confirms along_m direction.  Since t is clamped we just
-        # take along_m = t * seg_len_m to stay consistent with the parameter.
-        along_m = t * math.sqrt(seg_len_sq)
-
-        progress_m = cum0 + along_m
-
+        progress_m, cross_m = project_point_to_segment(
+            lat, lon, polyline[i], polyline[i + 1]
+        )
         if cross_m < best_cross_m:
             best_cross_m = cross_m
             best_progress_m = progress_m

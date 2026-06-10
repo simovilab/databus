@@ -24,7 +24,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from runs.domain.progression.geo import haversine_m, project_point_to_polyline
+from runs.domain.progression.geo import (
+    haversine_m,
+    project_point_to_polyline,
+    project_point_to_segment,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -157,17 +161,128 @@ def _validate_dists_m(
     return True
 
 
+def assign_stops_monotonic(
+    stop_rows: list[dict],
+    polyline: list[tuple[float, float, float]],
+) -> list[float]:
+    """Assign a ``progress_m`` to each stop using DP monotonic projection.
+
+    Places stops in ``stop_sequence`` order along the polyline with a hard
+    forward-monotonic constraint (segment index of stop k must be >= segment
+    index of stop k-1).  This correctly handles loop-back / doubling-back
+    shapes where a late stop is physically close to an early segment —
+    independent per-stop nearest-segment projection would snap it to the
+    wrong pass.
+
+    Algorithm — Viterbi / prefix-min recurrence:
+
+    For K stops and M segments (polyline has M+1 points):
+
+        cost[k][j]  = cross_track_m of stop k onto segment j
+        pos[k][j]   = progress_m of stop k onto segment j
+
+        DP[0][j]    = cost[0][j]
+        DP[k][j]    = cost[k][j]  +  min_{j' <= j}  DP[k-1][j']
+        back[k][j]  = argmin_{j' <= j} DP[k-1][j']
+
+    Final clamp enforces non-decreasing progress_m within the same segment
+    (guards numerical noise when two consecutive stops land on the same segment).
+
+    Parameters
+    ----------
+    stop_rows:
+        Stops ordered by ``stop_sequence`` ascending.  Each dict must have
+        ``lat`` and ``lon`` keys.
+    polyline:
+        Cumulative polyline as returned by ``build_polyline``.
+
+    Returns
+    -------
+    list of ``float`` — one ``progress_m`` per stop, in the same order as
+    *stop_rows*.  Empty list when *stop_rows* is empty.
+    """
+    K = len(stop_rows)
+    if K == 0:
+        return []
+
+    M = len(polyline) - 1  # number of segments
+    if M <= 0:
+        # No segments — every stop snaps to the single (or absent) point.
+        fallback = polyline[0][2] if polyline else 0.0
+        return [fallback] * K
+
+    # Pre-compute cost and pos matrices: shape (K, M).
+    cost: list[list[float]] = []
+    pos: list[list[float]] = []
+
+    for row in stop_rows:
+        lat, lon = row["lat"], row["lon"]
+        c_row: list[float] = []
+        p_row: list[float] = []
+        for j in range(M):
+            pm, ct = project_point_to_segment(lat, lon, polyline[j], polyline[j + 1])
+            c_row.append(ct)
+            p_row.append(pm)
+        cost.append(c_row)
+        pos.append(p_row)
+
+    # DP — O(K * M) using a running prefix minimum to avoid inner O(M) loop.
+    INF = float("inf")
+    dp: list[list[float]] = [[INF] * M for _ in range(K)]
+    back: list[list[int]] = [[-1] * M for _ in range(K)]
+
+    # Initialise first stop.
+    for j in range(M):
+        dp[0][j] = cost[0][j]
+        back[0][j] = j
+
+    # Fill rows k = 1..K-1.
+    for k in range(1, K):
+        # Running prefix min of dp[k-1] up to and including j.
+        prefix_min = INF
+        prefix_arg = 0
+        for j in range(M):
+            if dp[k - 1][j] < prefix_min:
+                prefix_min = dp[k - 1][j]
+                prefix_arg = j
+            dp[k][j] = cost[k][j] + prefix_min
+            back[k][j] = prefix_arg
+
+    # Backtrack: find best final segment for the last stop.
+    best_j = int(min(range(M), key=lambda j: dp[K - 1][j]))
+
+    # Recover segment assignments via backtrack table.
+    segments: list[int] = [0] * K
+    segments[K - 1] = best_j
+    for k in range(K - 2, -1, -1):
+        segments[k] = back[k + 1][segments[k + 1]]
+
+    # Read off progress_m for each stop from its assigned segment.
+    progress: list[float] = [pos[k][segments[k]] for k in range(K)]
+
+    # Final clamp: enforce non-decreasing (handles same-segment inversions).
+    for k in range(1, K):
+        if progress[k] < progress[k - 1]:
+            progress[k] = progress[k - 1]
+
+    return progress
+
+
 def build_stops(
     stop_rows: list[dict],
     polyline: list[tuple[float, float, float]],
 ) -> list[dict]:
     """Project each stop onto the polyline and return enriched stop dicts.
 
+    Uses DP-based monotonic assignment (``assign_stops_monotonic``) to
+    correctly handle loop-back / doubling-back shapes.
+
     Parameters
     ----------
     stop_rows:
         List of dicts, each with keys ``stop_id`` (str), ``stop_sequence``
-        (int), ``lat`` (float), ``lon`` (float).
+        (int), ``lat`` (float), ``lon`` (float).  Must be ordered by
+        ``stop_sequence`` ascending.
     polyline:
         Cumulative polyline as returned by ``build_polyline``.
 
@@ -176,16 +291,16 @@ def build_stops(
     List of dicts (same order as input) with the additional key
     ``progress_m`` (float).
     """
+    progress_list = assign_stops_monotonic(stop_rows, polyline)
     result = []
-    for row in stop_rows:
-        proj = project_point_to_polyline(row["lat"], row["lon"], polyline)
+    for row, pm in zip(stop_rows, progress_list):
         result.append(
             {
                 "stop_id": row["stop_id"],
                 "stop_sequence": row["stop_sequence"],
                 "lat": row["lat"],
                 "lon": row["lon"],
-                "progress_m": proj["progress_m"],
+                "progress_m": pm,
             }
         )
     return result
