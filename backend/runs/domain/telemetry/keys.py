@@ -100,3 +100,27 @@ def last_seen_key(run_id: str) -> str:
     Updated by the MQTT consumer on every message to enable stale detection.
     """
     return f"runs:last_seen:{run_id}"
+
+
+def stop_time_updates_key(run_id: str) -> str:
+    """Redis string: JSON array of upcoming stop-time-update entries for the run.
+
+    This is a Redis **string** key (not a hash) holding a JSON-encoded array — a
+    materialized projection/cache written by the stop-times producer with a
+    staleness TTL.  The GTFS-RT builder reads this key and treats a missing or
+    empty value as "skip stop_time_update" (honest empty list in the feed).
+
+    Each array entry has the shape::
+
+        {
+            "stop_sequence": int,
+            "stop_id": str,
+            "arrival_time": int,   # POSIX seconds
+            "departure_time": int, # POSIX seconds (== arrival_time for now)
+            "uncertainty": int,
+        }
+
+    Written with a staleness TTL so a stalled producer allows the projection to
+    expire rather than serving stale arrivals.  Run lifecycle owns hard cleanup.
+    """
+    return f"run:{run_id}:stop_time_updates"

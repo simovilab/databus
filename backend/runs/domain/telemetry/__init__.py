@@ -10,6 +10,7 @@ GTFS-RT entity:
 - :mod:`.vehicle_stop_status` — ``run:<id>:vehicle_stop_status`` hash (server).
 - :mod:`.congestion_level`    — ``run:<id>:congestion_level`` hash (server, deferred).
 - :mod:`.trip`                — ``run:<id>:trip`` hash + projection helper (server).
+- :mod:`.stop_time_updates`   — ``run:<id>:stop_time_updates`` JSON string (server projection).
 
 All modules are import-light (no Django, no Redis at module top level) so they
 are safe to use in unit tests under plain pytest.
@@ -28,4 +29,5 @@ from runs.domain.telemetry import (  # noqa: F401
     vehicle_stop_status,
     congestion_level,
     trip,
+    stop_time_updates,
 )
