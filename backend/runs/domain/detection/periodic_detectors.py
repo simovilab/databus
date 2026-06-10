@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from runs.domain.lifecycle.states import RunLifecycleStates
+from runs.domain.lifecycle.events import RunLifecycleEvents
 from runs.domain.detection.result import DetectionResult
 from runs.domain.detection.thresholds import TELEMETRY_GRACE_S, TELEMETRY_EXPIRY_S
 
@@ -22,15 +23,16 @@ class RunTrackingLostDetector:
 
     fsm = FSM
 
-    @staticmethod
     def detect(
-        run_state: str, staleness_s: float, payload: dict[str, Any]
+        self, run_state: str, staleness_s: float, payload: dict[str, Any]
     ) -> DetectionResult | None:
         if (
             run_state == RunLifecycleStates.IN_PROGRESS.value
             and TELEMETRY_GRACE_S < staleness_s <= TELEMETRY_EXPIRY_S
         ):
-            return DetectionResult(FSM, "run_tracking_lost", {"actor_role": "system"})
+            return DetectionResult(
+                self.fsm, RunLifecycleEvents.RUN_TRACKING_LOST, {"actor_role": "system"}
+            )
         return None
 
 
@@ -39,13 +41,16 @@ class RunTrackingExpiredDetector:
 
     fsm = FSM
 
-    @staticmethod
     def detect(
-        run_state: str, staleness_s: float, payload: dict[str, Any]
+        self, run_state: str, staleness_s: float, payload: dict[str, Any]
     ) -> DetectionResult | None:
         if (
             run_state == RunLifecycleStates.NO_SIGNAL.value
             and staleness_s > TELEMETRY_EXPIRY_S
         ):
-            return DetectionResult(FSM, "run_tracking_expired", {"actor_role": "system"})
+            return DetectionResult(
+                self.fsm,
+                RunLifecycleEvents.RUN_TRACKING_EXPIRED,
+                {"actor_role": "system"},
+            )
         return None

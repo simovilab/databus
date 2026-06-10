@@ -18,14 +18,14 @@ from runs.domain.detection.periodic_detectors import (
 
 # Evaluated on every incoming telemetry message.
 TELEMETRY_DETECTORS = [
-    RunTrackingStartedDetector,
-    RunStartedDetector,
-    RunTrackingRestoredDetector,
-    RunCompletedDetector,
+    RunTrackingStartedDetector(),
+    RunStartedDetector(),
+    RunTrackingRestoredDetector(),
+    RunCompletedDetector(),
 ]
 
 # Evaluated by the periodic staleness scan.
 PERIODIC_DETECTORS = [
-    RunTrackingLostDetector,
-    RunTrackingExpiredDetector,
+    RunTrackingLostDetector(),
+    RunTrackingExpiredDetector(),
 ]

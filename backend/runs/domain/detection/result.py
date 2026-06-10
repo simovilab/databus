@@ -11,7 +11,9 @@ class DetectionResult:
     Attributes:
         fsm: Routing key for the target state machine (``"lifecycle"`` or
             ``"progress"``). The dispatcher uses this to pick the service/task.
-        event: The event name to fire (the FSM event enum *value*).
+        event: The event to fire — a ``RunLifecycleEvents`` member. As a
+            ``str`` enum it compares equal to its value, so downstream string
+            consumers (Celery payloads, seed-event checks) keep working.
         extra_payload: Fields the detector adds on top of the base payload
             (e.g. ``{"stop_id": ...}`` for completion). Merged by the dispatcher.
     """
