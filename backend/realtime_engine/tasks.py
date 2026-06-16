@@ -64,3 +64,69 @@ def scan_stale_runs() -> str:
         fired += detect_from_scan(run_id, staleness, raw_last_seen)
 
     return f"scan_stale_runs: checked {len(run_ids)} runs, fired {fired} events"
+
+
+@shared_task(queue="realtime_engine")
+def process_position_update(run_id: str, vehicle_id: str) -> None:
+    """Run server-side producers and detection for a position update.
+
+    Called by the MQTT callback after the position hash has been written to
+    Redis. Only run_id and vehicle_id cross the queue — the task re-reads the
+    latest ``vehicle:<id>:position`` from Redis so the work is idempotent and
+    last-write-wins. No retries (a retried tick is stale; the next ping
+    recovers).
+    """
+    from runs.domain.telemetry import keys, position
+
+    # Step 1: produce server-side stop status (real map-matching).
+    computed_stop_status = None
+    try:
+        from runs.domain.progression.producer import produce_stop_status
+        computed_stop_status = produce_stop_status(run_id, vehicle_id)
+    except Exception:
+        logger.exception(
+            "stop-status production failed for vehicle %s run %s",
+            vehicle_id,
+            run_id,
+        )
+
+    # Step 2: re-feed server-computed stop status into the completion detector.
+    # RunCompletedDetector requires leaf="progression" + current_status/stop_id.
+    if computed_stop_status:
+        try:
+            from runs.domain.detection.dispatch import detect_from_telemetry
+            detect_from_telemetry(run_id, vehicle_id, "progression", computed_stop_status)
+        except Exception:
+            logger.exception(
+                "progression detection failed for vehicle %s run %s",
+                vehicle_id,
+                run_id,
+            )
+
+    # Step 3: compute and cache the stop-time-updates projection.
+    try:
+        from runs.domain.progression.stop_times import produce_stop_times
+        produce_stop_times(run_id, vehicle_id)
+    except Exception:
+        logger.exception(
+            "stop-time-updates production failed for vehicle %s run %s",
+            vehicle_id,
+            run_id,
+        )
+
+    # Step 4: position-leaf detection (RunStartedDetector etc.).
+    # Re-read the latest position from Redis — equivalent to passing the
+    # original MQTT data since position is last-write-wins and speed survives
+    # the validate_for_write → from_redis round-trip as a typed float.
+    try:
+        raw_position = redis_client.hgetall(keys.position_key(vehicle_id))
+        if raw_position:
+            latest_position = position.from_redis(raw_position)
+            from runs.domain.detection.dispatch import detect_from_telemetry
+            detect_from_telemetry(run_id, vehicle_id, "position", latest_position)
+    except Exception:
+        logger.exception(
+            "position detection failed for vehicle %s run %s",
+            vehicle_id,
+            run_id,
+        )

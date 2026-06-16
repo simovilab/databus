@@ -84,39 +84,11 @@ def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
             )
             return
         r.hset(keys.position_key(vehicle_id), mapping=mapping)
-        # Seam: derive server-side stop status from the new position.
-        computed_stop_status = None
-        try:
-            from runs.domain.progression.producer import produce_stop_status
-            computed_stop_status = produce_stop_status(run_id, vehicle_id)
-        except Exception:
-            logger.exception(
-                "stop-status production failed for vehicle %s run %s",
-                vehicle_id,
-                run_id,
-            )
-        # Re-feed server-computed stop status into the completion detector.
-        # RunCompletedDetector requires leaf="progression" + current_status/stop_id.
-        if computed_stop_status:
-            try:
-                from runs.domain.detection.dispatch import detect_from_telemetry
-                detect_from_telemetry(run_id, vehicle_id, "progression", computed_stop_status)
-            except Exception:
-                logger.exception(
-                    "progression detection failed for vehicle %s run %s",
-                    vehicle_id,
-                    run_id,
-                )
-        # Seam: compute and cache the stop-time-updates projection.
-        try:
-            from runs.domain.progression.stop_times import produce_stop_times
-            produce_stop_times(run_id, vehicle_id)
-        except Exception:
-            logger.exception(
-                "stop-time-updates production failed for vehicle %s run %s",
-                vehicle_id,
-                run_id,
-            )
+        # Heavy work (map-matching, projection, detection) runs off the network
+        # thread. Enqueue after the HSET so the task always reads at least the
+        # value we just wrote.
+        from realtime_engine.tasks import process_position_update
+        process_position_update.delay(run_id, vehicle_id)
 
     elif leaf == "occupancy":
         # occupancy_status is server policy — discard any edge-sent value and
@@ -155,13 +127,18 @@ def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
         )
         return
 
+    # last_seen is kept synchronous so staleness detection is never delayed by
+    # queue latency (even with a slow worker draining the realtime_engine queue).
     r.set(keys.last_seen_key(run_id), now().isoformat())
 
-    # All detection heuristics live in runs.domain.detection; this consumer only
-    # ingests telemetry and delegates.  Pass the raw data dict as before.
-    from runs.domain.detection.dispatch import detect_from_telemetry
-
-    detect_from_telemetry(run_id, vehicle_id, leaf, data)
+    # Position detection (RunStartedDetector, RunTrackingStartedDetector, …) now
+    # runs inside process_position_update off the network thread.  Occupancy
+    # detection is cheap and still fires inline — RunTrackingStartedDetector and
+    # RunTrackingRestoredDetector both match any leaf, so occupancy must still
+    # reach detect_from_telemetry for correct lifecycle transitions.
+    if leaf == "occupancy":
+        from runs.domain.detection.dispatch import detect_from_telemetry
+        detect_from_telemetry(run_id, vehicle_id, leaf, data)
 
 
 def _on_connect(client: mqtt.Client, userdata, flags, rc) -> None:
