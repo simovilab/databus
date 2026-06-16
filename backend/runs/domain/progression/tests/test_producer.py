@@ -89,7 +89,7 @@ def test_produces_stop_status_for_valid_position(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Test 2 — Empty position hash: returns early, no hset
+# Test 2 — Empty position hash: returns early, no hset, returns None
 # ---------------------------------------------------------------------------
 
 
@@ -97,9 +97,10 @@ def test_returns_early_when_position_hash_is_empty(monkeypatch):
     fake_r = _fake_redis(position_raw={})
     monkeypatch.setattr(producer_module, "r", fake_r)
 
-    produce_stop_status(RUN_ID, VEHICLE_ID)
+    result = produce_stop_status(RUN_ID, VEHICLE_ID)
 
     fake_r.hset.assert_not_called()
+    assert result is None
 
 
 # ---------------------------------------------------------------------------
@@ -162,3 +163,38 @@ def test_reads_and_writes_correct_redis_keys(monkeypatch):
         else fake_r.hset.call_args.kwargs.get("name")
     )
     assert written_key == keys.stop_status_key(RUN_ID)
+
+
+# ---------------------------------------------------------------------------
+# Test 6 — Returns computed dict (typed, not stringified) when position exists
+# ---------------------------------------------------------------------------
+
+
+def test_returns_computed_dict_when_position_exists(monkeypatch):
+    """produce_stop_status must return the typed computed dict (not None, not
+    the stringified Redis mapping) when position data is available.
+
+    The returned dict must carry at minimum ``current_status`` as a string,
+    suitable for passing directly to detect_from_telemetry as the
+    ``leaf="progression"`` data payload (RunCompletedDetector contract).
+    """
+    fake_r = _fake_redis()
+    monkeypatch.setattr(producer_module, "r", fake_r)
+
+    result = produce_stop_status(RUN_ID, VEHICLE_ID)
+
+    assert result is not None
+    assert isinstance(result, dict)
+    assert vehicle_stop_status.CURRENT_STATUS in result
+    # current_status must be a plain string value (not a Redis-stringified mapping)
+    assert isinstance(result[vehicle_stop_status.CURRENT_STATUS], str)
+
+
+def test_returns_none_when_no_position_data(monkeypatch):
+    """produce_stop_status must return None when no position hash exists in Redis."""
+    fake_r = _fake_redis(position_raw={})
+    monkeypatch.setattr(producer_module, "r", fake_r)
+
+    result = produce_stop_status(RUN_ID, VEHICLE_ID)
+
+    assert result is None

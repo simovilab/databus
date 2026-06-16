@@ -1,8 +1,9 @@
-"""Redis glue for the server-side stop-status producer (seam / placeholder implementation).
+"""Redis glue for the server-side stop-status producer.
 
 This module is the impure counterpart to the pure :mod:`.compute` module.
-It reads from Redis, delegates computation, validates the result, and writes
-back to Redis.
+It reads from Redis, delegates computation (real GPS→polyline map-matching,
+with a defensive ``IN_TRANSIT_TO`` carry-forward fallback in :mod:`.compute`),
+validates the result, and writes back to Redis.
 
 Called by ``realtime_engine/mqtt.py`` after every successful position write
 so that ``run:<run_id>:vehicle_stop_status`` is kept current.
@@ -29,7 +30,7 @@ r = redis.Redis(
 )
 
 
-def produce_stop_status(run_id: str, vehicle_id: str) -> None:
+def produce_stop_status(run_id: str, vehicle_id: str) -> dict | None:
     """Derive and write ``run:<run_id>:vehicle_stop_status`` from the latest position.
 
     Reads the current position, run hash, and previous stop status from Redis,
@@ -45,11 +46,19 @@ def produce_stop_status(run_id: str, vehicle_id: str) -> None:
         The active run id (string, as stored in ``vehicle:<id>:current_run``).
     vehicle_id:
         The vehicle id whose position was just updated.
+
+    Returns
+    -------
+    dict | None
+        The computed vehicle_stop_status contract dict (contains at minimum
+        ``current_status`` and optionally ``stop_id`` / ``current_stop_sequence``)
+        when position data is available, or ``None`` when there is no position
+        data to derive from.
     """
     pos_raw = r.hgetall(keys.position_key(vehicle_id))
     if not pos_raw:
         # No position data yet — nothing to derive stop status from.
-        return
+        return None
 
     position_hash = position.from_redis(pos_raw)
 
@@ -62,3 +71,5 @@ def produce_stop_status(run_id: str, vehicle_id: str) -> None:
 
     mapping = vehicle_stop_status.validate_for_write(computed)
     r.hset(keys.stop_status_key(run_id), mapping=mapping)
+
+    return computed

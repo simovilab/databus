@@ -301,3 +301,108 @@ def test_on_connect_subscribes_position_and_occupancy_only():
     assert "transit/vehicle/+/position" in subscribed_topics
     assert "transit/vehicle/+/occupancy" in subscribed_topics
     assert "transit/vehicle/+/progression" not in subscribed_topics
+
+
+# ---------------------------------------------------------------------------
+# Test — STOPPED_AT stop status triggers progression detection (completion path)
+# ---------------------------------------------------------------------------
+
+
+def test_stopped_at_status_triggers_progression_detection(monkeypatch):
+    """When produce_stop_status returns STOPPED_AT with a stop_id, the handler
+    must call detect_from_telemetry a second time with leaf='progression' and
+    the computed dict, so RunCompletedDetector can fire.
+
+    This is the regression test for the run-completion detector path that was
+    broken when progression moved from MQTT to server-side computation.
+    """
+    fake_r = _fake_redis()
+    monkeypatch.setattr(mqtt_module, "r", fake_r)
+    monkeypatch.setattr(mqtt_module, "now", _fake_now)
+
+    stopped_at_status = {
+        "current_status": "STOPPED_AT",
+        "stop_id": "TERM-1",
+        "current_stop_sequence": 10,
+    }
+
+    with (
+        patch("runs.domain.detection.dispatch.detect_from_telemetry") as mock_detect,
+        patch(
+            "runs.domain.progression.producer.produce_stop_status",
+            return_value=stopped_at_status,
+        ),
+        patch("runs.domain.progression.stop_times.produce_stop_times"),
+    ):
+        _handle_telemetry(VEHICLE_ID, "position", _encode(_VALID_POSITION))
+
+    # detect_from_telemetry must be called twice:
+    #   1. leaf="progression" with the server-computed stop status (completion path)
+    #   2. leaf="position" with the raw position data (start/tracking path)
+    assert mock_detect.call_count == 2
+    calls = mock_detect.call_args_list
+    progression_calls = [c for c in calls if c.args[2] == "progression"]
+    position_calls = [c for c in calls if c.args[2] == "position"]
+
+    assert len(progression_calls) == 1, "Expected exactly one progression detection call"
+    assert progression_calls[0].args == (RUN_ID, VEHICLE_ID, "progression", stopped_at_status)
+
+    assert len(position_calls) == 1, "Expected exactly one position detection call"
+    assert position_calls[0].args == (RUN_ID, VEHICLE_ID, "position", _VALID_POSITION)
+
+
+def test_empty_stop_status_does_not_trigger_progression_detection(monkeypatch):
+    """When produce_stop_status returns None (no position data), detect_from_telemetry
+    must NOT be called with leaf='progression' — only the normal position call fires.
+    """
+    fake_r = _fake_redis()
+    monkeypatch.setattr(mqtt_module, "r", fake_r)
+    monkeypatch.setattr(mqtt_module, "now", _fake_now)
+
+    with (
+        patch("runs.domain.detection.dispatch.detect_from_telemetry") as mock_detect,
+        patch(
+            "runs.domain.progression.producer.produce_stop_status",
+            return_value=None,
+        ),
+        patch("runs.domain.progression.stop_times.produce_stop_times"),
+    ):
+        _handle_telemetry(VEHICLE_ID, "position", _encode(_VALID_POSITION))
+
+    # Only the position detection call — no progression call.
+    assert mock_detect.call_count == 1
+    assert mock_detect.call_args.args[2] == "position"
+
+
+def test_progression_detection_exception_does_not_propagate(monkeypatch):
+    """A failure inside the progression re-feed detect call must be swallowed —
+    ingestion and the normal position detection must still complete.
+    """
+    fake_r = _fake_redis()
+    monkeypatch.setattr(mqtt_module, "r", fake_r)
+    monkeypatch.setattr(mqtt_module, "now", _fake_now)
+
+    stopped_at_status = {"current_status": "STOPPED_AT", "stop_id": "TERM-1"}
+    call_count = {"n": 0}
+
+    def detect_side_effect(run_id, vehicle_id, leaf, data):
+        call_count["n"] += 1
+        if leaf == "progression":
+            raise RuntimeError("detector exploded")
+
+    with (
+        patch(
+            "runs.domain.detection.dispatch.detect_from_telemetry",
+            side_effect=detect_side_effect,
+        ),
+        patch(
+            "runs.domain.progression.producer.produce_stop_status",
+            return_value=stopped_at_status,
+        ),
+        patch("runs.domain.progression.stop_times.produce_stop_times"),
+    ):
+        # Must not raise — progression detection failure is guarded
+        _handle_telemetry(VEHICLE_ID, "position", _encode(_VALID_POSITION))
+
+    # The position detection call must still have been attempted
+    assert call_count["n"] >= 1

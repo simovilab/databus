@@ -85,15 +85,28 @@ def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
             return
         r.hset(keys.position_key(vehicle_id), mapping=mapping)
         # Seam: derive server-side stop status from the new position.
+        computed_stop_status = None
         try:
             from runs.domain.progression.producer import produce_stop_status
-            produce_stop_status(run_id, vehicle_id)
+            computed_stop_status = produce_stop_status(run_id, vehicle_id)
         except Exception:
             logger.exception(
                 "stop-status production failed for vehicle %s run %s",
                 vehicle_id,
                 run_id,
             )
+        # Re-feed server-computed stop status into the completion detector.
+        # RunCompletedDetector requires leaf="progression" + current_status/stop_id.
+        if computed_stop_status:
+            try:
+                from runs.domain.detection.dispatch import detect_from_telemetry
+                detect_from_telemetry(run_id, vehicle_id, "progression", computed_stop_status)
+            except Exception:
+                logger.exception(
+                    "progression detection failed for vehicle %s run %s",
+                    vehicle_id,
+                    run_id,
+                )
         # Seam: compute and cache the stop-time-updates projection.
         try:
             from runs.domain.progression.stop_times import produce_stop_times
