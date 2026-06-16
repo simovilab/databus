@@ -186,6 +186,13 @@ services:
     volumes:
       - ./frontend:/app
       - ui_node_modules:/app/node_modules
+      - ui_pnpm_store:/pnpm-store
+      # Nuxt writes these constantly; keep them on native volumes, not the
+      # macOS bind mount, to avoid "Unknown system error -35" on write/open.
+      - /app/.nuxt
+      - /app/.output
+      - /app/.nitro
+      - /app/.cache
     depends_on:
       orchestrator:
         condition: service_started
@@ -196,6 +203,7 @@ volumes:
   lake_data:
   message_broker_data:
   ui_node_modules:
+  ui_pnpm_store:
   backend_venv:
 
 networks:
