@@ -4,20 +4,20 @@ name: databus-prod
 # Required environment variables (set in .env):
 #
 #   Domain routing (Traefik):
-#     ORCHESTRATOR_DOMAIN    – Django API / admin
-#     UI_DOMAIN              – Nuxt frontend
-#     MQTT_DOMAIN            – MQTT over TLS (port 8883)
-#     RABBITMQ_DOMAIN        – RabbitMQ management UI
-#     ANALYTICS_DOMAIN       – Prefect dashboard
-#     FLOWER_DOMAIN          – Celery Flower dashboard
-#     DOCS_DOMAIN            – Project documentation site
-#     CERT_RESOLVER          – Traefik cert resolver name (default: letsencrypt)
+#     ORCHESTRATOR_DOMAIN    - Django API / admin
+#     UI_DOMAIN              - Nuxt frontend
+#     MQTT_DOMAIN            - MQTT over TLS (port 8883)
+#     RABBITMQ_DOMAIN        - RabbitMQ management UI
+#     ANALYTICS_DOMAIN       - Prefect dashboard
+#     FLOWER_DOMAIN          - Celery Flower dashboard
+#     DOCS_DOMAIN            - Project documentation site
+#     CERT_RESOLVER          - Traefik cert resolver name (default: letsencrypt)
 #
 #   Credentials:
-#     SECRET_KEY             – Django secret key
-#     DB_PASSWORD            – PostgreSQL password
-#     REDIS_PASSWORD         – Redis password
-#     RABBITMQ_USER / RABBITMQ_PASS – RabbitMQ credentials
+#     SECRET_KEY             - Django secret key
+#     DB_PASSWORD            - PostgreSQL password
+#     REDIS_PASSWORD         - Redis password
+#     RABBITMQ_USER / RABBITMQ_PASS - RabbitMQ credentials
 # ---------------------------------------------------------------------------
 
 services:

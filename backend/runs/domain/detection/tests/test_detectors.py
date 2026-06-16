@@ -50,11 +50,15 @@ def test_run_started_speed_boundary(speed, expected):
 
 
 def test_run_started_ignores_non_position_leaf():
-    assert RunStartedDetector().detect(TRACKING, "progression", {"speed": 9}, {}) is None
+    assert (
+        RunStartedDetector().detect(TRACKING, "progression", {"speed": 9}, {}) is None
+    )
 
 
 def test_run_started_silent_when_not_tracking():
-    assert RunStartedDetector().detect(IN_PROGRESS, "position", {"speed": 9}, {}) is None
+    assert (
+        RunStartedDetector().detect(IN_PROGRESS, "position", {"speed": 9}, {}) is None
+    )
 
 
 def test_tracking_restored_fires_when_no_signal():
@@ -66,7 +70,7 @@ def test_completed_fires_on_stopped_at_with_stop_id():
     data = {"current_status": "STOPPED_AT", "stop_id": "TERM-1"}
     res = RunCompletedDetector().detect(IN_PROGRESS, "progression", data, {})
     assert res is not None
-    assert res.event == "complete_run"
+    assert res.event == "run_completed"
     assert res.extra_payload == {"stop_id": "TERM-1"}
 
 

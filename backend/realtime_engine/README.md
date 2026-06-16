@@ -36,12 +36,12 @@ initialized.
 
 ## Lifecycle events fired by the consumer
 
-| Run state    | Trigger condition                                         | Event fired             |
-|--------------|-----------------------------------------------------------|-------------------------|
-| `Confirmed`  | Any valid ping received                                   | `run_tracking_started`  |
-| `Tracking`   | `position.speed > 0.5` m/s                                | `run_started`           |
-| `No Signal`  | Any valid ping received                                   | `run_tracking_restored` |
-| `In Progress`| `progression.current_status == STOPPED_AT` with `stop_id` | `complete_run`          |
+| Run state     | Trigger condition                                         | Event fired             |
+| ------------- | --------------------------------------------------------- | ----------------------- |
+| `Confirmed`   | Any valid ping received                                   | `run_tracking_started`  |
+| `Tracking`    | `position.speed > 0.5` m/s                                | `run_started`           |
+| `No Signal`   | Any valid ping received                                   | `run_tracking_restored` |
+| `In Progress` | `progression.current_status == STOPPED_AT` with `stop_id` | `run_completed`         |
 
 ## Stale run scanning
 
@@ -53,7 +53,7 @@ initialized.
 ## Environment variables
 
 | Var                     | Default            | Purpose                                                       |
-|-------------------------|--------------------|---------------------------------------------------------------|
+| ----------------------- | ------------------ | ------------------------------------------------------------- |
 | `MQTT_CONSUMER_ENABLED` | `false`            | Master switch; set `true` only on the realtime-engine worker. |
 | `MQTT_HOST`             | `telemetry-broker` | Broker hostname (resolved inside compose).                    |
 | `MQTT_PORT`             | `1883`             | Broker port.                                                  |

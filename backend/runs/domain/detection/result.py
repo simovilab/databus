@@ -1,4 +1,4 @@
-"""The value a detector returns when it recognises an event."""
+"""The value a detector returns when it recognizes an event."""
 
 from dataclasses import dataclass, field
 from typing import Any

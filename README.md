@@ -49,7 +49,7 @@ cp .env.example .env   # edit with your values
 ./scripts/dev.sh
 ```
 
-The startup script initializes Git submodules, pulls images, builds containers, and waits for all services to become healthy. On first run this takes 1–2 minutes.
+The startup script initializes Git submodules, pulls images, builds containers, and waits for all services to become healthy. On first run this takes 1-2 minutes.
 
 ### Development URLs
 
