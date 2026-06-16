@@ -16,8 +16,6 @@ Patch targets
                                           detect_from_telemetry`` inside the function).
 """
 
-from __future__ import annotations
-
 import json
 from unittest.mock import MagicMock, call, patch
 
@@ -95,7 +93,9 @@ def test_valid_position_writes_position_key(monkeypatch):
 
     # Extract the mapping regardless of whether it was passed as kwarg or positional
     call_kwargs = fake_r.hset.call_args
-    redis_key = call_kwargs.args[0] if call_kwargs.args else call_kwargs.kwargs.get("name")
+    redis_key = (
+        call_kwargs.args[0] if call_kwargs.args else call_kwargs.kwargs.get("name")
+    )
     mapping = call_kwargs.kwargs.get("mapping")
 
     assert redis_key == keys.position_key(VEHICLE_ID)
@@ -132,7 +132,9 @@ def test_occupancy_with_percentage_rewrites_status(monkeypatch):
 
     assert fake_r.hset.call_count == 1
     call_kwargs = fake_r.hset.call_args
-    redis_key = call_kwargs.args[0] if call_kwargs.args else call_kwargs.kwargs.get("name")
+    redis_key = (
+        call_kwargs.args[0] if call_kwargs.args else call_kwargs.kwargs.get("name")
+    )
     mapping = call_kwargs.kwargs.get("mapping")
 
     assert redis_key == keys.occupancy_key(VEHICLE_ID)
@@ -227,7 +229,7 @@ def test_unknown_leaf_is_dropped(monkeypatch):
 def test_no_active_run_drops_all_telemetry(monkeypatch):
     """When r.get(current_run_key) returns falsy, all leaves are dropped."""
     fake_r = _fake_redis(run_id="")  # falsy empty string
-    fake_r.get.return_value = None   # also covers None return
+    fake_r.get.return_value = None  # also covers None return
     monkeypatch.setattr(mqtt_module, "r", fake_r)
 
     with patch("runs.domain.detection.dispatch.detect_from_telemetry") as mock_detect:
@@ -260,9 +262,7 @@ def test_valid_position_calls_produce_stop_status(monkeypatch):
 
     with (
         patch("runs.domain.detection.dispatch.detect_from_telemetry"),
-        patch(
-            "runs.domain.progression.producer.produce_stop_status"
-        ) as mock_produce,
+        patch("runs.domain.progression.producer.produce_stop_status") as mock_produce,
     ):
         _handle_telemetry(VEHICLE_ID, "position", _encode(_VALID_POSITION))
 

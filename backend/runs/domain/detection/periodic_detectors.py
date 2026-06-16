@@ -6,8 +6,6 @@ was last seen) instead of telemetry. Thresholds come from the single source in
 :mod:`runs.domain.detection.thresholds`.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 from runs.domain.lifecycle.states import RunLifecycleStates

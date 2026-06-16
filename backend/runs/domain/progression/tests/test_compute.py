@@ -2,7 +2,7 @@
 
 Two test groups:
 
-1. **Fallback / contract group** (tests 1–9, original):
+1. **Fallback / contract group** (tests 1-9, original):
    These use a ``_RUN_HASH`` that references real shape/trip ids, but since no
    Django ORM is configured in plain-pytest the ``get_shape_geometry`` call
    raises, which triggers the broad ``except Exception`` fallback inside
@@ -17,8 +17,6 @@ Two test groups:
    and that ``current_stop_sequence`` never regresses on jittered GPS.
 """
 
-from __future__ import annotations
-
 import pytest
 
 from runs.domain.progression.compute import (
@@ -27,7 +25,11 @@ from runs.domain.progression.compute import (
     STOP_RADIUS_M,
     compute_stop_status,
 )
-from runs.domain.progression.shapes import ShapeGeometry, assemble_geometry, invalidate_cache
+from runs.domain.progression.shapes import (
+    ShapeGeometry,
+    assemble_geometry,
+    invalidate_cache,
+)
 from runs.domain.telemetry import vehicle_stop_status
 
 
@@ -251,7 +253,9 @@ class TestMapMatchingStatuses:
         # 1° ≈ 111 195 m.  INCOMING_AT_RADIUS_M = 50 m → Δlat ≈ 50/111195.
         delta_lat = (INCOMING_AT_RADIUS_M - 5) / 111_195.0  # a little inside
         incoming_lat = 2.0 - delta_lat
-        result = compute_stop_status(_run_hash(), _pos(incoming_lat, speed=8.0), prev_state=None)
+        result = compute_stop_status(
+            _run_hash(), _pos(incoming_lat, speed=8.0), prev_state=None
+        )
         assert result[vehicle_stop_status.CURRENT_STATUS] == "INCOMING_AT"
         assert result[vehicle_stop_status.STOP_ID] == "S1"
 
@@ -297,7 +301,9 @@ class TestMapMatchingStatuses:
         assert far[vehicle_stop_status.CURRENT_STATUS] == "IN_TRANSIT_TO"
 
         delta_lat = (INCOMING_AT_RADIUS_M - 5) / 111_195.0
-        incoming = compute_stop_status(rh, _pos(2.0 - delta_lat, speed=8.0), prev_state=far)
+        incoming = compute_stop_status(
+            rh, _pos(2.0 - delta_lat, speed=8.0), prev_state=far
+        )
         assert incoming[vehicle_stop_status.CURRENT_STATUS] == "INCOMING_AT"
 
         at_lat = 2.0 - (STOP_RADIUS_M - 2) / 111_195.0
@@ -382,6 +388,8 @@ class TestFallbackEdgeCases:
         assert result[vehicle_stop_status.CURRENT_STATUS] == "IN_TRANSIT_TO"
 
     def test_missing_lat_lon_fallback(self):
-        rh = _run_hash()  # valid, but get_shape_geometry will ORM-fail → fallback anyway
+        rh = (
+            _run_hash()
+        )  # valid, but get_shape_geometry will ORM-fail → fallback anyway
         result = compute_stop_status(rh, {}, prev_state=None)
         assert result[vehicle_stop_status.CURRENT_STATUS] == "IN_TRANSIT_TO"

@@ -7,8 +7,6 @@ Tests cover:
   clamp, after-end clamp, degenerate polylines (empty, single point).
 """
 
-from __future__ import annotations
-
 import math
 
 import pytest

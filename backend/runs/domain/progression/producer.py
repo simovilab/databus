@@ -11,8 +11,6 @@ The Redis client mirrors the pattern used in other producer modules in this
 package: module-level client configured from environment variables.
 """
 
-from __future__ import annotations
-
 import logging
 import os
 

@@ -2,13 +2,13 @@
 
 Public surface
 --------------
-ShapeGeometry            – frozen dataclass; one per (shape_id, trip_id) pair.
-build_polyline(...)      – pure: raw GTFS rows → cumulative polyline tuples.
-build_stops(...)         – pure: stop rows + polyline → stops with progress_m.
-assemble_geometry(...)   – pure: combine the two into a ShapeGeometry.
-load_shape_geometry(...) – ORM loader (Django imported inside the function).
-get_shape_geometry(...)  – cached wrapper; returns None when data unavailable.
-invalidate_cache()       – clear the module-level cache (call after GTFS import).
+ShapeGeometry            - frozen dataclass; one per (shape_id, trip_id) pair.
+build_polyline(...)      - pure: raw GTFS rows → cumulative polyline tuples.
+build_stops(...)         - pure: stop rows + polyline → stops with progress_m.
+assemble_geometry(...)   - pure: combine the two into a ShapeGeometry.
+load_shape_geometry(...) - ORM loader (Django imported inside the function).
+get_shape_geometry(...)  - cached wrapper; returns None when data unavailable.
+invalidate_cache()       - clear the module-level cache (call after GTFS import).
 
 Cache notes
 -----------
@@ -19,8 +19,6 @@ The cache is a plain module-level dict keyed by ``(feed_id, shape_id, trip_id)``
 The ETA/look-ahead step can slice ``geometry.stops`` to only upcoming stops
 (``stop_sequence >= current_stop_sequence``); the list is ordered by sequence.
 """
-
-from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -389,7 +387,9 @@ def load_shape_geometry(
         Shape.objects.filter(feed=feed, shape_id=shape_id)
         .order_by("shape_pt_sequence")
         .values_list(
-            "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence",
+            "shape_pt_lat",
+            "shape_pt_lon",
+            "shape_pt_sequence",
             "shape_dist_traveled",
         )
     )

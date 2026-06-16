@@ -6,15 +6,16 @@ all tests run entirely in-process without a live Redis instance.
 Patch target: ``runs.domain.progression.stop_times.r``
 """
 
-from __future__ import annotations
-
 import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import runs.domain.progression.stop_times as stop_times_module
-from runs.domain.progression.stop_times import STOP_TIME_UPDATES_TTL_S, produce_stop_times
+from runs.domain.progression.stop_times import (
+    STOP_TIME_UPDATES_TTL_S,
+    produce_stop_times,
+)
 from runs.domain.telemetry import keys, stop_time_updates
 
 
@@ -40,8 +41,18 @@ _STOP_STATUS_RAW = {
 
 # Two fake entries that build_stop_time_updates might return
 _FAKE_STOP_ENTRIES = [
-    {"stop_sequence": 3, "stop_id": "stop-1", "eta_posix": 1700001000, "uncertainty": 120},
-    {"stop_sequence": 4, "stop_id": "stop-2", "eta_posix": 1700001300, "uncertainty": 120},
+    {
+        "stop_sequence": 3,
+        "stop_id": "stop-1",
+        "eta_posix": 1700001000,
+        "uncertainty": 120,
+    },
+    {
+        "stop_sequence": 4,
+        "stop_id": "stop-2",
+        "eta_posix": 1700001300,
+        "uncertainty": 120,
+    },
 ]
 
 

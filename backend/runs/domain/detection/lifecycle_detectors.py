@@ -5,8 +5,6 @@ single incoming telemetry message. It returns a :class:`DetectionResult` to fire
 or ``None``. Heuristics here are intentionally simple and expected to change.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 from runs.domain.lifecycle.states import RunLifecycleStates
@@ -75,6 +73,14 @@ class RunCompletedDetector:
             stop_id = data.get("stop_id")
             if data.get("current_status") == "STOPPED_AT" and stop_id:
                 return DetectionResult(
-                    self.fsm, RunLifecycleEvents.COMPLETE_RUN, {"stop_id": stop_id}
+                    self.fsm, RunLifecycleEvents.RUN_COMPLETED, {"stop_id": stop_id}
                 )
         return None
+
+
+class RunInterruptedDetector:
+    pass
+
+
+class RunShortTurnedDetector:
+    pass

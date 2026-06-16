@@ -7,8 +7,6 @@ Public functions:
                                  (global search; used by compute.py for live vehicles)
 """
 
-from __future__ import annotations
-
 import math
 
 # Earth radius used in the simulator (kinematics.py) — ported verbatim.
@@ -60,9 +58,9 @@ def project_point_to_segment(
     -------
     ``(progress_m, cross_track_m)`` where
 
-    * ``progress_m``    – ``cum_dist_m`` of *seg_start* + along-track distance
+    * ``progress_m``    - ``cum_dist_m`` of *seg_start* + along-track distance
                           from *seg_start* to the foot of perpendicular.
-    * ``cross_track_m`` – perpendicular distance from the point to the segment
+    * ``cross_track_m`` - perpendicular distance from the point to the segment
                           (always >= 0).
 
     Degenerate segment (length < 1e-9 m): the foot is *seg_start*;
@@ -84,7 +82,7 @@ def project_point_to_segment(
     dx_pt = _R * cos_lat0 * math.radians(lon - lon0)
     dy_pt = _R * math.radians(lat - lat0)
 
-    seg_len_sq = dx_seg ** 2 + dy_seg ** 2
+    seg_len_sq = dx_seg**2 + dy_seg**2
     t = (dx_pt * dx_seg + dy_pt * dy_seg) / seg_len_sq
     t = max(0.0, min(1.0, t))
 
@@ -121,12 +119,12 @@ def project_point_to_polyline(
     Returns
     -------
     dict with keys:
-        ``progress_m``    – distance along the polyline to the projected foot
+        ``progress_m``    - distance along the polyline to the projected foot
                             (i.e. cum_dist_m of the segment start + along-track
                             distance to the foot).
-        ``cross_track_m`` – perpendicular distance from the point to the nearest
+        ``cross_track_m`` - perpendicular distance from the point to the nearest
                             segment (always >= 0).
-        ``segment_idx``   – index of the segment (0 = first pair) whose foot is
+        ``segment_idx``   - index of the segment (0 = first pair) whose foot is
                             nearest.  For a 1-point polyline, segment_idx = 0.
 
     Edge cases

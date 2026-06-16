@@ -22,8 +22,6 @@ Usage:
     python scripts/inspect_redis.py --watch 5
 """
 
-from __future__ import annotations
-
 import os
 import sys
 import time

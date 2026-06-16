@@ -12,8 +12,6 @@ Two layers:
 logic of their own.
 """
 
-from __future__ import annotations
-
 import os
 from typing import Any
 
@@ -33,7 +31,7 @@ r = redis.Redis(
 # Lifecycle events whose guard (``is_vehicle_tracked``) requires the run to
 # already be in ``runs:tracking``. The arrival of telemetry is precisely the
 # signal that justifies membership, so the dispatcher seeds it before firing —
-# mirroring the original inline behaviour while keeping detectors pure.
+# mirroring the original inline behavior while keeping detectors pure.
 _TRACKING_SEED_EVENTS = {"run_tracking_started", "run_tracking_restored"}
 
 

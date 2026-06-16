@@ -8,8 +8,6 @@ Tests cover:
 - invalidate_cache: clears cached entry so next call reloads.
 """
 
-from __future__ import annotations
-
 import pytest
 
 from runs.domain.progression.geo import haversine_m
@@ -449,11 +447,11 @@ class TestAssignStopsMonotonic:
 
         # Shape points: east then looping back west.
         raw = [
-            (0.0, 0.0, 0),   # A — start
-            (0.0, 1.0, 1),   # B — 1° east
-            (0.0, 2.0, 2),   # C — 2° east (turn-around)
-            (0.0, 1.5, 3),   # D — heading back west
-            (0.0, 0.5, 4),   # E — end (close to start side)
+            (0.0, 0.0, 0),  # A — start
+            (0.0, 1.0, 1),  # B — 1° east
+            (0.0, 2.0, 2),  # C — 2° east (turn-around)
+            (0.0, 1.5, 3),  # D — heading back west
+            (0.0, 0.5, 4),  # E — end (close to start side)
         ]
         poly = build_polyline(raw)
 

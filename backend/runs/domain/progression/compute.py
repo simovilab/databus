@@ -35,8 +35,6 @@ Signature and return contract are FROZEN — callers (``producer.py``), the
 contract dict shape, and ``vehicle_stop_status.validate_for_write`` are unaffected.
 """
 
-from __future__ import annotations
-
 from runs.domain.telemetry import vehicle_stop_status
 from runs.domain.progression import shapes
 from runs.domain.progression.geo import haversine_m
@@ -159,9 +157,7 @@ def _compute_with_map_matching(
         return _fallback(prev_state)
 
     # Step 6: distance + radius rules.
-    dist_m = haversine_m(
-        observed_lat, observed_lon, candidate["lat"], candidate["lon"]
-    )
+    dist_m = haversine_m(observed_lat, observed_lon, candidate["lat"], candidate["lon"])
     speed = position_hash.get("speed")
     if speed is not None:
         speed = float(speed)
@@ -184,7 +180,9 @@ def _compute_with_map_matching(
             if chosen_seq < prev_seq:
                 # New candidate is behind prev — hold position.
                 chosen_seq = prev_seq
-                chosen_stop_id = prev_state.get(vehicle_stop_status.STOP_ID, chosen_stop_id)
+                chosen_stop_id = prev_state.get(
+                    vehicle_stop_status.STOP_ID, chosen_stop_id
+                )
 
     result: dict = {
         vehicle_stop_status.CURRENT_STATUS: status,

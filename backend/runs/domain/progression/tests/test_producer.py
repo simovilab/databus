@@ -6,8 +6,6 @@ so all tests run entirely in-process.
 Patch target: ``runs.domain.progression.producer.r``
 """
 
-from __future__ import annotations
-
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -158,5 +156,9 @@ def test_reads_and_writes_correct_redis_keys(monkeypatch):
     assert keys.run_key(RUN_ID) in read_keys
     assert keys.stop_status_key(RUN_ID) in read_keys
 
-    written_key = fake_r.hset.call_args.args[0] if fake_r.hset.call_args.args else fake_r.hset.call_args.kwargs.get("name")
+    written_key = (
+        fake_r.hset.call_args.args[0]
+        if fake_r.hset.call_args.args
+        else fake_r.hset.call_args.kwargs.get("name")
+    )
     assert written_key == keys.stop_status_key(RUN_ID)

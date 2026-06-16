@@ -17,8 +17,6 @@ Import it by full module path::
     from runs.domain.progression.stop_times import produce_stop_times
 """
 
-from __future__ import annotations
-
 import logging
 import os
 
@@ -28,7 +26,7 @@ from runs.domain.telemetry import keys, stop_time_updates
 
 logger = logging.getLogger(__name__)
 
-# Comfortably above the position-update interval (~1–5 s) so a stalled producer
+# Comfortably above the position-update interval (~1-5 s) so a stalled producer
 # expires the projection instead of serving stale arrivals; run lifecycle still
 # owns hard cleanup.
 STOP_TIME_UPDATES_TTL_S = 60
