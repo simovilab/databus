@@ -167,7 +167,7 @@ TRANSITIONS = [
     ),
     Transition(
         from_state=RunProgressStates.IN_PROGRESS,
-        event=RunProgressEvents.INTERRUPT_RUN,
+        event=RunProgressEvents.RUN_INTERRUPTED,
         to_state=RunProgressStates.INTERRUPTED,
         guards=[
             RunProgressGuards.is_interruption_authorized,
@@ -181,7 +181,7 @@ TRANSITIONS = [
     ),
     Transition(
         from_state=RunProgressStates.IN_PROGRESS,
-        event=RunProgressEvents.SHORT_TURN_RUN,
+        event=RunProgressEvents.RUN_SHORT_TURNED,
         to_state=RunProgressStates.SHORT_TURNED,
         guards=[
             RunProgressGuards.is_short_turn_authorized,
@@ -196,7 +196,7 @@ TRANSITIONS = [
     ),
     Transition(
         from_state=RunProgressStates.IN_PROGRESS,
-        event=RunProgressEvents.COMPLETE_RUN,
+        event=RunProgressEvents.RUN_COMPLETED,
         to_state=RunProgressStates.COMPLETED,
         guards=[
             RunProgressGuards.is_at_terminal_stop,

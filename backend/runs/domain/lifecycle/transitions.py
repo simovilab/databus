@@ -32,19 +32,15 @@ TRANSITIONS = [
             RunLifecycleGuards.is_vehicle_available,
             RunLifecycleGuards.is_operator_available,
         ],
-        actions=[
-        ],
+        actions=[],
     ),
     # Registration rejected at validation stage
     Transition(
         from_state=RunLifecycleStates.REQUESTED,
         event=RunLifecycleEvents.RUN_REJECTED,
         to_state=RunLifecycleStates.CANCELLED,
-        guards=[
-
-        ],
-        actions=[
-        ],
+        guards=[],
+        actions=[],
     ),
     # ------------------------------------------------------------------
     # Initialization: VALIDATED → INITIALIZED
@@ -65,8 +61,7 @@ TRANSITIONS = [
         from_state=RunLifecycleStates.VALIDATED,
         event=RunLifecycleEvents.RUN_REJECTED,
         to_state=RunLifecycleStates.CANCELLED,
-        guards=[
-        ],
+        guards=[],
         actions=[
             RunLifecycleActions.release_resources,
         ],
@@ -78,8 +73,7 @@ TRANSITIONS = [
         from_state=RunLifecycleStates.INITIALIZED,
         event=RunLifecycleEvents.RUN_CONFIRMED_BY_OPERATOR,
         to_state=RunLifecycleStates.CONFIRMED,
-        guards=[
-        ],
+        guards=[],
         actions=[
             RunLifecycleActions.sync_lifecycle_state,
         ],
@@ -173,7 +167,7 @@ TRANSITIONS = [
     ),
     Transition(
         from_state=RunLifecycleStates.IN_PROGRESS,
-        event=RunLifecycleEvents.INTERRUPT_RUN,
+        event=RunLifecycleEvents.RUN_INTERRUPTED,
         to_state=RunLifecycleStates.INTERRUPTED,
         guards=[
             RunLifecycleGuards.is_interruption_authorized,
@@ -187,7 +181,7 @@ TRANSITIONS = [
     ),
     Transition(
         from_state=RunLifecycleStates.IN_PROGRESS,
-        event=RunLifecycleEvents.SHORT_TURN_RUN,
+        event=RunLifecycleEvents.RUN_SHORT_TURNED,
         to_state=RunLifecycleStates.SHORT_TURNED,
         guards=[
             RunLifecycleGuards.is_short_turn_authorized,
@@ -202,7 +196,7 @@ TRANSITIONS = [
     ),
     Transition(
         from_state=RunLifecycleStates.IN_PROGRESS,
-        event=RunLifecycleEvents.COMPLETE_RUN,
+        event=RunLifecycleEvents.RUN_COMPLETED,
         to_state=RunLifecycleStates.COMPLETED,
         guards=[
             RunLifecycleGuards.is_at_terminal_stop,

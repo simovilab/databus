@@ -32,7 +32,7 @@ def test_plan_fires_at_most_one_lifecycle_event():
         detectors=registry.TELEMETRY_DETECTORS,
     )
     events = _events(results)
-    assert ("lifecycle", "complete_run") in events
+    assert ("lifecycle", "run_completed") in events
     fsms = [fsm for fsm, _ in events]
     assert fsms.count("lifecycle") == 1
 

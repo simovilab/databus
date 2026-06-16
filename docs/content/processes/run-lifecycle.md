@@ -4,30 +4,30 @@ icon: lucide/file
 
 # Run Lifecycle
 
-This processes handles the main events in a run lifecycle, such as creation, completion, and failure. It follows the state machine defined in the [Run State Machine](../concepts/run-state-machine.md) documentation.
+This processes handles the main events in a run lifecycle, such as creation, completion, and failure. It follows the state machine defined in the Run State Machine documentation.
 
 ```mermaid
 stateDiagram-v2
     [*] --> REQUESTED : run_requested
     REQUESTED --> VALIDATED : validate_run
-    REQUESTED --> CANCELLED : run_rejected
+    REQUESTED --> CANCELED : run_rejected
     VALIDATED --> INITIALIZED : initialize_run
-    VALIDATED --> CANCELLED : run_rejected
+    VALIDATED --> CANCELED : run_rejected
     INITIALIZED --> CONFIRMED : run_confirmed_by_operator
-    INITIALIZED --> CANCELLED : run_rejected
+    INITIALIZED --> CANCELED : run_rejected
     CONFIRMED --> TRACKING : run_tracking_started
-    CONFIRMED --> CANCELLED : cancel_run
+    CONFIRMED --> CANCELED : cancel_run
     TRACKING --> IN_PROGRESS : run_started
-    TRACKING --> CANCELLED : cancel_run
-    IN_PROGRESS --> COMPLETED : complete_run
-    IN_PROGRESS --> INTERRUPTED : interrupt_run
-    IN_PROGRESS --> SHORT_TURNED : short_turn_run
+    TRACKING --> CANCELED : cancel_run
+    IN_PROGRESS --> COMPLETED : run_completed
+    IN_PROGRESS --> INTERRUPTED : run_interrupted
+    IN_PROGRESS --> SHORT_TURNED : run_short_turned
     IN_PROGRESS --> NO_SIGNAL : run_tracking_lost
     NO_SIGNAL --> IN_PROGRESS : run_tracking_restored
-    NO_SIGNAL --> CANCELLED : run_tracking_expired
+    NO_SIGNAL --> CANCELED : run_tracking_expired
     COMPLETED --> [*]
     INTERRUPTED --> [*]
-    CANCELLED --> [*]
+    CANCELED --> [*]
     SHORT_TURNED --> [*]
 ```
 
@@ -54,5 +54,5 @@ IN_PROGRESS
 NO_SIGNAL
 COMPLETED
 INTERRUPTED
-CANCELLED
+CANCELED
 SHORT_TURNED

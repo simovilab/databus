@@ -41,12 +41,17 @@ class RunLifecycleGuards:
         schedule_relationship = payload.get("schedule_relationship")
 
         errors: dict[str, str] = {}
+        direction_id_int: int | None
+        try:
+            direction_id_int = int(direction_id)
+        except (TypeError, ValueError):
+            direction_id_int = None
 
         if not route_id:
             errors["route_id"] = "route_id is required"
         if not trip_id:
             errors["trip_id"] = "trip_id is required"
-        if direction_id not in [0, 1]:
+        if direction_id_int not in (0, 1):
             errors["direction_id"] = (
                 f"direction_id must be 0 or 1, got '{direction_id}'"
             )
@@ -78,7 +83,7 @@ class RunLifecycleGuards:
             lookup_errors["trip_id"] = (
                 f"trip_id '{trip_id}' not found in current GTFS feed"
             )
-        elif trip.direction_id != direction_id:
+        elif trip.direction_id != direction_id_int:
             lookup_errors["direction_id"] = (
                 f"direction_id '{direction_id}' does not match trip '{trip_id}'"
             )
