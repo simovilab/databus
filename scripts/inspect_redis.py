@@ -24,6 +24,7 @@ Usage:
 
 import os
 import sys
+import json
 import time
 import argparse
 from datetime import datetime, timezone
@@ -91,7 +92,9 @@ def inspect_runs(r: redis.Redis, show_age: bool = False) -> None:
     print(f"Total runs: {len(runs_in_progress)}\n")
 
     for run_id in sorted(runs_in_progress):
-        run = r.hgetall(run_id)
+        # The run hash lives at run:<id> (see runs/domain/telemetry/keys.py);
+        # runs:in_progress holds bare ids.
+        run = r.hgetall(f"run:{run_id}")
 
         if not run:
             print(f"  {run_id}: [NO DATA]")
@@ -144,6 +147,7 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
         run_id = r.get(f"vehicle:{vehicle_id}:current_run")
         stop_status = r.hgetall(f"run:{run_id}:vehicle_stop_status") if run_id else {}
         congestion = r.hgetall(f"run:{run_id}:congestion_level") if run_id else {}
+        stop_times_raw = r.get(f"run:{run_id}:stop_time_updates") if run_id else None
 
         print(f"  {vehicle_id}")
 
@@ -189,6 +193,29 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
             print(f"      Level:     {congestion.get('congestion_level', 'N/A')}")
         else:
             print(f"    Congestion: [NO DATA]")
+
+        # Stop-time updates (run:<run_id>:stop_time_updates — server-computed
+        # projection, JSON array of upcoming stops)
+        if stop_times_raw:
+            try:
+                updates = json.loads(stop_times_raw)
+            except (ValueError, TypeError):
+                updates = None
+            if updates:
+                nxt = updates[0]
+                arrival = nxt.get("arrival_time")
+                when = (
+                    datetime.fromtimestamp(arrival, tz=timezone.utc).strftime("%H:%M:%S")
+                    if isinstance(arrival, (int, float))
+                    else "N/A"
+                )
+                print(f"    Stop-Time Updates ({len(updates)} upcoming):")
+                print(f"      Next:      seq {nxt.get('stop_sequence', 'N/A')} "
+                      f"stop {nxt.get('stop_id', 'N/A')} @ {when} UTC")
+            else:
+                print(f"    Stop-Time Updates: [EMPTY]")
+        else:
+            print(f"    Stop-Time Updates: [NO DATA]")
 
         # Occupancy
         if occupancy:

@@ -211,6 +211,7 @@ def force_cleanup_all(r: redis.Redis, dry_run: bool = False) -> int:
         "run:*:trip",
         "run:*:vehicle_stop_status",
         "run:*:congestion_level",
+        "run:*:stop_time_updates",
     ]
 
     for pattern in patterns:
