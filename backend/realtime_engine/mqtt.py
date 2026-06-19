@@ -22,6 +22,7 @@ Topic routing:
 import json
 import logging
 import os
+import socket
 
 import paho.mqtt.client as mqtt
 import redis
@@ -163,7 +164,12 @@ def _on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage) -> None:
 
 
 def build_client() -> mqtt.Client:
-    client = mqtt.Client(client_id="databus-mqtt-consumer", clean_session=True)
+    # Unique per process: a fixed client_id makes a second consumer (e.g. another
+    # worker that also has MQTT_CONSUMER_ENABLED) collide on the broker and trigger
+    # an endless reconnect war. Single-consumer gating is still the real guarantee;
+    # this only keeps an accidental duplicate from being catastrophic.
+    client_id = f"databus-mqtt-consumer-{socket.gethostname()}-{os.getpid()}"
+    client = mqtt.Client(client_id=client_id, clean_session=True)
     client.on_connect = _on_connect
     client.on_message = _on_message
     client.reconnect_delay_set(min_delay=1, max_delay=30)
