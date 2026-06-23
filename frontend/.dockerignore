@@ -1,5 +1,20 @@
 node_modules
+.pnpm-store
+
+# Nuxt build/dev outputs
 .output
 .nuxt
+.nitro
+.cache
 .data
 dist
+
+# Logs & misc
+*.log
+.git
+.DS_Store
+
+# Local env files
+.env
+.env.*
+!.env.example

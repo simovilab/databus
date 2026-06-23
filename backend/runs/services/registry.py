@@ -1,4 +1,4 @@
-from runs.domain.transitions import TRANSITIONS
+from runs.domain.lifecycle import TRANSITIONS
 
 
 class TransitionRegistry:

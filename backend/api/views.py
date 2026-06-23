@@ -14,8 +14,8 @@ from django.utils.decorators import method_decorator
 from realtime_engine.tasks import run_lifecycle_event
 from runs.services.exceptions import RunLifecycleError
 from runs.services.lifecycle import RunLifecycleService
-from runs.domain.events import RunLifecycleEvents
-from runs.domain.states import RunLifecycleStates
+from runs.domain.lifecycle import RunLifecycleEvents
+from runs.domain.lifecycle import RunLifecycleStates
 from operations.models import (
     Vehicle,
     Operator,
@@ -26,9 +26,11 @@ from operations.models import (
 )
 from runs.models import (
     Run,
+    RunLifecycleTransition,
     Position,
-    Progression,
-    Occupancy,
+    VehicleStopStatus,
+    CongestionLevel,
+    OccupancyStatus,
 )
 from feed.models import (
     Feed,
@@ -55,10 +57,11 @@ from .serializers import (
     EquipmentLogSerializer,
     OperatorSerializer,
     CreateRunSerializer,
-    UpdateRunSerializer,
+    RunUpdateSerializer,
     PositionSerializer,
-    ProgressionSerializer,
-    OccupancySerializer,
+    VehicleStopStatusSerializer,
+    CongestionLevelSerializer,
+    OccupancyStatusSerializer,
     AgencySerializer,
     StopSerializer,
     GeoStopSerializer,
@@ -206,12 +209,14 @@ class CreateRunViewSet(APIView):
                 {"status": "error", "step": "operational_validation", "errors": errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # Registration of the run (event: RUN_REQUESTED, state: REQUESTED)
+        # Record creation puts the run in REQUESTED state (run_requested event)
         try:
             run = Run.objects.create(**payload)
             run.vehicle.set([vehicle])
             run.operator.set([operator_obj])
             payload["run_id"] = run.id
+            payload["vehicle_id"] = vehicle_id
+            payload["operator_id"] = operator_id
         except Exception as e:
             return Response(
                 {
@@ -221,26 +226,23 @@ class CreateRunViewSet(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        # First transition: GTFS validation (run_lifecycle_state = REQUESTED)
+        # REQUESTED → VALIDATED: GTFS consistency check
         try:
-            service.process_event(RunLifecycleEvents.RUN_REQUESTED, payload)
+            service.process_event(RunLifecycleEvents.VALIDATE_RUN, payload)
         except RunLifecycleError as e:
-            payload["guards"] = e.errors.attempts.guards
-            payload["actions"] = e.errors.attempts.actions
             service.process_event(RunLifecycleEvents.RUN_REJECTED, payload)
             return Response(
                 {"status": "error", "step": "gtfs_validation", "errors": e.errors},
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        # System initialization (run_lifecycle_state = VALIDATED)
+        # VALIDATED → INITIALIZED: write system state
         try:
-            service.process_event(RunLifecycleEvents.VALIDATE_RUN, payload)
+            service.process_event(RunLifecycleEvents.INITIALIZE_RUN, payload)
         except RunLifecycleError as e:
             return Response(
                 {"status": "error", "step": "initialization", "errors": e.errors},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        # If successful, give a 200 OK response (run_lifecycle_state = INITIALIZED)
         return Response(
             {
                 "status": "success",
@@ -251,32 +253,76 @@ class CreateRunViewSet(APIView):
         )
 
 
-class UpdateRunViewSet(APIView):
+class RunStateViewSet(APIView):
     """
-    Endpoint to request an update of the lifecycle state of an existing run.
+    Endpoint to get the current lifecycle state of a run.
 
-    It only allows the POST method with the event to process.
+    It only allows the GET method with the run_id as path parameter.
     """
 
-    def post(self, request):
-        service = RunLifecycleService()
-        serializer = UpdateRunSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {"status": "error", "errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        payload = dict(serializer.validated_data)
-        run_id = payload.get("run_id")
+    def get(self, request, run_id):
         run = Run.objects.filter(id=run_id).first()
         if not run:
             return Response(
                 {"status": "error", "errors": {"run_id": "Run not found"}},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        return Response(
+            {"status": "success", "run_lifecycle_state": run.run_lifecycle_state},
+            status=status.HTTP_200_OK,
+        )
+
+
+class RunUpdateViewSet(APIView):
+    """
+    Endpoint to request an update of the lifecycle state of an existing run.
+
+    It only allows the POST method with the event to process.
+    """
+
+    def post(self, request, run_id):
+        service = RunLifecycleService()
+        serializer = RunUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"status": "error", "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        payload = dict(serializer.validated_data)
+        # Flatten `details` into payload so guards/actions can read fields like
+        # `actor_role` at the top level — matches the convention used by the
+        # internal Celery path (realtime_engine/tasks.py).
+        details = payload.pop("details", {}) or {}
+        if isinstance(details, dict):
+            payload.update(details)
+        payload["run_id"] = run_id
+        run = Run.objects.filter(id=run_id).first()
+        if not run:
+            return Response(
+                {"status": "error", "errors": {"run_id": "Run not found"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        # Ensure the effective event (after payload normalization) is valid.
         event = payload.get("event")
+        event_value = (
+            event.value if isinstance(event, RunLifecycleEvents) else str(event)
+        )
+        allowed_events = {e.value for e in RunLifecycleEvents}
+        if event_value not in allowed_events:
+            return Response(
+                {
+                    "status": "error",
+                    "errors": {
+                        "event": f"Invalid event '{event_value}'. Allowed values: {sorted(allowed_events)}"
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        payload["event"] = event_value
         try:
-            new_run_lifecycle_state = service.process_event(event, payload)
+            new_run_lifecycle_state, _guards, _actions = service.process_event(
+                event_value, payload
+            )
         except RunLifecycleError as e:
             return Response(
                 {"status": "error", "errors": e.errors},
@@ -288,21 +334,64 @@ class UpdateRunViewSet(APIView):
         )
 
 
+class RunHistoryView(APIView):
+    """
+    Return the ordered list of FSM transitions for a run.
+
+    Read-only audit log derived from RunLifecycleTransition, which the
+    lifecycle service writes before any external side-effect (so the log
+    is authoritative even if a downstream action later fails).
+    """
+
+    def get(self, request, run_id):
+        if not Run.objects.filter(id=run_id).exists():
+            return Response(
+                {"status": "error", "errors": {"detail": f"run {run_id} not found"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        transitions = RunLifecycleTransition.objects.filter(run_id=run_id).order_by(
+            "timestamp", "created_at"
+        )
+        return Response(
+            {
+                "run_id": str(run_id),
+                "transitions": [
+                    {
+                        "event": t.event_name,
+                        "from_state": t.from_state,
+                        "to_state": t.to_state,
+                        "timestamp": t.timestamp.isoformat(),
+                        "actions": t.actions or {},
+                        "guards": t.guards or {},
+                    }
+                    for t in transitions
+                ],
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class PositionViewSet(viewsets.ModelViewSet):
     queryset = Position.objects.all()
     serializer_class = PositionSerializer
     authentication_classes = [TokenAuthentication]
 
 
-class ProgressionViewSet(viewsets.ModelViewSet):
-    queryset = Progression.objects.all()
-    serializer_class = ProgressionSerializer
+class VehicleStopStatusViewSet(viewsets.ModelViewSet):
+    queryset = VehicleStopStatus.objects.all()
+    serializer_class = VehicleStopStatusSerializer
+    authentication_classes = [TokenAuthentication]
+
+
+class CongestionLevelViewSet(viewsets.ModelViewSet):
+    queryset = CongestionLevel.objects.all()
+    serializer_class = CongestionLevelSerializer
     authentication_classes = [TokenAuthentication]
 
 
 class OccupancyViewSet(viewsets.ModelViewSet):
-    queryset = Occupancy.objects.all()
-    serializer_class = OccupancySerializer
+    queryset = OccupancyStatus.objects.all()
+    serializer_class = OccupancyStatusSerializer
     authentication_classes = [TokenAuthentication]
 
 

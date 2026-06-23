@@ -14,8 +14,9 @@ router.register(r"equipment", views.EquipmentViewSet)
 router.register(r"equipment-log", views.EquipmentLogViewSet)
 # router.register(r"run", views.RunViewSet)
 router.register(r"position", views.PositionViewSet)
-router.register(r"progression", views.ProgressionViewSet)
+router.register(r"stop-status", views.VehicleStopStatusViewSet)
 router.register(r"occupancy", views.OccupancyViewSet)
+router.register(r"congestion", views.CongestionLevelViewSet)
 # GTFS Schedule
 router.register(r"agency", views.AgencyViewSet)
 router.register(r"stops", views.StopViewSet)
@@ -39,7 +40,19 @@ urlpatterns = [
     path("login/", views.LoginView.as_view(), name="login"),
     # path("route-stops/", views.RouteStopView.as_view(), name="route_stops"),
     path("create-run/", views.CreateRunViewSet.as_view(), name="create_run"),
-    path("update-run/", views.UpdateRunViewSet.as_view(), name="update_run"),
+    path(
+        "runs/<uuid:run_id>/state/", views.RunStateViewSet.as_view(), name="run_state"
+    ),
+    path(
+        "runs/<uuid:run_id>/update/",
+        views.RunUpdateViewSet.as_view(),
+        name="run_update",
+    ),
+    path(
+        "runs/<uuid:run_id>/history/",
+        views.RunHistoryView.as_view(),
+        name="run_history",
+    ),
     path("service-today/", views.ServiceTodayView.as_view(), name="service_today"),
     path("which-shapes/", views.WhichShapesView.as_view(), name="which_shapes"),
     path("find-trips/", views.FindTripsView.as_view(), name="find_trips"),

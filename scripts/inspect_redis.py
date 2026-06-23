@@ -22,10 +22,9 @@ Usage:
     python scripts/inspect_redis.py --watch 5
 """
 
-from __future__ import annotations
-
 import os
 import sys
+import json
 import time
 import argparse
 from datetime import datetime, timezone
@@ -93,7 +92,9 @@ def inspect_runs(r: redis.Redis, show_age: bool = False) -> None:
     print(f"Total runs: {len(runs_in_progress)}\n")
 
     for run_id in sorted(runs_in_progress):
-        run = r.hgetall(run_id)
+        # The run hash lives at run:<id> (see runs/domain/telemetry/keys.py);
+        # runs:in_progress holds bare ids.
+        run = r.hgetall(f"run:{run_id}")
 
         if not run:
             print(f"  {run_id}: [NO DATA]")
@@ -124,7 +125,7 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
 
     # Get all vehicle keys
     vehicle_keys = set()
-    for key in r.keys("vehicle:*:data"):
+    for key in r.keys("vehicle:*:metadata"):
         vehicle_id = key.split(":")[1]
         vehicle_keys.add(vehicle_id)
 
@@ -136,10 +137,17 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
 
     for vehicle_id in sorted(vehicle_keys):
         # Get vehicle data
-        vehicle_data = r.hgetall(f"vehicle:{vehicle_id}:data")
+        vehicle_data = r.hgetall(f"vehicle:{vehicle_id}:metadata")
         position = r.hgetall(f"vehicle:{vehicle_id}:position")
-        progression = r.hgetall(f"vehicle:{vehicle_id}:progression")
         occupancy = r.hgetall(f"vehicle:{vehicle_id}:occupancy")
+
+        # Resolve the current run for this vehicle (vehicle → run linkage).
+        # Stop status and congestion are run-keyed because they depend on the
+        # assigned trip; vehicle:*:progression is decommissioned.
+        run_id = r.get(f"vehicle:{vehicle_id}:current_run")
+        stop_status = r.hgetall(f"run:{run_id}:vehicle_stop_status") if run_id else {}
+        congestion = r.hgetall(f"run:{run_id}:congestion_level") if run_id else {}
+        stop_times_raw = r.get(f"run:{run_id}:stop_time_updates") if run_id else None
 
         print(f"  {vehicle_id}")
 
@@ -169,15 +177,45 @@ def inspect_vehicles(r: redis.Redis, show_age: bool = False) -> None:
         else:
             print(f"    Position: [NO DATA]")
 
-        # Progression
-        if progression:
-            print(f"    Progression:")
-            print(f"      Stop Seq:  {progression.get('current_stop_sequence', 'N/A')}")
-            print(f"      Stop ID:   {progression.get('stop_id', 'N/A')}")
-            print(f"      Status:    {progression.get('current_status', 'N/A')}")
-            print(f"      Congest:   {progression.get('congestion_level', 'N/A')}")
+        # Stop status (run:<run_id>:vehicle_stop_status — server-computed, run-keyed)
+        if stop_status:
+            print(f"    Stop Status (run:{run_id}):")
+            print(f"      Stop Seq:  {stop_status.get('current_stop_sequence', 'N/A')}")
+            print(f"      Stop ID:   {stop_status.get('stop_id', 'N/A')}")
+            print(f"      Status:    {stop_status.get('current_status', 'N/A')}")
         else:
-            print(f"    Progression: [NO DATA]")
+            run_label = f"run:{run_id}" if run_id else "no current run"
+            print(f"    Stop Status ({run_label}): [NO DATA]")
+
+        # Congestion level (run:<run_id>:congestion_level — server-computed, deferred)
+        if congestion:
+            print(f"    Congestion:")
+            print(f"      Level:     {congestion.get('congestion_level', 'N/A')}")
+        else:
+            print(f"    Congestion: [NO DATA]")
+
+        # Stop-time updates (run:<run_id>:stop_time_updates — server-computed
+        # projection, JSON array of upcoming stops)
+        if stop_times_raw:
+            try:
+                updates = json.loads(stop_times_raw)
+            except (ValueError, TypeError):
+                updates = None
+            if updates:
+                nxt = updates[0]
+                arrival = nxt.get("arrival_time")
+                when = (
+                    datetime.fromtimestamp(arrival, tz=timezone.utc).strftime("%H:%M:%S")
+                    if isinstance(arrival, (int, float))
+                    else "N/A"
+                )
+                print(f"    Stop-Time Updates ({len(updates)} upcoming):")
+                print(f"      Next:      seq {nxt.get('stop_sequence', 'N/A')} "
+                      f"stop {nxt.get('stop_id', 'N/A')} @ {when} UTC")
+            else:
+                print(f"    Stop-Time Updates: [EMPTY]")
+        else:
+            print(f"    Stop-Time Updates: [NO DATA]")
 
         # Occupancy
         if occupancy:
@@ -260,7 +298,7 @@ def inspect_summary(r: redis.Redis, show_age: bool = False) -> None:
     runs_count = len(r.smembers("runs:in_progress"))
 
     # Count vehicles
-    vehicle_keys = len(r.keys("vehicle:*:data"))
+    vehicle_keys = len(r.keys("vehicle:*:metadata"))
 
     # Count vehicles with recent data
     recent_count = 0

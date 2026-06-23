@@ -19,17 +19,26 @@ docs_dir = "content"
 # meaningful description of the site content for use by search engines.
 #
 # Read more: https://zensical.org/docs/setup/basics/#site_description
-site_description = "A platform for managing and publishing GTFS data."
+site_description = "Documentation for Databús — a distributed GTFS Schedule & Realtime transit data platform: telemetry ingestion, run lifecycle, server-side map-matching, and feed publishing."
 
 # The site_author attribute. This is used in the HTML head element.
 #
 # Read more: https://zensical.org/docs/setup/basics/#site_author
 site_author = "https://simovilab.org"
 
+# Repository, used to render the edit/view content-action buttons (enabled via
+# the "content.action.edit"/"content.action.view" features below).
+repo_url = "https://github.com/simovilab/databus"
+repo_name = "simovilab/databus"
+edit_uri = "edit/main/docs/content/"
+
 # The site_url is the canonical URL for your site. When building online
 # documentation you should set this.
 # Read more: https://zensical.org/docs/setup/basics/#site_url
-#site_url = "https://www.example.com/"
+#
+# TODO: set to the production docs host. In prod this is the `DOCS_DOMAIN`
+# Traefik env var (compose.prod.yml). Confirm the exact host with the team, e.g.:
+#site_url = "https://docs.databus.cr/"
 
 # The copyright notice appears in the page footer and can contain an HTML
 # fragment.
@@ -46,10 +55,70 @@ Copyright &copy; 2026 SIMOVI Lab
 # can be defined using TOML syntax.
 #
 # Read more: https://zensical.org/docs/setup/navigation/
-# nav = [
-#   { "Get started" = "index.md" },
-#   { "Markdown in 5min" = "markdown.md" },
-# ]
+nav = [
+  { "Home" = "index.md" },
+
+  { "Concepts" = [
+      "concepts/index.md",
+      { "What is Databús" = "concepts/what-is-databus.md" },
+      { "GTFS Schedule & Realtime" = "concepts/gtfs.md" },
+      { "Glossary" = "concepts/glossary.md" },
+      { "Design principles" = "concepts/principles.md" },
+  ] },
+
+  { "Architecture" = [
+      "architecture/index.md",
+      { "System overview" = "architecture/overview.md" },
+      { "Services & mandates" = "architecture/services.md" },
+      { "Messaging model" = "architecture/messaging.md" },
+      { "State & persistence" = "architecture/state-and-persistence.md" },
+      { "Deployment topology" = "architecture/deployment-topology.md" },
+  ] },
+
+  { "Data flow" = [
+      "data-flow/index.md",
+      { "Telemetry ingestion (MQTT)" = "data-flow/telemetry-ingestion.md" },
+      { "Server-side processing" = "data-flow/server-processing.md" },
+      { "Map-matching & progression" = "data-flow/map-matching.md" },
+      { "GTFS Realtime publishing" = "data-flow/gtfs-rt-publishing.md" },
+      { "Live updates (WebSocket)" = "data-flow/live-updates.md" },
+  ] },
+
+  { "Run lifecycle" = [
+      "runs/index.md",
+      { "States & transitions" = "runs/lifecycle-states.md" },
+      { "Commands vs detected facts" = "runs/commands-vs-detections.md" },
+      { "Detection layer" = "runs/detection.md" },
+      { "Progress FSM (motion)" = "runs/progress-fsm.md" },
+      { "Stale-run scanning" = "runs/stale-runs.md" },
+  ] },
+
+  { "Data model" = [
+      "data-model/index.md",
+      { "Redis state keys" = "data-model/redis-keys.md" },
+      { "Telemetry contracts" = "data-model/telemetry-contracts.md" },
+      { "Django models" = "data-model/django-models.md" },
+      { "Schedule engine (GTFS Schedule)" = "data-model/schedule-engine.md" },
+  ] },
+
+  { "Interfaces" = [
+      "interfaces/index.md",
+      { "REST API" = "interfaces/rest-api.md" },
+      { "MQTT telemetry contract" = "interfaces/mqtt-telemetry.md" },
+      { "AMQP event semantics" = "interfaces/amqp-events.md" },
+      { "GTFS Realtime feeds" = "interfaces/gtfs-rt-feeds.md" },
+      { "URL directory" = "interfaces/url-directory.md" },
+  ] },
+
+  { "Operations" = [
+      "operations/index.md",
+      { "Local development" = "operations/development.md" },
+      { "Configuration & env vars" = "operations/configuration.md" },
+      { "Celery workers, queues & beat" = "operations/celery.md" },
+      { "Deployment (production)" = "operations/deployment.md" },
+      { "Troubleshooting & debugging" = "operations/troubleshooting.md" },
+  ] },
+]
 
 # With the "extra_css" option you can add your own CSS styling to customize
 # your Zensical project according to your needs. You can add any number of
@@ -124,13 +193,13 @@ features = [
   # will generate an edit button for the page. This works for common
   # repository hosting services.
   # https://zensical.org/docs/setup/repository/#content-actions
-  #"content.action.edit",
+  "content.action.edit",
 
   # If you have a repository configured and turn on this feature, Zensical
   # will generate a button that allows the user to view the Markdown
   # code for the current page.
   # https://zensical.org/docs/setup/repository/#content-actions
-  #"content.action.view",
+  "content.action.view",
 
   # Code annotations allow you to add an icon with a tooltip to your
   # code blocks to provide explanations at crucial points.
@@ -302,9 +371,13 @@ toggle.name = "Switch to light mode"
 # ----------------------------------------------------------------------------
 # The "extra" section contains miscellaneous settings.
 # ----------------------------------------------------------------------------
-#[[project.extra.social]]
-#icon = "fontawesome/brands/github"
-#link = "https://github.com/user/repo"
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/simovilab/databus"
+
+[[project.extra.social]]
+icon = "lucide/globe"
+link = "https://simovilab.org"
 
 # ----------------------------------------------------------------------------
 # In this section you can configure the Markdown extensions that are used when

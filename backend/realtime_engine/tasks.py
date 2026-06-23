@@ -1,117 +1,132 @@
-from celery import shared_task
-from messages.publisher import publish_event
-from typing import Any
-from operations.models import Vehicle, Operator
-from runs.models import Run
-from runs.services.lifecycle import RunLifecycleService
-from feed.models import Feed, Trip
-import redis
+import logging
 import os
+from datetime import datetime, timezone
+from typing import Any
+
+import redis
+from celery import shared_task
+from django.utils.timezone import now
+
+from runs.services.lifecycle import RunLifecycleService
+
+logger = logging.getLogger(__name__)
 
 redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "state"), port=os.getenv("REDIS_PORT", 6379), db=0
+    host=os.getenv("REDIS_HOST", "state"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
+    db=0,
+    decode_responses=True,
 )
 
 
 @shared_task(queue="realtime_engine")
-def hello_world() -> None:
-    print("Hello, world!")
+def run_lifecycle_event(event: str, payload: dict[str, Any]) -> None:
+    from runs.domain.lifecycle import RunLifecycleEvents
 
-
-@shared_task(queue="realtime_engine")
-def run_lifecycle_event(event: str, payload: dict[str, Any]) -> Run | None:
     service = RunLifecycleService()
-    result = service.process_event(event, payload)
-    return result
-
-
-@shared_task(queue="realtime_engine")
-def validate_run(run_data: dict[str, Any]) -> bool:
-    # Validation against the system state in Redis.
-    # Verify that:
-    # 1. the vehicle is not currently in another run,
-    # 2. the trip_id is not already being executed by another run
-    return True  # Placeholder for actual validation logic. Always returns True for now.
-
-
-@shared_task(queue="realtime_engine")
-def initialize_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
-    """
-    Initializes a run in the database and the system state (Redis).
-
-    Args:
-        run_data (dict): Run request payload to initialize. Expected keys include
-            ``vehicle_id``, ``operator_id``, ``route_id``, ``trip_id``,
-            ``direction_id``, ``shape_id``, and ``schedule_relationship``.
-    Returns:
-        tuple[bool, str | None]: A tuple where the first value is ``True`` when the run was successfully initialized. The second value is the run ID on success, or ``None`` on failure.
-    """
     try:
-        run = Run.objects.create(
-            vehicle_id=run_data.get("vehicle_id"),
-            operator_id=run_data.get("operator_id"),
-            route_id=run_data.get("route_id"),
-            trip_id=run_data.get(
-                "trip_id"
-            ),  # Cuando no es SCHEDULED, alguien tiene que crear un nuevo trip_id
-            direction_id=int(run_data.get("direction_id")),
-            shape_id=run_data.get("shape_id"),
-            schedule_relationship=run_data.get("schedule_relationship"),
-            run_lifecycle_state="INITIALIZED",  # TODO: CONFIRMAR ESTADO ADECUADO
-        )
-        # Save run data (all) to Redis' "runs" key
-        redis_client.hset(f"run:{run.id}", mapping=run_data)
-        return (True, str(run.id))
-    except Exception as e:
-        publish_event(
-            "RUN_INITIALIZATION_ERROR",
-            {"error": str(e), **run_data},  # Error with payload
-        )
-        return (False, None)
-
-
-@shared_task(queue="realtime_engine")
-def register_run(run_data: dict[str, Any]) -> tuple[bool, str | None]:
-    if not validate_run(run_data):
-        publish_event("RUN_VALIDATION_FAILED", run_data)
-        return (False, None)
-
-    publish_event("RUN_VALIDATION_SUCCEEDED", run_data)
-    initialization_ok, run_id = initialize_run(run_data)
-    if initialization_ok:
-        publish_event("RUN_INITIALIZATION_SUCCEEDED", run_data)
-        return (True, run_id)
-
-    publish_event("RUN_INITIALIZATION_FAILED", run_data)
-    return (False, None)
-
-
-@shared_task(queue="realtime_engine")
-def start_run(run_data: dict[str, Any]) -> bool:
-    # Aquí iría la lógica de inicio del run_data
-    # Save run_id to Redis' runs:in_progress group
-    # redis_client.sadd("runs:in_progress", run_data.get("run_id"))
-    return True
-
-
-@shared_task(queue="realtime_engine")
-def end_run(run_data: dict[str, Any]) -> bool:
-    # Transitions an IN_PROGRESS run to COMPLETED. Returns False if the run is missing, in a non-completable state, or an erorr occurs.
-    run_id = run_data.get("run_id")
-    if run_id in (None, ""):
-        return False
+        evt = RunLifecycleEvents(event)
+    except ValueError:
+        logger.error("Unknown lifecycle event: %s", event)
+        return
     try:
-        run = Run.objects.filter(id=run_id).first()
-        if run is None:
-            return False
-        if run.run_lifecycle_state != "IN_PROGRESS":
-            return False
-        run.run_lifecycle_state = "COMPLETED"
-        run.save(update_fields=["run_lifecycle_state"])
-        return True
-    except Exception as e:
-        publish_event(
-            "RUN_COMPLETION_ERROR",
-            {"error": str(e), **run_data},
+        service.process_event(evt, payload)
+    except Exception:
+        logger.exception(
+            "Lifecycle event %s failed for run %s", event, payload.get("run_id")
         )
-        return False
+
+
+@shared_task(queue="realtime_engine")
+def scan_stale_runs() -> str:
+    """Scan ``runs:tracking`` every 30 s and let the detection layer decide.
+
+    The staleness windows and the IN_PROGRESS/NO_SIGNAL conditions live in the
+    periodic detectors (``runs.domain.detection``); this task only computes how
+    long each run has been quiet and hands it to the dispatcher.
+    """
+    from runs.domain.detection.dispatch import detect_from_scan
+
+    run_ids = redis_client.smembers("runs:tracking")
+    fired = 0
+    for run_id in run_ids:
+        raw_last_seen = redis_client.get(f"runs:last_seen:{run_id}")
+        if not raw_last_seen:
+            continue
+        try:
+            last_seen = datetime.fromisoformat(raw_last_seen)
+            if last_seen.tzinfo is None:
+                last_seen = last_seen.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            continue
+
+        staleness = (now() - last_seen).total_seconds()
+        fired += detect_from_scan(run_id, staleness, raw_last_seen)
+
+    return f"scan_stale_runs: checked {len(run_ids)} runs, fired {fired} events"
+
+
+@shared_task(queue="realtime_engine")
+def process_position_update(run_id: str, vehicle_id: str) -> None:
+    """Run server-side producers and detection for a position update.
+
+    Called by the MQTT callback after the position hash has been written to
+    Redis. Only run_id and vehicle_id cross the queue — the task re-reads the
+    latest ``vehicle:<id>:position`` from Redis so the work is idempotent and
+    last-write-wins. No retries (a retried tick is stale; the next ping
+    recovers).
+    """
+    from runs.domain.telemetry import keys, position
+
+    # Step 1: produce server-side stop status (real map-matching).
+    computed_stop_status = None
+    try:
+        from runs.domain.progression.producer import produce_stop_status
+        computed_stop_status = produce_stop_status(run_id, vehicle_id)
+    except Exception:
+        logger.exception(
+            "stop-status production failed for vehicle %s run %s",
+            vehicle_id,
+            run_id,
+        )
+
+    # Step 2: re-feed server-computed stop status into the completion detector.
+    # RunCompletedDetector requires leaf="progression" + current_status/stop_id.
+    if computed_stop_status:
+        try:
+            from runs.domain.detection.dispatch import detect_from_telemetry
+            detect_from_telemetry(run_id, vehicle_id, "progression", computed_stop_status)
+        except Exception:
+            logger.exception(
+                "progression detection failed for vehicle %s run %s",
+                vehicle_id,
+                run_id,
+            )
+
+    # Step 3: compute and cache the stop-time-updates projection.
+    try:
+        from runs.domain.progression.stop_times import produce_stop_times
+        produce_stop_times(run_id, vehicle_id)
+    except Exception:
+        logger.exception(
+            "stop-time-updates production failed for vehicle %s run %s",
+            vehicle_id,
+            run_id,
+        )
+
+    # Step 4: position-leaf detection (RunStartedDetector etc.).
+    # Re-read the latest position from Redis — equivalent to passing the
+    # original MQTT data since position is last-write-wins and speed survives
+    # the validate_for_write → from_redis round-trip as a typed float.
+    try:
+        raw_position = redis_client.hgetall(keys.position_key(vehicle_id))
+        if raw_position:
+            latest_position = position.from_redis(raw_position)
+            from runs.domain.detection.dispatch import detect_from_telemetry
+            detect_from_telemetry(run_id, vehicle_id, "position", latest_position)
+    except Exception:
+        logger.exception(
+            "position detection failed for vehicle %s run %s",
+            vehicle_id,
+            run_id,
+        )

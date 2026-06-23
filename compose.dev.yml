@@ -31,6 +31,9 @@ services:
       - DJANGO_SETUP=False
       - UV_PROJECT_ENVIRONMENT=/home/app/.venv
       - PYTHONPYCACHEPREFIX=/tmp/pycache
+      - MQTT_CONSUMER_ENABLED=true
+      - MQTT_HOST=telemetry-broker
+      - MQTT_PORT=1883
     env_file:
       - .env
       - .env.dev
@@ -44,6 +47,8 @@ services:
         condition: service_healthy
       message-broker:
         condition: service_healthy
+      telemetry-broker:
+        condition: service_started
 
   schedule-engine:
     build:
@@ -181,6 +186,13 @@ services:
     volumes:
       - ./frontend:/app
       - ui_node_modules:/app/node_modules
+      - ui_pnpm_store:/pnpm-store
+      # Nuxt writes these constantly; keep them on native volumes, not the
+      # macOS bind mount, to avoid "Unknown system error -35" on write/open.
+      - /app/.nuxt
+      - /app/.output
+      - /app/.nitro
+      - /app/.cache
     depends_on:
       orchestrator:
         condition: service_started
@@ -191,6 +203,7 @@ volumes:
   lake_data:
   message_broker_data:
   ui_node_modules:
+  ui_pnpm_store:
   backend_venv:
 
 networks:
