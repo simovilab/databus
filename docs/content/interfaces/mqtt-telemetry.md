@@ -142,7 +142,7 @@ whose run has already ended.
     `transit/vehicle/<vehicle_id>/progression` is **not** subscribed.
     The consumer does not subscribe to it. If a simulator or device publishes
     this topic, the NanoMQ broker may accept it, but the consumer will never
-    receive it. Any such messages are effectively no-ops from Databús's
+    receive it. Any such messages are effectively no-ops from Databús®'s
     perspective.
 
     Stop status is computed server-side via real GPS→polyline map-matching in

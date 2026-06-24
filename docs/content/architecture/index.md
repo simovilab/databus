@@ -5,7 +5,7 @@ description: Overview of Databús architecture — distributed Django/Celery ser
 
 # Architecture
 
-Databús is a distributed transit data platform composed of Django apps and Celery workers, all deployed as Docker Compose services. The sections below unpack the system from every angle.
+Databús® is a distributed transit data platform composed of Django apps and Celery workers, all deployed as Docker Compose services. The sections below unpack the system from every angle.
 
 ```mermaid
 flowchart TD

@@ -5,7 +5,7 @@ description: HTTP/JSON control-plane API for run lifecycle management and GTFS S
 
 # REST API
 
-The Databús REST API is served by the `orchestrator` service (Django + Daphne,
+The Databús® REST API is served by the `orchestrator` service (Django + Daphne,
 ASGI) on port 8000 in development and behind Traefik at `api.<domain>` in
 production. It is the control plane for run management and the data-access
 layer for GTFS Schedule data.

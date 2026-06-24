@@ -5,7 +5,7 @@ description: Three message kinds (Command, Observation, Assertion), the designed
 
 # Messaging model
 
-Databús defines three distinct message types that flow between services. The distinction is semantic, not just technical — it determines who may send a message and what obligations the receiver has.
+Databús® defines three distinct message types that flow between services. The distinction is semantic, not just technical — it determines who may send a message and what obligations the receiver has.
 
 ## Broker topology
 

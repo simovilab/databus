@@ -5,7 +5,7 @@ description: End-to-end data flow from vehicle MQTT telemetry through Redis stat
 
 # Data flow
 
-Databús moves data through five sequential stages, from raw vehicle telemetry to published GTFS Realtime feeds and live WebSocket updates. Each stage is handled by a specific service and the hand-off between stages is always explicit — either an MQTT message, a Celery task, or a Redis write.
+Databús® moves data through five sequential stages, from raw vehicle telemetry to published GTFS Realtime feeds and live WebSocket updates. Each stage is handled by a specific service and the hand-off between stages is always explicit — either an MQTT message, a Celery task, or a Redis write.
 
 ```mermaid
 sequenceDiagram

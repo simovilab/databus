@@ -5,7 +5,7 @@ description: Diagnosis commands, log messages, Redis inspection, and known fixes
 
 # Troubleshooting & debugging
 
-A reference for diagnosing the most common failure modes in Databús, with concrete commands and known solutions.
+A reference for diagnosing the most common failure modes in Databús®, with concrete commands and known solutions.
 
 ## Quick-reference: symptom → fix
 

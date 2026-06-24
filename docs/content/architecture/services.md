@@ -5,7 +5,7 @@ description: Authoritative per-service role definitions and hard "Does NOT" boun
 
 # Services & mandates
 
-Every Databús component has exactly one role and a hard "Does NOT" boundary. This page is the authoritative corrected service map — it supersedes the stale descriptions in `AGENTS.md` and `MODEL.md` wherever they disagree with the code.
+Every Databús® component has exactly one role and a hard "Does NOT" boundary. This page is the authoritative corrected service map — it supersedes the stale descriptions in `AGENTS.md` and `MODEL.md` wherever they disagree with the code.
 
 !!! warning "Stale docs correction"
     `AGENTS.md` describes separate `realtime-engine/`, `publisher/`, and `scheduler/` Python projects. Those top-level directories do not exist. Everything runs as Django apps inside `backend/` and Celery workers launched from that same Django project. The sections below reflect the compose services as they actually run.

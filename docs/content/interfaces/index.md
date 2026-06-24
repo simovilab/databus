@@ -5,7 +5,7 @@ description: Overview of Databús's four external interface surfaces — REST AP
 
 # Interfaces
 
-Databús exposes four external interface surfaces and serves all of them from
+Databús® exposes four external interface surfaces and serves all of them from
 behind a single Traefik reverse proxy in production.
 
 | Page | Surface | Audience |

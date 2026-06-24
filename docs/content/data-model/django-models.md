@@ -5,7 +5,7 @@ description: Django ORM models for Databús — the Run entity, RunLifecycleTran
 
 # Django Models
 
-Databús persists durable domain data in PostgreSQL via Django ORM. The
+Databús® persists durable domain data in PostgreSQL via Django ORM. The
 following apps each own their model layer. All apps live under `backend/`.
 
 ---
@@ -152,7 +152,7 @@ All extend abstract base classes from the `gtfs` submodule:
 All are scoped to a `Feed` (identified by `feed_id`) via a ForeignKey. The
 `is_current` flag on `Feed` identifies the active dataset.
 
-Additional Databús-specific models:
+Additional Databús®-specific models:
 
 | Model | Purpose |
 | --- | --- |

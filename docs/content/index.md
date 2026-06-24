@@ -5,9 +5,9 @@ hide:
   - navigation
 ---
 
-# Databús
+# Databús®
 
-**Databús** is a distributed [GTFS](concepts/gtfs.md) transit-data platform. It
+**Databús®** is a distributed [GTFS](concepts/gtfs.md) transit-data platform. It
 ingests live vehicle telemetry over MQTT, maintains authoritative real-time state
 in Redis, computes vehicle progress against scheduled trips through server-side
 map-matching, and publishes standards-compliant **GTFS Realtime** feeds —
@@ -15,7 +15,7 @@ alongside durable traces and analytics.
 
 !!! warning "Work in Progress"
 
-    Both Databús and its documentation are under active development. The estimated
+    Both Databús® and its documentation are under active development. The estimated
     release date is **August 2026**. Pages describe the system **as built today**;
     where the legacy `AGENTS.md` / `MODEL.md` design docs disagree with the source,
     these docs follow the source.
@@ -50,7 +50,7 @@ for the full, corrected service map.
 
     ---
 
-    What Databús is, GTFS Schedule vs Realtime, the glossary, and the design
+    What Databús® is, GTFS Schedule vs Realtime, the glossary, and the design
     principles behind the system.
 
     [:octicons-arrow-right-24: Concepts](concepts/index.md)
@@ -113,5 +113,5 @@ for the full, corrected service map.
 
 ---
 
-Databús is developed by the [SIMOVI Lab](https://simovilab.org) at the University
+Databús® is developed by the [SIMOVI Lab](https://simovilab.org) at the University
 of Costa Rica (UCR). Source: [github.com/simovilab/databus](https://github.com/simovilab/databus).

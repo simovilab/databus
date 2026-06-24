@@ -6,7 +6,7 @@ description: The two GTFS specifications Databús ingests (Schedule) and emits (
 # GTFS Schedule & Realtime
 
 GTFS (General Transit Feed Specification) is the open standard used by transit
-agencies worldwide to describe their services. Databús works with both flavors:
+agencies worldwide to describe their services. Databús® works with both flavors:
 **GTFS Schedule** (the static timetable) and **GTFS Realtime** (the live
 overlay).
 
@@ -14,7 +14,7 @@ overlay).
 
 GTFS Schedule describes what service an agency *plans* to run: routes, trips,
 stops, stop times, calendars, shapes, fares. It is a ZIP archive of CSV files
-distributed by the agency. Databús imports it into PostgreSQL via the `feed`
+distributed by the agency. Databús® imports it into PostgreSQL via the `feed`
 Django app and uses it as the ground truth for:
 
 - Validating that a new run references a real trip and route.
@@ -41,7 +41,7 @@ GTFS Realtime is a protobuf-encoded overlay that describes what service is
 
 Reports where a vehicle currently is and its relationship to stops.
 
-Fields Databús populates:
+Fields Databús® populates:
 
 | Field | Source Redis key | Notes |
 | --- | --- | --- |
@@ -62,7 +62,7 @@ Output file: `backend/feed/files/vehicle_positions.{pb,json}` — refreshed ever
 
 Reports predicted arrival and departure times at upcoming stops for a trip.
 
-Fields Databús populates:
+Fields Databús® populates:
 
 | Field | Source |
 | --- | --- |

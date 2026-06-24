@@ -5,7 +5,7 @@ description: Celery worker topology, queue routing, beat schedule, and Flower mo
 
 # Celery workers, queues & beat
 
-Databús runs three Celery processes: two workers consuming different queues, and one beat scheduler. This page describes their roles, queue routing, and the beat schedule.
+Databús® runs three Celery processes: two workers consuming different queues, and one beat scheduler. This page describes their roles, queue routing, and the beat schedule.
 
 ## Worker topology
 

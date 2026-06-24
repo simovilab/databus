@@ -5,7 +5,7 @@ description: One canonical definition for every domain term used in the Databús
 
 # Glossary
 
-Canonical definitions for terms used throughout the Databús codebase and
+Canonical definitions for terms used throughout the Databús® codebase and
 documentation. When in doubt about terminology, this page wins.
 
 ---
@@ -37,7 +37,7 @@ map-matching and stop-time projection.
 ## Shape
 
 A GTFS Schedule entity (`shapes.txt`) describing the geographic path a vehicle
-follows on a trip. Databús stores both the point-sequence form (`Shape`) and a
+follows on a trip. Databús® stores both the point-sequence form (`Shape`) and a
 PostGIS `LineString` form (`GeoShape`). The `GeoShape.geometry` field is what
 the map-matching algorithm (`runs/domain/progression/compute.py`) projects GPS
 positions onto.
@@ -141,7 +141,7 @@ See [Run lifecycle › Detection layer](../runs/detection.md).
 ## Bootstep (Celery bootstep)
 
 A Celery worker lifecycle hook (`celery.bootsteps.StartStopStep`) that runs
-custom code when a worker starts or stops. Databús uses this mechanism to run
+custom code when a worker starts or stops. Databús® uses this mechanism to run
 the MQTT subscriber inside the `realtime-engine` worker process without a
 separate container.
 
@@ -155,7 +155,7 @@ See [Data flow › Telemetry ingestion](../data-flow/telemetry-ingestion.md).
 ## Telemetry leaf
 
 One data stream from an edge device, identified by the last segment of its MQTT
-topic. Databús subscribes to two leaves:
+topic. Databús® subscribes to two leaves:
 
 | Leaf | Topic | Redis key |
 | --- | --- | --- |

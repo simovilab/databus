@@ -5,7 +5,7 @@ description: The command vs detected-fact distinction in Databús — which life
 
 # Commands vs detected facts
 
-This is the most important conceptual distinction in the Databús run lifecycle. Every lifecycle event is either a **command** — an intentional act by a human or system actor — or a **detected fact** — something the platform inferred from evidence. Getting this distinction right matters for how you reason about run state, who is responsible for it, and how you debug unexpected transitions.
+This is the most important conceptual distinction in the Databús® run lifecycle. Every lifecycle event is either a **command** — an intentional act by a human or system actor — or a **detected fact** — something the platform inferred from evidence. Getting this distinction right matters for how you reason about run state, who is responsible for it, and how you debug unexpected transitions.
 
 ## Commands
 

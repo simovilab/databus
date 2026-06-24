@@ -5,7 +5,7 @@ description: AMQP event semantics for the databus.events direct exchange — rou
 
 # AMQP Event Semantics
 
-Databús uses RabbitMQ as its internal async message backbone. The design
+Databús® uses RabbitMQ as its internal async message backbone. The design
 defines three message types routed through a single direct exchange, and the
 routing-key namespace for run-lifecycle events.
 

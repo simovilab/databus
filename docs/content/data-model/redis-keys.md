@@ -5,7 +5,7 @@ description: Canonical reference for every Redis key in Databús — types, fiel
 
 # Redis State Keys
 
-Canonical reference for every Redis key used by Databús. No other module
+Canonical reference for every Redis key used by Databús®. No other module
 should hardcode these key strings — they are all defined in
 `backend/runs/domain/telemetry/keys.py` and imported from there.
 

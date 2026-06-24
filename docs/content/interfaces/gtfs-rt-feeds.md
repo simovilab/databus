@@ -5,7 +5,7 @@ description: GTFS Realtime feed files (VehiclePositions and TripUpdates) publish
 
 # GTFS Realtime Feeds
 
-Databús publishes GTFS Realtime feeds that any standard GTFS-RT consumer
+Databús® publishes GTFS Realtime feeds that any standard GTFS-RT consumer
 (transit app, aggregator, analytics pipeline) can ingest.
 
 **Refresh cadence:** every **15 seconds** (driven by Celery Beat).

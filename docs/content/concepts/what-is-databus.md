@@ -3,9 +3,9 @@ icon: lucide/bus
 description: What Databús is, who built it, and the problem it solves.
 ---
 
-# What is Databús
+# What is Databús®
 
-Databús is a distributed transit data platform that ingests real-time vehicle
+Databús® is a distributed transit data platform that ingests real-time vehicle
 telemetry, maintains authoritative in-memory operational state, and publishes
 GTFS Realtime feeds to transit consumers. It was built at the
 [SIMOVI Lab](https://simovilab.org) (UCR — Universidad de Costa Rica) for the
@@ -17,7 +17,7 @@ timezone.
 Transit agencies need live vehicle location and schedule-adherence data to
 serve passengers and dispatchers. Raw GPS pings from vehicles are noisy and
 ambiguous: they must be matched to a specific trip and route before they become
-useful. Databús sits between the vehicle fleet and downstream consumers and
+useful. Databús® sits between the vehicle fleet and downstream consumers and
 handles that translation.
 
 ```text
@@ -49,7 +49,7 @@ Vehicle (GPS + occupancy)
 
 ## What it is not
 
-Databús is not a passenger-facing app. It provides the data infrastructure
+Databús® is not a passenger-facing app. It provides the data infrastructure
 that powers such apps. It does not directly control vehicles, issue passenger
 alerts (the ServiceAlert builder is a future work item), or perform batch
 scheduling — that belongs to the upstream agency's GTFS Schedule data.

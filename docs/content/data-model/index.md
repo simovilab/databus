@@ -5,7 +5,7 @@ description: Overview of Databús data storage — the two Redis namespaces (edg
 
 # Data Model
 
-Databús uses two fundamentally different storage mechanisms for two different
+Databús® uses two fundamentally different storage mechanisms for two different
 purposes. Understanding the boundary between them is the key to reading any
 piece of the system.
 

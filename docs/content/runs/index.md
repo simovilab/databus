@@ -5,7 +5,7 @@ description: Overview of the Databús run lifecycle — the two cooperating FSMs
 
 # Run lifecycle
 
-A **run** is the unit of operational work in Databús: a vehicle assigned to a trip, tracked from the first GPS ping to the last stop. The run lifecycle governs how that work progresses through states and how the system reacts to events.
+A **run** is the unit of operational work in Databús®: a vehicle assigned to a trip, tracked from the first GPS ping to the last stop. The run lifecycle governs how that work progresses through states and how the system reacts to events.
 
 The lifecycle is implemented as two cooperating finite state machines:
 

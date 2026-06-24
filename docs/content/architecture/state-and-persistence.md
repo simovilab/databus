@@ -5,7 +5,7 @@ description: Two-store model — Redis as authoritative real-time state (single 
 
 # State & persistence
 
-Databús maintains two stores with different roles and lifetimes. Understanding which store is authoritative for what question is essential for debugging and for reasoning about race conditions.
+Databús® maintains two stores with different roles and lifetimes. Understanding which store is authoritative for what question is essential for debugging and for reasoning about race conditions.
 
 ## The two-store model
 

@@ -5,7 +5,7 @@ description: The five architectural principles that govern every design decision
 
 # Design Principles
 
-Five architectural principles govern every decision in Databús. Violating one
+Five architectural principles govern every decision in Databús®. Violating one
 of these is a signal that the architecture needs a deliberate discussion, not
 a workaround.
 

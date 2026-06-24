@@ -5,7 +5,7 @@ description: Operations index — practical guides for running and maintaining a
 
 # Operations
 
-Practical guides for running and maintaining a Databús instance — from a first-time development environment to production deployments.
+Practical guides for running and maintaining a Databús® instance — from a first-time development environment to production deployments.
 
 | Page | What it covers |
 |---|---|

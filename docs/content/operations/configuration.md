@@ -5,7 +5,7 @@ description: Complete environment variable reference for Databús — Django cor
 
 # Configuration & environment variables
 
-Databús is configured entirely through environment variables loaded from `.env` (development) or `.env` + `.env.prod` (production). The `.env.example` file at the repository root is the canonical reference — copy it to `.env` and fill in values before starting the stack.
+Databús® is configured entirely through environment variables loaded from `.env` (development) or `.env` + `.env.prod` (production). The `.env.example` file at the repository root is the canonical reference — copy it to `.env` and fill in values before starting the stack.
 
 ## `.env` file roles
 

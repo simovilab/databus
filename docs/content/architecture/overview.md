@@ -5,7 +5,7 @@ description: Six-layer model (Ingestion → Learning) that structures Databús, 
 
 # System overview
 
-Databús is structured around six functional layers. Each layer has a single authoritative owner; the boundaries are enforced by service mandates (see [Services & mandates](services.md)) rather than code gates.
+Databús® is structured around six functional layers. Each layer has a single authoritative owner; the boundaries are enforced by service mandates (see [Services & mandates](services.md)) rather than code gates.
 
 ## The six layers
 

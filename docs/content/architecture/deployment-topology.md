@@ -5,7 +5,7 @@ description: Docker Compose service layout, MQTT single-consumer gate, Celery qu
 
 # Deployment topology
 
-Databús runs entirely in Docker Compose. Two compose files share the same service names and images but differ in process targets, networking, and TLS.
+Databús® runs entirely in Docker Compose. Two compose files share the same service names and images but differ in process targets, networking, and TLS.
 
 ## Compose services summary
 
