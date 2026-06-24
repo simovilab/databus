@@ -1,5 +1,6 @@
 ---
 icon: lucide/cpu
+description: Celery worker topology, queue routing, beat schedule, and Flower monitoring for the realtime-engine and schedule-engine workers.
 ---
 
 # Celery workers, queues & beat
@@ -8,7 +9,7 @@ Databús runs three Celery processes: two workers consuming different queues, an
 
 ## Worker topology
 
-```
+```text
 ┌─────────────────────────────────────┐  ┌─────────────────────────────────────┐
 │  realtime-engine (worker)           │  │  schedule-engine (worker)           │
 │  queue: realtime_engine             │  │  queue: schedule_engine             │

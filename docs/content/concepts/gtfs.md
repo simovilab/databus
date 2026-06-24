@@ -1,5 +1,6 @@
 ---
 icon: lucide/file-json
+description: The two GTFS specifications Databús ingests (Schedule) and emits (Realtime), with field-level detail on VehiclePosition and TripUpdate feeds.
 ---
 
 # GTFS Schedule & Realtime

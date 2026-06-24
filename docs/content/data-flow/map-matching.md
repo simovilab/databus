@@ -1,5 +1,6 @@
 ---
 icon: lucide/map
+description: Server-side GPS-to-polyline projection using haversine geometry, Viterbi stop assignment, three-state radius rules (STOPPED_AT / INCOMING_AT / IN_TRANSIT_TO), and monotonic sequence guard.
 ---
 
 # Map-matching & progression
@@ -80,7 +81,7 @@ The upcoming stop is the stop with the smallest `progress_m` that is greater tha
 
 Compute the haversine distance from the observed point to the candidate stop, then apply:
 
-```
+```text
 distance <= STOP_RADIUS_M (20 m)
   AND (speed unknown OR speed <= STATIONARY_SPEED_MPS (0.5 m/s))
 → STOPPED_AT
@@ -97,18 +98,18 @@ The speed threshold (0.5 m/s ≈ 1.8 km/h) distinguishes genuine dwell at a stop
 
 ```mermaid
 flowchart TD
-    A[observed GPS fix] --> B[project onto polyline\npoint_progress_m]
-    B --> C[pick upcoming stop\nnearest ahead]
-    C --> D[haversine distance\nto candidate stop]
-    D --> E{dist ≤ 20 m\nAND slow/stopped?}
+    A[observed GPS fix] --> B[project onto polyline<br/>point_progress_m]
+    B --> C[pick upcoming stop<br/>nearest ahead]
+    C --> D[haversine distance<br/>to candidate stop]
+    D --> E{dist ≤ 20 m<br/>AND slow/stopped?}
     E -- yes --> F[STOPPED_AT]
-    E -- no --> G{dist ≤ 50 m\nAND still approaching?}
+    E -- no --> G{dist ≤ 50 m<br/>AND still approaching?}
     G -- yes --> H[INCOMING_AT]
     G -- no --> I[IN_TRANSIT_TO]
     F --> J[monotonic guard]
     H --> J
     I --> J
-    J --> K[validate_for_write\nHSET run:id:vehicle_stop_status]
+    J --> K[validate_for_write<br/>HSET run:id:vehicle_stop_status]
 ```
 
 ### Step 6 — monotonic sequence floor

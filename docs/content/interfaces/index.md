@@ -1,5 +1,6 @@
 ---
 icon: lucide/plug
+description: Overview of Databús's four external interface surfaces — REST API, MQTT telemetry, AMQP events, and GTFS Realtime feeds — all served behind a single Traefik reverse proxy.
 ---
 
 # Interfaces

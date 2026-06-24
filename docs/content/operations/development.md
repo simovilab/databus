@@ -1,10 +1,17 @@
 ---
 icon: lucide/terminal
+description: Docker-based local development workflow — first-time setup, daily start/stop commands, Django management, code quality tools, and a full end-to-end demo sequence.
 ---
 
 # Local development
 
 All development is Docker-based. The `scripts/dev.sh` wrapper handles submodule initialisation, image pulls, and health-check waiting, so the recommended workflow is a single command.
+
+**Quick start** (after copying `.env.example` to `.env`):
+
+```bash
+./scripts/dev.sh   # start all services; API at http://localhost:8000/api/docs/
+```
 
 ## Prerequisites
 

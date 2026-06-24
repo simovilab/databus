@@ -1,5 +1,6 @@
 ---
 icon: lucide/git-branch
+description: All 11 run lifecycle states, the full transition table with guards and actions, and the canonical stateDiagram-v2 for the Databús lifecycle FSM.
 ---
 
 # States & transitions
@@ -7,7 +8,9 @@ icon: lucide/git-branch
 The run lifecycle FSM is defined in `backend/runs/domain/lifecycle/`. Every run moves through exactly one state at a time; every state change requires a matching event, a passing set of guards, and the execution of a set of actions.
 
 !!! warning "State name correction"
-    The existing placeholder diagram in `docs/content/processes/run-lifecycle.md` uses `CANCELED`. The code uses `"Cancelled"` (British spelling, mixed case). Always use the value from `RunLifecycleStates` — never the enum member name.
+    Older design drafts used `CANCELED`. The code uses `"Cancelled"` (British
+    spelling, mixed case). Always use the value from `RunLifecycleStates` —
+    never the enum member name.
 
 ## State set
 
@@ -33,28 +36,28 @@ Defined in `backend/runs/domain/lifecycle/states.py` as `RunLifecycleStates(str,
 stateDiagram-v2
     [*] --> Requested : POST /create-run
 
-    Requested --> Validated : VALIDATE_RUN\n[is_gtfs_valid, is_trip_available,\nis_vehicle_available, is_operator_available]
+    Requested --> Validated : VALIDATE_RUN<br/>[is_gtfs_valid, is_trip_available,<br/>is_vehicle_available, is_operator_available]
     Requested --> Cancelled : RUN_REJECTED
 
-    Validated --> Initialized : INITIALIZE_RUN\n[is_run_validated]\n/ update_system_state
-    Validated --> Cancelled : RUN_REJECTED\n/ release_resources
+    Validated --> Initialized : INITIALIZE_RUN<br/>[is_run_validated]<br/>/ update_system_state
+    Validated --> Cancelled : RUN_REJECTED<br/>/ release_resources
 
-    Initialized --> Confirmed : RUN_CONFIRMED_BY_OPERATOR\n/ sync_lifecycle_state
-    Initialized --> Cancelled : RUN_REJECTED\n[is_cancellation_authorized]\n/ remove_from_system_state, release_resources
+    Initialized --> Confirmed : RUN_CONFIRMED_BY_OPERATOR<br/>/ sync_lifecycle_state
+    Initialized --> Cancelled : RUN_REJECTED<br/>[is_cancellation_authorized]<br/>/ remove_from_system_state, release_resources
 
-    Confirmed --> Tracking : RUN_TRACKING_STARTED\n[is_vehicle_tracked]\n/ sync_lifecycle_state, add_to_tracking_set
-    Confirmed --> Cancelled : CANCEL_RUN\n[is_cancellation_authorized]\n/ remove_from_system_state, release_resources
+    Confirmed --> Tracking : RUN_TRACKING_STARTED<br/>[is_vehicle_tracked]<br/>/ sync_lifecycle_state, add_to_tracking_set
+    Confirmed --> Cancelled : CANCEL_RUN<br/>[is_cancellation_authorized]<br/>/ remove_from_system_state, release_resources
 
-    Tracking --> InProgress : RUN_STARTED\n[is_vehicle_moving]\n/ sync_lifecycle_state, add_to_in_progress_set
-    Tracking --> Cancelled : CANCEL_RUN\n[is_cancellation_authorized]\n/ remove_from_tracking_set, remove_from_system_state, release_resources
+    Tracking --> InProgress : RUN_STARTED<br/>[is_vehicle_moving]<br/>/ sync_lifecycle_state, add_to_in_progress_set
+    Tracking --> Cancelled : CANCEL_RUN<br/>[is_cancellation_authorized]<br/>/ remove_from_tracking_set, remove_from_system_state, release_resources
 
-    InProgress --> NoSignal : RUN_TRACKING_LOST\n[is_telemetry_stale]\n/ sync_lifecycle_state
-    InProgress --> Interrupted : RUN_INTERRUPTED\n[is_interruption_authorized]\n/ sync_lifecycle_state, remove_from_tracking_set, remove_from_in_progress_set, release_resources
-    InProgress --> ShortTurned : RUN_SHORT_TURNED\n[is_short_turn_authorized, is_short_turn_geometrically_valid]\n/ sync_lifecycle_state, remove_from_tracking_set, remove_from_in_progress_set, release_resources
-    InProgress --> Completed : RUN_COMPLETED\n[is_at_terminal_stop]\n/ sync_lifecycle_state, remove_from_tracking_set, remove_from_in_progress_set, release_resources
+    InProgress --> NoSignal : RUN_TRACKING_LOST<br/>[is_telemetry_stale]<br/>/ sync_lifecycle_state
+    InProgress --> Interrupted : RUN_INTERRUPTED<br/>[is_interruption_authorized]<br/>/ sync_lifecycle_state, remove_from_tracking_set, remove_from_in_progress_set, release_resources
+    InProgress --> ShortTurned : RUN_SHORT_TURNED<br/>[is_short_turn_authorized, is_short_turn_geometrically_valid]<br/>/ sync_lifecycle_state, remove_from_tracking_set, remove_from_in_progress_set, release_resources
+    InProgress --> Completed : RUN_COMPLETED<br/>[is_at_terminal_stop]<br/>/ sync_lifecycle_state, remove_from_tracking_set, remove_from_in_progress_set, release_resources
 
-    NoSignal --> InProgress : RUN_TRACKING_RESTORED\n[is_telemetry_fresh, is_vehicle_tracked]\n/ sync_lifecycle_state, add_to_tracking_set, add_to_in_progress_set
-    NoSignal --> Cancelled : RUN_TRACKING_EXPIRED\n[is_telemetry_grace_period_exceeded]\n/ sync_lifecycle_state, remove_from_tracking_set, remove_from_in_progress_set, release_resources
+    NoSignal --> InProgress : RUN_TRACKING_RESTORED<br/>[is_telemetry_fresh, is_vehicle_tracked]<br/>/ sync_lifecycle_state, add_to_tracking_set, add_to_in_progress_set
+    NoSignal --> Cancelled : RUN_TRACKING_EXPIRED<br/>[is_telemetry_grace_period_exceeded]<br/>/ sync_lifecycle_state, remove_from_tracking_set, remove_from_in_progress_set, release_resources
 
     Completed --> [*]
     Interrupted --> [*]

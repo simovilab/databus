@@ -1,5 +1,6 @@
 ---
 icon: lucide/scan-search
+description: The Databús detection layer — pure planners, impure wrappers, detector registry, telemetry and periodic detectors, and the tracking-seed mechanism.
 ---
 
 # Detection layer
@@ -12,7 +13,7 @@ All detection code lives in `backend/runs/domain/detection/`.
 
 The detection layer is split into two tiers, defined in `dispatch.py`:
 
-```
+```text
 Pure planners (no I/O, unit-testable)
     plan_telemetry_events(lifecycle_state, leaf, data, base_payload)
     plan_scan_events(lifecycle_state, staleness_s, payload)

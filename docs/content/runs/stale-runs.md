@@ -1,5 +1,6 @@
 ---
 icon: lucide/clock
+description: The scan_stale_runs Celery Beat task — how it iterates runs:tracking, computes staleness from runs:last_seen, and drives the IN_PROGRESS → No Signal → Cancelled path at 60 s and 600 s thresholds.
 ---
 
 # Stale-run scanning
@@ -70,7 +71,7 @@ If a vehicle resumes sending telemetry while its run is in `No Signal`, the MQTT
 
 The MQTT consumer updates this key on every incoming message:
 
-```
+```text
 runs:last_seen:<run_id>  →  Redis string, ISO-8601 timestamp
 ```
 

@@ -1,5 +1,6 @@
 ---
 icon: lucide/activity
+description: End-to-end data flow from vehicle MQTT telemetry through Redis state, Celery processing, and GTFS-RT file publishing to WebSocket clients.
 ---
 
 # Data flow

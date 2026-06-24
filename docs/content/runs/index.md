@@ -1,5 +1,6 @@
 ---
 icon: lucide/route
+description: Overview of the Databús run lifecycle — the two cooperating FSMs (lifecycle and progress), the detection layer, and links to all sub-pages.
 ---
 
 # Run lifecycle
@@ -16,12 +17,14 @@ The detection layer sits between the MQTT telemetry stream and the lifecycle FSM
 
 ```mermaid
 flowchart LR
-    MQTT["MQTT telemetry"] --> D["Detection layer\n(pure planners)"]
+    MQTT["MQTT telemetry"] --> D["Detection layer<br/>(pure planners)"]
     REST["REST commands"] --> FSM
-    D --> FSM["Lifecycle FSM\n(transitions.py)"]
+    D --> FSM["Lifecycle FSM<br/>(transitions.py)"]
     FSM --> Redis["Redis state"]
     FSM --> PG["PostgreSQL"]
 ```
+
+See the canonical [states & transitions](lifecycle-states.md) diagram for the full FSM specification.
 
 | Page | What it covers |
 |---|---|

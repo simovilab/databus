@@ -1,5 +1,6 @@
 ---
 icon: lucide/radio
+description: How vehicles' MQTT position and occupancy messages are consumed by the realtime-engine Celery bootstep, validated, and written to Redis with a single-subscriber guarantee.
 ---
 
 # Telemetry ingestion (MQTT)
@@ -12,7 +13,7 @@ The consumer (`backend/realtime_engine/mqtt.py`) is a `celery.bootsteps.StartSto
 
 paho's `loop_start()` runs the network loop in its own background thread, so ingestion never blocks Celery task execution in the same process.
 
-```
+```text
 realtime-engine worker
 ├─ Celery Pool (task execution)
 └─ MQTTConsumerStep (bootstep)
@@ -61,7 +62,7 @@ Before this fix, a fixed client ID caused an endless reconnect war: the broker t
 
 On connect, the consumer subscribes to exactly two wildcard patterns:
 
-```
+```text
 transit/vehicle/+/position    QoS 0
 transit/vehicle/+/occupancy   QoS 0
 ```
@@ -78,7 +79,7 @@ transit/vehicle/+/occupancy   QoS 0
 
 The consumer extracts `vehicle_id` and `leaf` from the four-part topic:
 
-```
+```text
 transit / vehicle / <vehicle_id> / <leaf>
 ```
 
@@ -136,16 +137,16 @@ This key drives the stale-run scanner (`scan_stale_runs`, every 30 s). Writing i
 
 ```mermaid
 flowchart TD
-    A[MQTT message arrives] --> B{Parse topic\nvehicle_id + leaf}
+    A[MQTT message arrives] --> B{Parse topic<br/>vehicle_id + leaf}
     B -- invalid --> Z[Drop silently]
-    B -- valid --> C{vehicle:id:current_run\nexists in Redis?}
+    B -- valid --> C{vehicle:id:current_run<br/>exists in Redis?}
     C -- no --> Z
     C -- yes --> D{leaf?}
-    D -- position --> E[validate_for_write\nHSET vehicle:id:position]
-    E --> F[process_position_update.delay\nrun_id, vehicle_id]
+    D -- position --> E[validate_for_write<br/>HSET vehicle:id:position]
+    E --> F[process_position_update.delay<br/>run_id, vehicle_id]
     F --> G[SET runs:last_seen:run_id]
-    D -- occupancy --> H[classify_status\nvalidate_for_write\nHSET vehicle:id:occupancy]
-    H --> I[detect_from_telemetry\noccupancy leaf]
+    D -- occupancy --> H[classify_status<br/>validate_for_write<br/>HSET vehicle:id:occupancy]
+    H --> I[detect_from_telemetry<br/>occupancy leaf]
     I --> G
     D -- other / progression --> J[logger.debug drop]
 ```

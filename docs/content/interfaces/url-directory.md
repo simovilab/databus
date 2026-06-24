@@ -1,5 +1,6 @@
 ---
 icon: lucide/link
+description: Reference listing all Databús service URLs — production subdomains (Traefik/TLS) and development localhost ports.
 ---
 
 # URL Directory
@@ -28,7 +29,7 @@ Domains are configured via environment variables in `.env`.
 
 Example — if your base domain is `example.com`:
 
-```
+```text
 https://api.example.com       — Orchestrator (REST API, admin)
 https://app.example.com       — User interface
 mqtt://mqtt.example.com:8883  — MQTT (TLS)

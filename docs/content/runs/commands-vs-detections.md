@@ -1,5 +1,6 @@
 ---
 icon: lucide/split
+description: The command vs detected-fact distinction in Databús — which lifecycle events are operator-driven, which are telemetry-inferred, and the history of the run_completed rename.
 ---
 
 # Commands vs detected facts
@@ -65,7 +66,7 @@ An earlier version computed `vehicle_stop_status` at the edge and sent it as a `
 
 Commit `ae36cc8` restored detection by re-feeding the server-computed `vehicle_stop_status` back into `detect_from_telemetry` with `leaf="progression"` inside the `process_position_update` Celery task. The full flow is:
 
-```
+```text
 MQTT position ping
     → HSET vehicle:<id>:position
     → process_position_update.delay(run_id, vehicle_id)

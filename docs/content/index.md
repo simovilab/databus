@@ -1,5 +1,6 @@
 ---
 icon: lucide/map-pin
+description: Databús — a distributed GTFS Schedule & Realtime transit-data platform for telemetry ingestion, run lifecycle, server-side map-matching, and feed publishing.
 hide:
   - navigation
 ---

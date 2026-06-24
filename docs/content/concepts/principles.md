@@ -1,5 +1,6 @@
 ---
 icon: lucide/compass
+description: The five architectural principles that govern every design decision in Databús.
 ---
 
 # Design Principles

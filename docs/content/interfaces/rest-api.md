@@ -1,5 +1,6 @@
 ---
 icon: lucide/webhook
+description: HTTP/JSON control-plane API for run lifecycle management and GTFS Schedule data access, served by the orchestrator on port 8000.
 ---
 
 # REST API
@@ -100,6 +101,29 @@ Request creation of a new run. This is a synchronous multi-step call:
     "step": "gtfs_validation",
     "errors": {}
 }
+```
+
+**Copy-paste example:**
+
+```bash
+# 1. Obtain a token
+TOKEN=$(curl -s -X POST http://localhost:8000/api/login/ \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "operator1", "password": "secret"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
+# 2. Create a run
+curl -X POST http://localhost:8000/api/create-run/ \
+  -H "Authorization: Token $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "route_id": "1",
+    "trip_id": "trip-morning-01",
+    "shape_id": "shape-01",
+    "start_date": "2026-06-23",
+    "vehicle_id": "vehicle-001",
+    "operator_id": "operator-001"
+  }'
 ```
 
 ---

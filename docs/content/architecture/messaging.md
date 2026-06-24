@@ -1,10 +1,48 @@
 ---
 icon: lucide/send
+description: Three message kinds (Command, Observation, Assertion), the designed AMQP databus.events exchange layout, and the current stub status of domain event publishing.
 ---
 
 # Messaging model
 
 Databús defines three distinct message types that flow between services. The distinction is semantic, not just technical — it determines who may send a message and what obligations the receiver has.
+
+## Broker topology
+
+```mermaid
+flowchart LR
+    subgraph Edge
+        V([Vehicle / Simulator])
+    end
+
+    subgraph Brokers
+        NanoMQ(("telemetry-broker<br/>(NanoMQ)"))
+        RabbitMQ(("message-broker<br/>(RabbitMQ)"))
+    end
+
+    subgraph realtime["realtime-engine (Celery)"]
+        bootstep[MQTTConsumerStep]
+        re_tasks[process_position_update<br/>run_lifecycle_event<br/>scan_stale_runs]
+    end
+
+    subgraph schedule["schedule-engine (Celery)"]
+        se_tasks[build_vehicle_positions<br/>build_trip_updates]
+    end
+
+    Redis(("state<br/>(Redis)"))
+
+    exchange["databus.events exchange<br/>(direct) — stub"]
+
+    V -- "MQTT QoS 0" --> NanoMQ
+    NanoMQ -- "on_message" --> bootstep
+    bootstep --> re_tasks
+    re_tasks -- "HSET / SET" --> Redis
+    re_tasks -. "publish_event (stub)" .-> exchange
+    RabbitMQ -- "realtime_engine queue" --> re_tasks
+    RabbitMQ -- "schedule_engine queue" --> se_tasks
+    se_tasks -- "SMEMBERS / HGETALL" --> Redis
+    exchange -. "runs.* routing keys" .-> RabbitMQ
+```
 
 ## The three message kinds
 
@@ -27,7 +65,7 @@ The designed exchange topology is:
 
 Routing keys sketched in `backend/messages/publisher.py`:
 
-```
+```text
 runs.submission.requested
 runs.submission.succeeded
 runs.submission.failed

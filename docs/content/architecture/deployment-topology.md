@@ -1,5 +1,6 @@
 ---
 icon: lucide/layers-3
+description: Docker Compose service layout, MQTT single-consumer gate, Celery queue routing, and Traefik network topology for dev and production environments.
 ---
 
 # Deployment topology
@@ -23,6 +24,52 @@ Databús runs entirely in Docker Compose. Two compose files share the same servi
 | `user-interface` | Nuxt | :3000 | Web frontend |
 | `docs` | nginx | :80 | **Prod only** |
 
+## Production network topology
+
+```mermaid
+flowchart TD
+    Internet([Internet]) --> Traefik
+
+    subgraph traefik_proxy["traefik_proxy network (external-facing)"]
+        Traefik(["Traefik<br/>(TLS termination)"])
+        orchestrator["orchestrator<br/>:8000"]
+        ui["user-interface<br/>:3000"]
+        rabbitmq_mgmt["message-broker<br/>:15672"]
+        analytics["analytics-engine<br/>:4200"]
+        flower["task-monitoring<br/>:5555"]
+        docs_svc["docs<br/>:80"]
+    end
+
+    subgraph internal["internal network (service-to-service only)"]
+        re["realtime-engine"]
+        se["schedule-engine"]
+        sched["scheduler"]
+        redis["state (Redis)<br/>:6379"]
+        pg["database (PostgreSQL)<br/>:5432"]
+        nanomq["telemetry-broker<br/>(NanoMQ) :1883"]
+        rmq["message-broker<br/>(RabbitMQ) :5672"]
+    end
+
+    Traefik -- "HTTP/WS" --> orchestrator
+    Traefik -- "HTTP" --> ui
+    Traefik -- "TCP:8883 → :1883 (TLS)" --> nanomq
+    Traefik -- "HTTP" --> rabbitmq_mgmt
+    Traefik -- "HTTP" --> analytics
+    Traefik -- "HTTP" --> flower
+    Traefik -- "HTTP" --> docs_svc
+
+    orchestrator --> redis
+    orchestrator --> pg
+    re --> redis
+    re --> pg
+    re --> rmq
+    re --> nanomq
+    se --> redis
+    se --> rmq
+    sched --> rmq
+    rmq --> rabbitmq_mgmt
+```
+
 ## The MQTT single-consumer gate
 
 Only one service should subscribe to the NanoMQ broker. The gate is controlled by the `MQTT_CONSUMER_ENABLED` environment variable:
@@ -44,7 +91,7 @@ Failing to set this var to exactly one worker causes either no subscription (if 
 
 The two Celery workers drain separate named queues, keeping concerns isolated:
 
-```
+```text
 realtime_engine queue  →  realtime-engine worker
   - process_position_update
   - run_lifecycle_event

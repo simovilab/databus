@@ -1,5 +1,6 @@
 ---
 icon: lucide/box
+description: Django ORM models for Databús — the Run entity, RunLifecycleTransition audit log, RunProgressEvent, and all operations, feed, and GTFS Realtime persistence models.
 ---
 
 # Django Models
@@ -39,7 +40,7 @@ it on every FSM transition.
 
 Immutable audit record written by the lifecycle service before any external
 side-effect. Because it is written before actions run, the log is authoritative
-even if a downstream action later fails.
+even if a downstream action later fails. For the full state and event set, see [run lifecycle states](../runs/lifecycle-states.md).
 
 | Field | Notes |
 | --- | --- |
@@ -61,7 +62,7 @@ The `GET /api/runs/<id>/history/` endpoint returns this log ordered by
 ### `RunProgressEvent`
 
 Records stop-level progress events (vehicle arrived at stop, departed, etc.)
-for analytics.
+for analytics. See the [Progress FSM](../runs/progress-fsm.md) for the motion-state design intent.
 
 | Field | Notes |
 | --- | --- |

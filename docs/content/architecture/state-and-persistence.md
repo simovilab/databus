@@ -1,5 +1,6 @@
 ---
 icon: lucide/database
+description: Two-store model — Redis as authoritative real-time state (single writer: realtime-engine) and PostgreSQL as durable domain history — with key namespaces and ownership.
 ---
 
 # State & persistence
@@ -8,7 +9,7 @@ Databús maintains two stores with different roles and lifetimes. Understanding 
 
 ## The two-store model
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────┐
 │  Redis (state)                                                   │
 │  Authoritative real-time picture                                 │
@@ -35,7 +36,7 @@ Databús maintains two stores with different roles and lifetimes. Understanding 
 
 Two namespaces, two owners:
 
-```
+```text
 vehicle:<id>:*      — edge-sensed data (MQTT → realtime-engine)
 run:<id>:*          — server-computed data (realtime-engine → FSM actions)
 runs:*              — index sets and timestamps (realtime-engine)

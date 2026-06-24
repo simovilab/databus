@@ -1,5 +1,6 @@
 ---
 icon: lucide/server
+description: Authoritative per-service role definitions and hard "Does NOT" boundaries for every Compose service in the Databús stack.
 ---
 
 # Services & mandates

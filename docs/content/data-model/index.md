@@ -1,5 +1,6 @@
 ---
 icon: lucide/database
+description: Overview of Databús data storage — the two Redis namespaces (edge-sensed vehicle:* and server-computed run:*/runs:*) and links to the Redis keys reference, telemetry contracts, Django models, and schedule engine pages.
 ---
 
 # Data Model

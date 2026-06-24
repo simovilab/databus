@@ -1,5 +1,6 @@
 ---
 icon: lucide/file-check
+description: Typed telemetry contract modules for every Redis key — validate_for_write (strict ingestion) and from_redis (tolerant reads) for position, occupancy, trip, vehicle_stop_status, congestion_level, and stop_time_updates.
 ---
 
 # Telemetry Contracts
@@ -60,7 +61,7 @@ Redis type: **Hash**
 
 **Valid `occupancy_status` values** (from `occupancy.VALID_STATUSES`):
 
-```
+```text
 EMPTY, MANY_SEATS_AVAILABLE, FEW_SEATS_AVAILABLE, STANDING_ROOM_ONLY,
 CRUSHED_STANDING_ROOM_ONLY, FULL, NOT_ACCEPTING_PASSENGERS,
 NO_DATA_AVAILABLE, NOT_BOARDABLE

@@ -1,5 +1,6 @@
 ---
 icon: lucide/bus
+description: What Databús is, who built it, and the problem it solves.
 ---
 
 # What is Databús
@@ -7,7 +8,7 @@ icon: lucide/bus
 Databús is a distributed transit data platform that ingests real-time vehicle
 telemetry, maintains authoritative in-memory operational state, and publishes
 GTFS Realtime feeds to transit consumers. It was built at the
-[SIMOVI Lab](https://simovi.org) (UCR — Universidad de Costa Rica) for the
+[SIMOVI Lab](https://simovilab.org) (UCR — Universidad de Costa Rica) for the
 Costa Rica public transit network, with `America/Costa_Rica` as the canonical
 timezone.
 
@@ -19,7 +20,7 @@ ambiguous: they must be matched to a specific trip and route before they become
 useful. Databús sits between the vehicle fleet and downstream consumers and
 handles that translation.
 
-```
+```text
 Vehicle (GPS + occupancy)
         │  MQTT
         ▼

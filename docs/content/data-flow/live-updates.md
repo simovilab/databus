@@ -1,5 +1,6 @@
 ---
 icon: lucide/activity
+description: Django Channels WebSocket heartbeat pushed by build_trip_updates every 15 s — carries last_update timestamp and active run count to signal the Nuxt frontend to re-fetch feeds.
 ---
 
 # Live updates (WebSocket)

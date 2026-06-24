@@ -1,5 +1,6 @@
 ---
 icon: lucide/rss
+description: How the schedule-engine Celery worker reads Redis snapshots every 15 s and writes GTFS-RT protobuf and JSON files for VehiclePositions and TripUpdates feeds.
 ---
 
 # GTFS Realtime publishing
@@ -48,7 +49,7 @@ app.conf.beat_schedule = {
 
 `backend/schedule_engine/builders.py` is the Django-free half of the pipeline. It imports nothing from Celery, Django, or Channels — only from `runs.domain.telemetry.*` and `keys`. This makes it unit-testable with a fake Redis client.
 
-```
+```text
 tasks.py  →  builders.py  →  runs.domain.telemetry.*  →  keys
 ```
 
@@ -112,7 +113,7 @@ with open(output_dir / "vehicle_positions.pb", "wb") as f:
 
 All files are written to `backend/feed/files/` (created on first run):
 
-```
+```text
 backend/feed/files/
 ├── vehicle_positions.pb    # GTFS-RT protobuf, refreshed every 15 s
 ├── vehicle_positions.json  # Debug JSON, same content

@@ -1,5 +1,6 @@
 ---
 icon: lucide/settings
+description: Complete environment variable reference for Databús — Django core, database, Redis, RabbitMQ, MQTT, Traefik domain routing, and development port bindings.
 ---
 
 # Configuration & environment variables
@@ -25,6 +26,9 @@ Databús is configured entirely through environment variables loaded from `.env`
 | `DEBUG` | *(not set)* | No | Set to `True` for development. Never set in production. |
 | `STATIC_URL` | `/static/` | No | URL prefix for static files. |
 | `MEDIA_URL` | `/media/` | No | URL prefix for media files. |
+
+!!! danger "Never in production"
+    Never set `DEBUG=True` in production — it exposes stack traces, settings, and internal URLs to anyone who triggers an error. Always generate a strong unique `SECRET_KEY` (never use the example value or leave it empty). Rotate default database, Redis, and RabbitMQ credentials (`DB_PASSWORD`, `REDIS_PASSWORD`, `RABBITMQ_PASS`) before first deployment — the defaults (`postgres`, `redispassword`, `guest`) are publicly known.
 
 ### Database (PostgreSQL / PostGIS)
 

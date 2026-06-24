@@ -1,10 +1,20 @@
 ---
 icon: lucide/wrench
+description: Diagnosis commands, log messages, Redis inspection, and known fixes for common Databús failure modes.
 ---
 
 # Troubleshooting & debugging
 
 A reference for diagnosing the most common failure modes in Databús, with concrete commands and known solutions.
+
+## Quick-reference: symptom → fix
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| MQTT messages processed twice; repeated connect/disconnect in `realtime-engine` logs | More than one worker has `MQTT_CONSUMER_ENABLED=true` | Ensure only the `realtime-engine` service sets `MQTT_CONSUMER_ENABLED=true`; see [Duplicate MQTT consumer](#duplicate-mqtt-consumer-symptom) |
+| No `vehicle:<id>:position` keys in Redis despite vehicle publishing | MQTT consumer disabled, vehicle has no active run, or wrong topic format | Check consumer log for `"MQTT consumer bootstep disabled"`; verify run exists; confirm topic is `transit/vehicle/<id>/position`; see [Telemetry not reaching Redis](#telemetry-not-reaching-redis) |
+| `backend/feed/files/` empty or stale (not refreshing every 15 s) | Celery beat or schedule-engine worker not running | Verify `scheduler` logs show `"Sending due task build-vehicle-positions-every-15s"`; check `schedule-engine` worker is online; see [GTFS-RT feeds not updating](#gtfs-rt-feeds-not-updating) |
+| Run stuck in `IN_PROGRESS` after vehicle stopped reporting | Stale-run scanner has not yet fired, or Redis holds orphaned state | Wait up to 60 s for `run_tracking_lost`, or manually cancel via Django admin + `cleanup_redis.py`; see [Run state stuck](#run-state-stuck-in-wrong-lifecycle-state) |
 
 ## Service logs
 
@@ -164,8 +174,12 @@ python scripts/cleanup_redis.py --force-all             # then execute
 python scripts/cleanup_redis.py --continuous 60
 ```
 
+!!! danger "Destructive — irreversible"
+    `--force-all` immediately flushes **all** vehicle and run entity hashes from Redis. This cannot be undone. Any active runs will lose their position, occupancy, stop-status, trip, and stop-time-update data. GTFS-RT feeds will be empty until new telemetry arrives. Only use this during testing or after all runs have been cleanly terminated.
+
 `--force-all` deletes these key patterns:
-```
+
+```text
 vehicle:*:metadata
 vehicle:*:position
 vehicle:*:occupancy

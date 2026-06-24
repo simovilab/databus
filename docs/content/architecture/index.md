@@ -1,5 +1,6 @@
 ---
 icon: lucide/network
+description: Overview of Databús architecture — distributed Django/Celery services, broker topology, and links to each architecture sub-page.
 ---
 
 # Architecture
@@ -14,8 +15,8 @@ flowchart TD
     end
 
     subgraph Brokers
-        telemetry_broker(("telemetry-broker\n(NanoMQ)"))
-        message_broker(("message-broker\n(RabbitMQ)"))
+        telemetry_broker(("telemetry-broker<br/>(NanoMQ)"))
+        message_broker(("message-broker<br/>(RabbitMQ)"))
     end
 
     subgraph Django["orchestrator (Django)"]
@@ -31,21 +32,21 @@ flowchart TD
 
     subgraph realtime_worker["realtime-engine (Celery worker)"]
         mqtt_bootstep[MQTT bootstep]
-        re_tasks[process_position_update\nrun_lifecycle_event\nscan_stale_runs]
+        re_tasks[process_position_update<br/>run_lifecycle_event<br/>scan_stale_runs]
     end
 
     subgraph schedule_worker["schedule-engine (Celery worker)"]
-        se_tasks[build_vehicle_positions\nbuild_trip_updates\nbuild_alerts]
+        se_tasks[build_vehicle_positions<br/>build_trip_updates<br/>build_alerts]
     end
 
-    scheduler_node(("scheduler\n(Celery Beat)"))
+    scheduler_node(("scheduler<br/>(Celery Beat)"))
 
     subgraph State
-        redis_node(("state\n(Redis)"))
+        redis_node(("state<br/>(Redis)"))
     end
 
     subgraph Persistence
-        pg_node(("database\n(PostgreSQL/PostGIS)"))
+        pg_node(("database<br/>(PostgreSQL/PostGIS)"))
     end
 
     subgraph Outputs
@@ -53,8 +54,8 @@ flowchart TD
         ws[/WebSocket/]
     end
 
-    analytics_engine(("analytics-engine\n(Prefect)"))
-    flower(("task-monitoring\n(Flower)"))
+    analytics_engine(("analytics-engine<br/>(Prefect)"))
+    flower(("task-monitoring<br/>(Flower)"))
 
     api --> Django
     mqtt_in --> telemetry_broker

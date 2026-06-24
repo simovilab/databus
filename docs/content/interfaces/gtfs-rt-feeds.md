@@ -1,5 +1,6 @@
 ---
 icon: lucide/rss
+description: GTFS Realtime feed files (VehiclePositions and TripUpdates) published every 15 seconds from Redis state by the schedule-engine worker.
 ---
 
 # GTFS Realtime Feeds

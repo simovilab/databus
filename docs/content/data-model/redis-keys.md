@@ -1,5 +1,6 @@
 ---
 icon: lucide/key
+description: Canonical reference for every Redis key in Databús — types, fields, writers, readers, and TTLs for all vehicle:*, run:*, and runs:* keys.
 ---
 
 # Redis State Keys
@@ -11,6 +12,28 @@ should hardcode these key strings — they are all defined in
 !!! tip "Namespace rule"
     `vehicle:<id>:*` — written by the edge (MQTT consumer).
     `run:<id>:*` and `runs:*` — written by the server (lifecycle actions, progression step).
+
+```mermaid
+flowchart TB
+  subgraph edge["vehicle:&lt;id&gt;:* — edge-sensed"]
+    pos["vehicle:&lt;id&gt;:position<br/>(hash — GPS + motion)"]
+    occ["vehicle:&lt;id&gt;:occupancy<br/>(hash — passenger load)"]
+    meta["vehicle:&lt;id&gt;:metadata<br/>(hash — descriptor)"]
+    cr["vehicle:&lt;id&gt;:current_run<br/>(string — run_id)"]
+  end
+  subgraph srv["run:&lt;id&gt;:* / runs:* — server-computed"]
+    run["run:&lt;id&gt;<br/>(hash — full assignment)"]
+    trip["run:&lt;id&gt;:trip<br/>(hash — GTFS-RT TripDescriptor)"]
+    vss["run:&lt;id&gt;:vehicle_stop_status<br/>(hash — stop relationship)"]
+    stu["run:&lt;id&gt;:stop_time_updates<br/>(string — JSON array)"]
+    ls["runs:last_seen:&lt;id&gt;<br/>(string — ISO-8601 timestamp)"]
+    sets["runs:tracking · runs:in_progress<br/>(sets — active run IDs)"]
+  end
+  mqtt["MQTT consumer"] -->|HSET / SET| edge
+  actions["lifecycle actions"] -->|HSET / SADD| srv
+  builders["GTFS-RT builders"] -.->|read| edge & srv
+  scan["scan_stale_runs"] -.->|SMEMBERS / GET| sets & ls
+```
 
 ---
 

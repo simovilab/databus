@@ -1,5 +1,6 @@
 ---
 icon: lucide/book-open
+description: One canonical definition for every domain term used in the Databús codebase.
 ---
 
 # Glossary
@@ -75,15 +76,29 @@ Written to `run:<id>:vehicle_stop_status` by the server progression step.
 Read by the GTFS-RT feed builder and the
 [RunCompletedDetector](../runs/detection.md).
 
+!!! note "Terminology: progression terms"
+    Three related terms are easy to conflate:
+
+    - **Progression / server-side progression** — the *act* of map-matching a GPS
+      position to the trip shape to determine where the vehicle is relative to its
+      stops. This is a computation, not a stored value.
+    - **`vehicle_stop_status`** — the *output* of that computation: one of
+      `INCOMING_AT`, `STOPPED_AT`, or `IN_TRANSIT_TO` (GTFS-RT `VehicleStopStatus`
+      enum), stored in `run:<id>:vehicle_stop_status`.
+    - **Progress FSM** — a *separate, not-yet-implemented* motion state machine
+      tracking whether the vehicle is physically moving (`IS_MOVING`), stationary
+      (`IS_STOPPED`), or paused (`IS_PAUSED`). Distinct from both progression and
+      stop status.
+
 ---
 
 ## Observation
 
 A message produced by the realtime-engine when it detects a meaningful state
 change from telemetry — e.g., `run_tracking_started` or `run_completed`. In
-the ARCHITECTURE.md messaging model, observations are "derived facts" emitted
-by the engine and consumed by the orchestrator. The AMQP event publisher
-(`backend/messages/publisher.py`) is the intended transport.
+the [messaging model](../architecture/messaging.md), observations are "derived
+facts" emitted by the engine and consumed by the orchestrator. The AMQP event
+publisher (`backend/messages/publisher.py`) is the intended transport.
 
 See [Interfaces › AMQP event semantics](../interfaces/amqp-events.md).
 
@@ -94,7 +109,8 @@ See [Interfaces › AMQP event semantics](../interfaces/amqp-events.md).
 A synchronous operator- or API-driven request to transition a run's lifecycle.
 Examples: `RUN_CONFIRMED`, `RUN_COMPLETED` (when manually triggered),
 `RUN_INTERRUPTED`, `RUN_SHORT_TURNED`. Commands arrive via the REST API
-(`POST /api/runs/<id>/update/`).
+(`POST /api/runs/<id>/update/`). See the [messaging model](../architecture/messaging.md)
+for how commands relate to observations and assertions.
 
 The distinction between commands and detected facts is central to understanding
 the lifecycle. See [Run lifecycle › Commands vs detected facts](../runs/commands-vs-detections.md).

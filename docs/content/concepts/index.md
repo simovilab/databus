@@ -1,5 +1,6 @@
 ---
 icon: lucide/lightbulb
+description: Overview of background concepts for understanding Databús: purpose, standards, terminology, and design principles.
 ---
 
 # Concepts

@@ -1,20 +1,21 @@
 ---
 icon: lucide/layers
+description: Six-layer model (Ingestion → Learning) that structures Databús, with each layer mapped to its owning Compose service and technology.
 ---
 
 # System overview
 
-Databús is structured around six functional layers. Each layer has a single authoritative owner; the boundaries are enforced by service mandates (see [services.md](services.md)) rather than code gates.
+Databús is structured around six functional layers. Each layer has a single authoritative owner; the boundaries are enforced by service mandates (see [Services & mandates](services.md)) rather than code gates.
 
 ## The six layers
 
 ```mermaid
 flowchart LR
-    A["Ingestion\nREST API · MQTT"] --> B["Processing\nCelery realtime-engine"]
-    B --> C["State\nRedis"]
-    C --> D["Projection\nCelery schedule-engine"]
-    D --> E["Persistence\nPostgreSQL"]
-    E --> F["Learning\nPrefect"]
+    A["Ingestion<br/>REST API · MQTT"] --> B["Processing<br/>Celery realtime-engine"]
+    B --> C["State<br/>Redis"]
+    C --> D["Projection<br/>Celery schedule-engine"]
+    D --> E["Persistence<br/>PostgreSQL"]
+    E --> F["Learning<br/>Prefect"]
 ```
 
 ### Ingestion
@@ -35,11 +36,11 @@ The `realtime-engine` worker converts raw telemetry into domain state:
 
 ### State
 
-Redis (`state` service) holds the **authoritative real-time picture** of every active run and vehicle. It is the only coordination point between the processing and projection layers. The `realtime-engine` is the sole writer of run/vehicle state; the `schedule-engine` reads it as a snapshot. See [state-and-persistence.md](state-and-persistence.md) and [../data-model/redis-keys.md](../data-model/redis-keys.md) for the full key reference.
+Redis (`state` service) holds the **authoritative real-time picture** of every active run and vehicle. It is the only coordination point between the processing and projection layers. The `realtime-engine` is the sole writer of run/vehicle state; the `schedule-engine` reads it as a snapshot. See [State & persistence](state-and-persistence.md) and [Redis state keys](../data-model/redis-keys.md) for the full key reference.
 
 ### Projection
 
-Every 15 seconds the `scheduler` fires `build_vehicle_positions` and `build_trip_updates` on the `schedule-engine` worker. That worker reads the Redis snapshot, converts it to protobuf and JSON, and writes GTFS-RT files to `backend/feed/files/`. Alerts are rebuilt every 10 seconds (currently a stub returning an empty feed). See [../data-flow/gtfs-rt-publishing.md](../data-flow/gtfs-rt-publishing.md).
+Every 15 seconds the `scheduler` fires `build_vehicle_positions` and `build_trip_updates` on the `schedule-engine` worker. That worker reads the Redis snapshot, converts it to protobuf and JSON, and writes GTFS-RT files to `backend/feed/files/`. Alerts are rebuilt every 10 seconds (currently a stub returning an empty feed). See [GTFS Realtime publishing](../data-flow/gtfs-rt-publishing.md).
 
 ### Persistence
 

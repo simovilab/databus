@@ -1,5 +1,6 @@
 ---
 icon: lucide/calendar
+description: The schedule_engine app's two roles — GTFS Schedule querying for the operator UI and GTFS Realtime feed building from the Redis snapshot — covering builders, Celery tasks, REST schedule endpoints, and the fake_stop_times compatibility module.
 ---
 
 # Schedule Engine (GTFS Schedule side)

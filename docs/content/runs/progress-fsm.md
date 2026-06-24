@@ -1,5 +1,6 @@
 ---
 icon: lucide/activity
+description: The Progress FSM design intent (IS_MOVING / IS_STOPPED / IS_PAUSED motion states) and the current implementation status — the module exists as a lifecycle-mirroring scaffold with no active call path.
 ---
 
 # Progress FSM (motion)

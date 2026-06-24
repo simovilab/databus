@@ -1,5 +1,6 @@
 ---
 icon: lucide/rocket
+description: Production deployment on Docker Compose with Traefik reverse proxy — TLS termination, environment files, volumes, and common operational commands.
 ---
 
 # Deployment (production)

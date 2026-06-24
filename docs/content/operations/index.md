@@ -1,5 +1,6 @@
 ---
 icon: lucide/terminal
+description: Operations index — practical guides for running and maintaining a Databús instance, from local development through production deployment.
 ---
 
 # Operations

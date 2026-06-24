@@ -1,5 +1,6 @@
 ---
 icon: lucide/git-branch
+description: AMQP event semantics for the databus.events direct exchange — routing-key namespace, message envelope, and current stub status.
 ---
 
 # AMQP Event Semantics
@@ -62,6 +63,64 @@ routing-key set:
 | `runs.initialization.failed` | Redis state write failed |
 
 Client bindings should use `runs.*` to receive all run-lifecycle events.
+
+---
+
+## Topology diagram
+
+```mermaid
+flowchart LR
+    O[orchestrator<br/>REST API] -->|publish| E["databus.events<br/>(direct exchange)"]
+    RE[realtime-engine<br/>Celery worker] -->|publish| E
+    E -->|runs.submission.*| C1[Consumer A<br/>bind: runs.*]
+    E -->|runs.validation.*| C1
+    E -->|runs.initialization.*| C1
+    E -->|runs.submission.*| C2[Consumer B<br/>bind: runs.submission.*]
+```
+
+!!! warning "Publisher stub — not yet wired"
+    The diagram shows the **intended** topology. The `publish_event` function currently prints to stdout instead of publishing to the exchange. No messages flow through RabbitMQ until the stub is replaced with a real `producer.publish()` call.
+
+---
+
+## Intended event envelope and consumer stub
+
+The following examples reflect the **intended** contract once the publisher is wired.
+
+**Sample event envelope payload** (the shape `publish_event` is designed to send):
+
+```json
+{
+    "name": "runs.submission.succeeded",
+    "data": {
+        "run_id": "550e8400-e29b-41d4-a716-446655440000",
+        "run_lifecycle_state": "Initialized"
+    }
+}
+```
+
+**Consumer stub** — binding to `runs.*` on the `databus.events` exchange using Kombu:
+
+```python
+from kombu import Connection, Exchange, Queue
+
+AMQP_URL = "amqp://guest:guest@localhost:5672/"
+exchange = Exchange("databus.events", type="direct")
+
+# Bind a queue to every runs.* routing key
+runs_queue = Queue("my-service.runs", exchange=exchange, routing_key="runs.*")
+
+def process_event(body, message):
+    print(f"Event: {body['name']}, data: {body['data']}")
+    message.ack()
+
+with Connection(AMQP_URL) as conn:
+    with conn.Consumer(runs_queue, callbacks=[process_event]):
+        conn.drain_events(timeout=None)  # blocks; use in a thread or Celery task
+```
+
+!!! note
+    The `runs.*` wildcard works with a **direct** exchange only if you bind to each routing key explicitly, or use a **topic** exchange instead. The current design uses `direct`; the stub above binds to a single queue but in practice you would create one binding per routing key (e.g. `runs.submission.succeeded`, `runs.validation.failed`, etc.). Check the git log for any exchange-type change before implementing.
 
 ---
 

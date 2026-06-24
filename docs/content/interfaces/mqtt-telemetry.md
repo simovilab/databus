@@ -1,5 +1,6 @@
 ---
 icon: lucide/radio
+description: MQTT topic grammar, payload schemas, and QoS contracts for vehicle telemetry ingestion into the NanoMQ broker.
 ---
 
 # MQTT Telemetry Contract
@@ -15,7 +16,7 @@ Broker: **NanoMQ** at `telemetry-broker:1883` (internal) / `mqtt.<domain>:8883`
 
 ## Topic grammar
 
-```
+```text
 transit/vehicle/<vehicle_id>/<leaf>
 ```
 
@@ -28,7 +29,7 @@ transit/vehicle/<vehicle_id>/<leaf>
 
 The MQTT consumer uses `+` wildcard subscriptions:
 
-```
+```text
 transit/vehicle/+/position    QoS 0
 transit/vehicle/+/occupancy   QoS 0
 ```
@@ -154,7 +155,7 @@ whose run has already ended.
 
 Each consumer instance generates a unique MQTT `client_id`:
 
-```
+```text
 databus-mqtt-consumer-<hostname>-<pid>
 ```
 
@@ -192,3 +193,25 @@ state or causing incorrect lifecycle events.
 
 See [Operations › Configuration](../operations/configuration.md) for the full
 environment variable reference.
+
+---
+
+## Copy-paste examples
+
+### Publish a position update
+
+```bash
+mosquitto_pub -h localhost -p 1883 \
+  -t 'transit/vehicle/vehicle-001/position' \
+  -m '{"latitude": 9.9341, "longitude": -84.0875, "bearing": 45.0, "speed": 8.3, "odometer": 12350.5, "timestamp": 1718800000}'
+```
+
+### Publish an occupancy update
+
+```bash
+mosquitto_pub -h localhost -p 1883 \
+  -t 'transit/vehicle/vehicle-001/occupancy' \
+  -m '{"occupancy_percentage": 65, "occupancy_count": 32}'
+```
+
+Replace `vehicle-001` with the actual `operations.Vehicle.id`. Both topics require QoS 0. The vehicle must be assigned to an active run (via `POST /api/create-run/` + `run_confirmed_by_operator`) or the messages will be silently dropped.

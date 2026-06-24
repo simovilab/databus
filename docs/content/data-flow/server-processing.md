@@ -1,5 +1,6 @@
 ---
 icon: lucide/cpu
+description: Four-step process_position_update Celery task — map-matching, completion detection, stop-time projection, and position-leaf detection — running off the paho network thread.
 ---
 
 # Server-side processing
@@ -96,12 +97,12 @@ This is where `RunStartedDetector` fires: it checks `speed > 0.5 m/s` on the pos
 
 ```mermaid
 flowchart TD
-    A[process_position_update\nrun_id, vehicle_id] --> B[Step 1\nproduce_stop_status\nGPS → map-match → HSET stop_status]
-    B --> C{stop_status\ncomputed?}
-    C -- yes --> D[Step 2\ndetect_from_telemetry\nleaf='progression']
-    C -- no --> E[Step 3\nproduce_stop_times\nwrite stop_time_updates TTL 60s]
+    A[process_position_update<br/>run_id, vehicle_id] --> B[Step 1<br/>produce_stop_status<br/>GPS → map-match → HSET stop_status]
+    B --> C{stop_status<br/>computed?}
+    C -- yes --> D[Step 2<br/>detect_from_telemetry<br/>leaf='progression']
+    C -- no --> E[Step 3<br/>produce_stop_times<br/>write stop_time_updates TTL 60s]
     D --> E
-    E --> F[Step 4\nre-read position from Redis\ndetect_from_telemetry leaf='position']
+    E --> F[Step 4<br/>re-read position from Redis<br/>detect_from_telemetry leaf='position']
     F --> G[done]
 ```
 
