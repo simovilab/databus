@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gtfs-eta"
+version = "0.1.0"
+description = "Namespaced ETA-prediction inference package for the SIMOVI databus"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.3",
+    "scikit-learn>=1.7",
+    "holidays>=0.40",
+]
+
+[project.optional-dependencies]
+xgboost = ["xgboost>=3.1"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gtfs_eta*"]
