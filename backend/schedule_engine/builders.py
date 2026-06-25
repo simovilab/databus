@@ -201,8 +201,20 @@ def build_trip_update_entity(r, run_id: str) -> dict | None:
     # entries in the feed).
     raw = r.get(keys.stop_time_updates_key(run_id))
     entries = stop_time_updates.from_redis(raw)
+
+    # Defensive sort + dedup: the producer already guarantees ordering and
+    # uniqueness, but belt-and-suspenders here ensures a corrupt projection
+    # never produces an invalid GTFS-RT feed.
+    seen_seqs: set[int] = set()
+    deduped_entries: list[dict] = []
+    for entry in sorted(entries, key=lambda e: e["stop_sequence"]):
+        seq = entry["stop_sequence"]
+        if seq not in seen_seqs:
+            seen_seqs.add(seq)
+            deduped_entries.append(entry)
+
     tu["stop_time_update"] = []
-    for u in entries:
+    for u in deduped_entries:
         tu["stop_time_update"].append(
             {
                 "stop_sequence": u["stop_sequence"],
