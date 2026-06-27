@@ -100,3 +100,22 @@ def build_trip_updates():
 @shared_task(queue="schedule_engine")
 def build_alerts():
     return "Feed ServiceAlert built"
+
+
+@shared_task(queue="schedule_engine")
+def build_schedule():
+    """Build the GTFS Schedule zip and publish it to feed/files/gtfs.zip."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    from feed.models import Feed
+    from feed.schedule.exporter import publish_gtfs_zip
+
+    feed = Feed.objects.filter(is_current=True).first()
+    if feed is None:
+        logger.warning("build_schedule: no current Feed found, skipping")
+        return
+
+    dest = publish_gtfs_zip(feed)
+    return f"GTFS Schedule zip published: {dest} ({dest.stat().st_size} bytes)"

@@ -50,4 +50,8 @@ app.conf.beat_schedule = {
         "task": "realtime_engine.tasks.scan_stale_runs",
         "schedule": timedelta(seconds=30),
     },
+    "build-schedule-daily": {
+        "task": "schedule_engine.tasks.build_schedule",
+        "schedule": timedelta(days=1),
+    },
 }

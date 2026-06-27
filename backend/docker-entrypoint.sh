@@ -237,6 +237,12 @@ load_initial_data() {
     if [ -f feed/fixtures/gtfs.json ]; then
         log "Loading initial data fixture gtfs.json"
         uv run python manage.py loaddata gtfs.json || warn "Initial data load failed"
+        if [ -f feed/files/gtfs.zip ]; then
+            log "GTFS Schedule zip already present; skipping export (daily task or 'manage.py export_gtfs' will refresh it)"
+        else
+            log "Exporting GTFS Schedule zip"
+            uv run python manage.py export_gtfs || warn "GTFS Schedule zip export skipped"
+        fi
     else
         log "No optional initial data fixture gtfs.json present"
     fi
