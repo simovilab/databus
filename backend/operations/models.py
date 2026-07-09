@@ -70,6 +70,14 @@ class Vehicle(models.Model):
     )
     label = models.CharField(max_length=100, blank=True, null=True)
     license_plate = models.CharField(max_length=31)
+    position_source_type = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        choices=[("mqtt", "MQTT"), ("http", "HTTP"), ("both", "Both")],
+    )
+    position_source_url = models.URLField(blank=True, null=True)
+    position_source_paths = models.JSONField(blank=True, null=True)
     wheelchair_accessible = models.CharField(
         max_length=100,
         blank=True,
