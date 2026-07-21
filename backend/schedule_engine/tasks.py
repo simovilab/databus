@@ -1,5 +1,5 @@
 import os
-from celery import chord, group, shared_task
+from celery import shared_task
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import json
@@ -8,12 +8,6 @@ from datetime import datetime
 from django.conf import settings
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 from google.protobuf import json_format
-
-# Probably needed imports for telemetry fetching
-import requests
-import paho.mqtt.client as mqtt
-from operations.models import Vehicle
-
 
 from .builders import (
     build_vehicle_positions_feed,
@@ -103,101 +97,6 @@ def build_trip_updates():
     return f"TripUpdates built: {len(feed_message['entity'])} entities"
 
 
-def fetch_and_publish(vehicle):
-    response = requests.get(vehicle.position_source_url, timeout=10)
-    response.raise_for_status()
-    data = response.json()
-
-    # Extract relevant fields from the JSON response using the position_source_paths mapping
-    timestamp = data.get(vehicle.position_source_paths.get("paths").get("timestamp"))
-    lat = data.get(vehicle.position_source_paths.get("paths").get("lat"))
-    lon = data.get(vehicle.position_source_paths.get("paths").get("lon"))
-    speed = data.get(vehicle.position_source_paths.get("paths").get("speed"))
-
-    # Publish to MQTT broker
-    mqtt_client = mqtt.Client()
-    mqtt_client.connect(settings.MQTT_BROKER_HOST, settings.MQTT_BROKER_PORT, 60)
-    topic = f"vehicle/{vehicle.id}/position"
-    payload = json.dumps(
-        {"timestamp": timestamp, "lat": lat, "lon": lon, "speed": speed}
-    )
-    mqtt_client.publish(topic, payload)
-    mqtt_client.disconnect()
-    return None
-
-
-@shared_task(queue="schedule_engine")
-def fetch_position():
-    """
-    Fetch telemetry position data from configured sources.
-
-    Using the TelemetrySources model, this task retrieves telemetry data from various sources.
-
-    The retrieved data is then processed relayed to the MQTT broker for further use in the system.
-
-    type: array
-    vehicle_id: JSON PATH
-    timestamp: JSON PATH element.crDateTime
-    lat: JSON PATH
-    lon: JSON PATH
-    speed: JSON PATH
-
-    position_source_paths = {
-       "type": "array",
-       "paths": {
-           "vehicle_id": "plateNumber",
-           "timestamp": "crDateTime",
-           "lat": "latitude",
-           "lon": "longitude",
-           "speed": "speed"
-       }
-    }
-
-    Publish to MQTT broker at topic: vehicle/<vehicle_id>/position with payload:
-    {
-        "timestamp": <timestamp>,
-        "lat": <lat>,
-        "lon": <lon>,
-        "speed": <speed>
-    }
-    """
-    vehicles_in_runs_in_progress = get_redis().smembers("runs:in_progress")
-    for vehicle_in_progress in vehicles_in_runs_in_progress:
-        vehicle = Vehicle.objects.get(id=vehicle_in_progress)
-        if vehicle.position_source_type == "mqtt":
-            # Check if the vehicle has updated positions in Redis
-            position_data = get_redis().get(f"vehicle:{vehicle.id}:position")
-            if position_data:
-                continue  # Position data already exists, skip fetching
-            elif vehicle.position_source_type == "both":
-                try:
-                    fetch_and_publish(vehicle)
-                except requests.RequestException as e:
-                    print(f"Error fetching position for vehicle {vehicle.id}: {e}")
-                except Exception as e:
-                    print(f"Unexpected error for vehicle {vehicle.id}: {e}")
-        elif vehicle.position_source_type == "http":
-            try:
-                fetch_and_publish(vehicle)
-            except requests.RequestException as e:
-                print(f"Error fetching position for vehicle {vehicle.id}: {e}")
-            except Exception as e:
-                print(f"Unexpected error for vehicle {vehicle.id}: {e}")
-    return "Position data fetched and published to MQTT broker"
-
-
 @shared_task(queue="schedule_engine")
 def build_alerts():
     return "Feed ServiceAlert built"
-
-
-@shared_task(queue="schedule_engine")
-def update_gtfs_realtime():
-
-    fetching = group(fetch_position.s())
-    building = group(
-        build_vehicle_positions.s(), build_trip_updates.s(), build_alerts.s()
-    )
-    workflow = chord(fetching)(building)
-
-    return workflow.id
