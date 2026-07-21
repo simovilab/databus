@@ -50,4 +50,8 @@ app.conf.beat_schedule = {
         "task": "realtime_engine.tasks.scan_stale_runs",
         "schedule": timedelta(seconds=30),
     },
+    "fetch-positions": {
+        "task": "realtime_engine.tasks.fetch_positions",
+        "schedule": timedelta(seconds=10),
+    },
 }
