@@ -28,7 +28,6 @@ import realtime_engine.tasks as tasks_module
 from realtime_engine.tasks import fetch_positions
 from runs.domain.telemetry import keys
 
-RUN_ID = "run-1"
 IN_SERVICE_VEHICLE_ID = "veh-in-service"
 OUT_OF_SERVICE_VEHICLE_ID = "veh-out-of-service"
 
@@ -42,19 +41,11 @@ def _make_sensor(sensor_id="sensor-1"):
     )
 
 
-def _fake_redis(run_ids=(RUN_ID,), vehicle_by_run=None) -> MagicMock:
-    """Redis mock: runs:in_progress -> run_ids, run:<id> hash -> {'vehicle': ...}."""
-    vehicle_by_run = vehicle_by_run or {RUN_ID: IN_SERVICE_VEHICLE_ID}
+def _fake_redis(in_service=(IN_SERVICE_VEHICLE_ID,)) -> MagicMock:
+    """Redis mock: ``scan_iter`` over ``vehicle:*:current_run`` yields one key
+    per in-service vehicle -- the same ``current_run`` gate the task uses."""
     r = MagicMock()
-    r.smembers.return_value = set(run_ids)
-
-    def _hgetall(key):
-        for run_id, vehicle_id in vehicle_by_run.items():
-            if key == keys.run_key(run_id):
-                return {"vehicle": vehicle_id}
-        return {}
-
-    r.hgetall.side_effect = _hgetall
+    r.scan_iter.return_value = [keys.current_run_key(vid) for vid in in_service]
     return r
 
 
@@ -165,7 +156,7 @@ def test_fetch_positions_isolates_a_raising_sensor(monkeypatch):
 
 def test_fetch_positions_queries_only_active_http_position_sensors(monkeypatch):
     """Sanity-check the filter kwargs passed to Sensor.objects.filter."""
-    fake_r = _fake_redis(run_ids=())
+    fake_r = _fake_redis(in_service=())
     monkeypatch.setattr(tasks_module, "redis_client", fake_r)
 
     manager = _fake_sensor_manager([])

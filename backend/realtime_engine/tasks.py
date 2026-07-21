@@ -70,8 +70,13 @@ def scan_stale_runs() -> str:
 def fetch_positions() -> str:
     """Poll active HTTP telemetry sources and publish in-service vehicle positions.
 
-    1. Build the in-service vehicle-id set: every run in ``runs:in_progress``
-       contributes the ``vehicle`` field of its ``run:<run_id>`` hash.
+    1. Build the in-service vehicle-id set: every vehicle with an active
+       (non-terminal) run assigned, i.e. a ``vehicle:<id>:current_run`` key.
+       This is the *same* gate the MQTT consumer uses to accept telemetry, so
+       the poller and the consumer agree on which vehicles count. Gating on
+       ``runs:in_progress`` instead would deadlock a CONFIRMED run: it only
+       reaches IN_PROGRESS once telemetry proves the vehicle is moving, and
+       delivering that telemetry is exactly this task's job.
     2. Query ACTIVE sensors that provide position data over HTTP (source_type
        "http" or "both" both use the "http" adapter).
     3. Fetch each sensor's readings, keep only the ones for in-service
@@ -85,13 +90,13 @@ def fetch_positions() -> str:
     from realtime_engine.sources import get_adapter
     from realtime_engine.sources.publisher import MqttPublisher
 
-    run_ids = redis_client.smembers("runs:in_progress")
-    in_service_vehicle_ids: set[str] = set()
-    for run_id in run_ids:
-        run_data = redis_client.hgetall(keys.run_key(run_id))
-        vehicle_id = run_data.get("vehicle")
-        if vehicle_id:
-            in_service_vehicle_ids.add(vehicle_id)
+    # Derive the key prefix/suffix from the helper so we never hardcode the
+    # ``vehicle:<id>:current_run`` shape here.
+    _prefix, _suffix = keys.current_run_key("\x00").split("\x00")
+    in_service_vehicle_ids: set[str] = {
+        key[len(_prefix): len(key) - len(_suffix)]
+        for key in redis_client.scan_iter(match=keys.current_run_key("*"))
+    }
 
     sensors = Sensor.objects.filter(
         status="ACTIVE",
