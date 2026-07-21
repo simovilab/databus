@@ -67,6 +67,71 @@ def scan_stale_runs() -> str:
 
 
 @shared_task(queue="realtime_engine")
+def fetch_positions() -> str:
+    """Poll active HTTP telemetry sources and publish in-service vehicle positions.
+
+    1. Build the in-service vehicle-id set: every run in ``runs:in_progress``
+       contributes the ``vehicle`` field of its ``run:<run_id>`` hash.
+    2. Query ACTIVE sensors that provide position data over HTTP (source_type
+       "http" or "both" both use the "http" adapter).
+    3. Fetch each sensor's readings, keep only the ones for in-service
+       vehicles, and publish the survivors on ``transit/vehicle/<id>/position``.
+
+    Each sensor is fetched independently inside its own try/except so one
+    failing source can't sink the rest of the poll.
+    """
+    from operations.models import Sensor
+    from runs.domain.telemetry import keys
+    from realtime_engine.sources import get_adapter
+    from realtime_engine.sources.publisher import MqttPublisher
+
+    run_ids = redis_client.smembers("runs:in_progress")
+    in_service_vehicle_ids: set[str] = set()
+    for run_id in run_ids:
+        run_data = redis_client.hgetall(keys.run_key(run_id))
+        vehicle_id = run_data.get("vehicle")
+        if vehicle_id:
+            in_service_vehicle_ids.add(vehicle_id)
+
+    sensors = Sensor.objects.filter(
+        status="ACTIVE",
+        provides_position=True,
+        source_type__in=["http", "both"],
+    ).select_related("equipment__vehicle")
+
+    readings: list[tuple[str, dict]] = []
+    sensor_count = 0
+    failure_count = 0
+    for sensor in sensors:
+        sensor_count += 1
+        try:
+            adapter = get_adapter("http")
+            fetched = adapter.fetch(sensor)
+        except Exception:
+            failure_count += 1
+            logger.exception(
+                "Position fetch failed for sensor %s", getattr(sensor, "id", "?")
+            )
+            continue
+
+        for vehicle_id, payload in fetched:
+            if vehicle_id in in_service_vehicle_ids:
+                readings.append((vehicle_id, payload))
+
+    if readings:
+        try:
+            MqttPublisher().publish_batch(readings)
+        except Exception:
+            failure_count += 1
+            logger.exception("Failed to publish fetched positions batch")
+
+    return (
+        f"fetch_positions: polled {sensor_count} sensors, "
+        f"{failure_count} failures, published {len(readings)} positions"
+    )
+
+
+@shared_task(queue="realtime_engine")
 def process_position_update(run_id: str, vehicle_id: str) -> None:
     """Run server-side producers and detection for a position update.
 
