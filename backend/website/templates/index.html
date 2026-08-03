@@ -26,36 +26,34 @@
     <main class="w-100 m-auto">
       <div class="container">
         <img
-          src="{% static 'img/b_azul_fondo_blanco.png' %}"
-          width="150px"
+          src="{% static 'img/databus.png' %}"
+          width="300px"
           alt="Símbolo servidor en tiempo real"
         />
-        <h1 class="display-1 fw-bold">databús</h1>
-        <h1 class="display-4">Servidor en tiempo real</h1>
+        <h1 class="display-1 fw-bold mb-4">RT</h1>
+        <h1 class="display-4">Real-time transit data server</h1>
         <div class="col-md-4 mx-auto">
           <p class="lead">
-            Recolección periódica de datos desde vehículos de transporte público
-            para la creación del <em>feed</em> GTFS&nbsp;<em>Realtime</em> y
-            otros suministros de datos.
+            <strong>Databús RT</strong> is a real-time transit tracking and telemetry server and GTFS <em>Realtime</em> producer, using a REST API for static information and MQTT for updates.
           </p>
         </div>
         <p>
           <i class="bi bi-file-earmark-text-fill"></i>
           <a
+            href="https://databus.simovilab.org/"
+            class="text-decoration-none"
+            target="_blank"
+            ><strong>Databús RT</strong> System Documentation
+          </a>
+        </p>
+        <p>
+          <i class="bi bi-file-earmark-code-fill"></i>
+          <a
             href="{% url 'api_docs' %}"
             class="text-decoration-none"
             target="_blank"
-            >Documentación <strong>Databús API v1.0</strong></a
-          >
-        </p>
-        <p>
-          <i class="bi bi-clipboard2-pulse-fill"></i>
-          <a
-            href="{% url 'status' %}"
-            class="text-decoration-none"
-            target="_blank"
-            >Estado del sistema</a
-          >
+            ><strong>Databús API v1.0</strong> Documentation
+          </a>
         </p>
         <span class="badge rounded-pill text-bg-warning">En desarrollo</span>
       </div>
