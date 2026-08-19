@@ -52,12 +52,9 @@ class LoginSerializer(serializers.Serializer):
 
 
 class CompanySerializer(serializers.HyperlinkedModelSerializer):
-    """Serialize a Company, the legal entity operating vehicles under a GTFS Agency."""
-
-    agency = serializers.PrimaryKeyRelatedField(queryset=Agency.objects.all())
+    """Serialize a Company, the legal entity operating vehicles under one or more GTFS Agencies."""
 
     class Meta:
-        model = Company
         model = Company
         fields = "__all__"
         ordering = ["id"]
