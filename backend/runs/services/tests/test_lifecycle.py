@@ -11,7 +11,10 @@ for a `Run` model instance.
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from runs.domain.lifecycle import RunLifecycleEvents, RunLifecycleStates, Transition
+from runs.services.exceptions import RunLifecycleError
 from runs.services.lifecycle import RunLifecycleService
 
 
@@ -122,3 +125,21 @@ def test_publish_omits_absent_fields(monkeypatch):
     assert "vehicle_id" not in kwargs["data"]
     assert "trip_id" not in kwargs["data"]
     assert "route_id" not in kwargs["data"]
+
+
+# ---------------------------------------------------------------------------
+# _load_run: a payload missing run_id must fail fast with a clear error
+# instead of a confusing Run.DoesNotExist from `WHERE id IS NULL`.
+# ---------------------------------------------------------------------------
+
+
+def test_load_run_raises_lifecycle_error_when_run_id_absent():
+    with pytest.raises(RunLifecycleError) as exc_info:
+        _service()._load_run({})
+    assert "missing run_id" in exc_info.value.errors["detail"]
+
+
+def test_load_run_raises_lifecycle_error_when_run_id_falsy():
+    with pytest.raises(RunLifecycleError) as exc_info:
+        _service()._load_run({"run_id": None})
+    assert "missing run_id" in exc_info.value.errors["detail"]

@@ -51,10 +51,17 @@ class RunLifecycleService:
         )
 
     def _load_run(self, payload: dict[str, Any]) -> Run:
+        """Look up the Run named by payload["run_id"], failing fast if it's absent."""
         run_id = payload.get("run_id")
+        if not run_id:
+            # Without this, a payload missing run_id falls through to
+            # Run.objects.get(id=None), which never matches and surfaces as a
+            # confusing Run.DoesNotExist. Raise the app's own lifecycle error
+            # instead so existing RunLifecycleError handlers (API views,
+            # realtime_engine.tasks.run_lifecycle_event) already catch it.
+            raise RunLifecycleError({"detail": "lifecycle event payload missing run_id"})
         # payload is dict[str, Any], so .get() is typed as Any | None; cast is a
-        # static-only narrowing — a missing/malformed run_id still reaches the ORM
-        # unchanged and raises Run.DoesNotExist, exactly as before this annotation.
+        # static-only narrowing — run_id is confirmed truthy by the check above.
         return Run.objects.get(id=cast(str, run_id))
 
     def _check_guards(
