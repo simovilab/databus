@@ -181,7 +181,34 @@ class RunLifecycleGuards:
     def is_run_validated(
         run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> bool:
-        """No-op guard: validation was already enforced by the VALIDATE_RUN transition, so this always passes."""
+        """Revalidate resource availability and the run's trip against the *current* feed before INITIALIZE_RUN.
+
+        Closes the VALIDATE_RUN -> INITIALIZE_RUN race window: re-runs the
+        same vehicle/trip/operator availability checks performed at
+        VALIDATE_RUN (each raises only when the resource is claimed by a
+        *different* run, so a re-fire where this run already holds its own
+        claims still passes), then re-confirms the run's trip still exists
+        in whichever feed is current *now* -- the successor of the old
+        validate_schedule check, covering the nightly build_schedule feed
+        rotation that may have happened between validation and
+        initialization. Raises RunLifecycleError with field-keyed detail on
+        any failure.
+        """
+        from feed.models import Feed, Trip
+
+        RunLifecycleGuards.is_vehicle_available(run, transition, payload)
+        RunLifecycleGuards.is_trip_available(run, transition, payload)
+        RunLifecycleGuards.is_operator_available(run, transition, payload)
+
+        trip_id = payload.get("trip_id") or run.trip_id
+        feed = Feed.objects.filter(is_current=True).first()
+        if not feed:
+            raise RunLifecycleError({"feed": "No current GTFS feed found"})
+        if not trip_id or not Trip.objects.filter(feed=feed, trip_id=trip_id).exists():
+            raise RunLifecycleError(
+                {"trip_id": f"trip_id '{trip_id}' not found in current GTFS feed"}
+            )
+
         return True
 
     @staticmethod
