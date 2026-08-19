@@ -33,7 +33,6 @@ dependencies = [
     "python-decouple>=3.8",
     "redis>=6.4.0",
     "requests>=2.32.5",
-    "xgboost>=3.4.1",
 ]
 
 [dependency-groups]
