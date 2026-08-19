@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from typing import cast
 
 import paho.mqtt.client as mqtt
 
@@ -23,6 +24,7 @@ POSITION_TOPIC_TEMPLATE = "transit/vehicle/{vehicle_id}/position"
 
 
 def position_topic(vehicle_id: str) -> str:
+    """Build the MQTT position topic for `vehicle_id`."""
     return POSITION_TOPIC_TEMPLATE.format(vehicle_id=vehicle_id)
 
 
@@ -42,19 +44,23 @@ def publish_position(client: mqtt.Client, vehicle_id: str, payload: dict) -> Non
 class MqttPublisher:
     """Thin wrapper managing a paho v2 client's connect/publish/disconnect cycle."""
 
-    def __init__(self, host: str | None = None, port: int | None = None):
+    def __init__(self, host: str | None = None, port: int | None = None) -> None:
+        """Configure the client's target host/port; connect() is called separately."""
         self.host = host or MQTT_HOST
         self.port = port or MQTT_PORT
         self._client: mqtt.Client | None = None
 
     def _build_client(self) -> mqtt.Client:
+        """Construct a fresh, unconnected paho v2-callback-API client."""
         return mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
     def connect(self) -> None:
+        """Build and connect the underlying MQTT client."""
         self._client = self._build_client()
         self._client.connect(self.host, self.port, keepalive=60)
 
     def disconnect(self) -> None:
+        """Disconnect and discard the underlying MQTT client, if connected."""
         if self._client is None:
             return
         try:
@@ -71,8 +77,10 @@ class MqttPublisher:
         is logged (via ``publish_position``) without aborting the batch.
         """
         self.connect()
+        # connect() always sets _client; cast narrows the Optional for the type checker.
+        client = cast("mqtt.Client", self._client)
         try:
             for vehicle_id, payload in records:
-                publish_position(self._client, vehicle_id, payload)
+                publish_position(client, vehicle_id, payload)
         finally:
             self.disconnect()

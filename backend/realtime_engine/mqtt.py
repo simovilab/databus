@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import socket
+from typing import Any, cast
 
 import paho.mqtt.client as mqtt
 import redis
@@ -58,8 +59,20 @@ def _vehicle_id_from_topic(topic: str) -> str | None:
 
 
 def _leaf_from_topic(topic: str) -> str | None:
+    """Extract the leaf segment (e.g. 'position') from transit/vehicle/<id>/<leaf>."""
     parts = topic.split("/")
     return parts[-1] if len(parts) == 4 else None
+
+
+def _get(key: str) -> str | None:
+    """Read a Redis string value, narrowing away redis-py's shared Awaitable stub.
+
+    `r` here is always the synchronous, `decode_responses=True` client, but
+    redis-py's `CoreCommands` mixin types every command `Awaitable[X] | X`
+    since it's shared with the async client — this cast narrows to the sync
+    branch that's actually returned.
+    """
+    return cast("str | None", r.get(key))
 
 
 def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
@@ -69,7 +82,7 @@ def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
         logger.warning("Non-JSON payload on vehicle %s/%s — ignored", vehicle_id, leaf)
         return
 
-    run_id = r.get(keys.current_run_key(vehicle_id))
+    run_id = _get(keys.current_run_key(vehicle_id))
     if not run_id:
         logger.debug("No active run for vehicle %s — dropping %s", vehicle_id, leaf)
         return
@@ -142,7 +155,10 @@ def _handle_telemetry(vehicle_id: str, leaf: str, payload_bytes: bytes) -> None:
         detect_from_telemetry(run_id, vehicle_id, leaf, data)
 
 
-def _on_connect(client: mqtt.Client, userdata, flags, rc) -> None:
+def _on_connect(
+    client: mqtt.Client, userdata: Any, flags: dict[str, Any], rc: mqtt.MQTTErrorCode
+) -> None:
+    """Subscribe to the vehicle telemetry topics once the broker connection is up."""
     if rc == 0:
         logger.info("MQTT connected: %s:%s", MQTT_HOST, MQTT_PORT)
         client.subscribe("transit/vehicle/+/position", qos=0)
@@ -152,7 +168,8 @@ def _on_connect(client: mqtt.Client, userdata, flags, rc) -> None:
         logger.error("MQTT connection refused: rc=%d", rc)
 
 
-def _on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage) -> None:
+def _on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage) -> None:
+    """Route an incoming MQTT message to `_handle_telemetry`, logging any failure."""
     vehicle_id = _vehicle_id_from_topic(msg.topic)
     leaf = _leaf_from_topic(msg.topic)
     if not vehicle_id or not leaf:
@@ -164,6 +181,7 @@ def _on_message(client: mqtt.Client, userdata, msg: mqtt.MQTTMessage) -> None:
 
 
 def build_client() -> mqtt.Client:
+    """Build a paho MQTT client wired to the telemetry callbacks, unconnected."""
     # Unique per process: a fixed client_id makes a second consumer (e.g. another
     # worker that also has MQTT_CONSUMER_ENABLED) collide on the broker and trigger
     # an endless reconnect war. Single-consumer gating is still the real guarantee;
@@ -186,11 +204,13 @@ class MQTTConsumerStep(bootsteps.StartStopStep):
 
     requires = {"celery.worker.components:Pool"}
 
-    def __init__(self, worker, **kwargs):
+    def __init__(self, worker: Any, **kwargs: Any) -> None:
+        """Initialize the bootstep with no MQTT client connected yet."""
         super().__init__(worker, **kwargs)
         self.client: mqtt.Client | None = None
 
-    def start(self, worker) -> None:
+    def start(self, worker: Any) -> None:
+        """Connect and start the MQTT client's background loop, if enabled."""
         if not MQTT_CONSUMER_ENABLED:
             logger.info(
                 "MQTT consumer bootstep disabled (MQTT_CONSUMER_ENABLED=%s)",
@@ -207,7 +227,8 @@ class MQTTConsumerStep(bootsteps.StartStopStep):
             logger.exception("MQTT consumer failed to start")
             self.client = None
 
-    def stop(self, worker) -> None:
+    def stop(self, worker: Any) -> None:
+        """Stop the MQTT client's background loop and disconnect, if running."""
         if self.client is None:
             return
         logger.info("Stopping MQTT consumer bootstep")

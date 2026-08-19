@@ -1,7 +1,9 @@
+"""Celery tasks for the realtime-engine worker: lifecycle events, staleness scanning, HTTP polling."""
+
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import redis
 from celery import shared_task
@@ -9,6 +11,9 @@ from celery.exceptions import SoftTimeLimitExceeded
 from django.utils.timezone import now
 
 from runs.services.lifecycle import RunLifecycleService
+
+if TYPE_CHECKING:
+    from operations.models import Sensor
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +25,30 @@ redis_client = redis.Redis(
 )
 
 
+def _smembers(key: str) -> set[str]:
+    """Read a Redis set as `set[str]`, narrowing away redis-py's shared Awaitable stub.
+
+    `redis_client` here is always the synchronous, `decode_responses=True`
+    client, but redis-py's `CoreCommands` mixin types every command
+    `Awaitable[X] | X` since it's shared with the async client — this cast
+    narrows to the sync branch that's actually returned.
+    """
+    return cast("set[str]", redis_client.smembers(key))
+
+
+def _get(key: str) -> str | None:
+    """Read a Redis string value, narrowing away redis-py's shared Awaitable stub."""
+    return cast("str | None", redis_client.get(key))
+
+
+def _hgetall(key: str) -> dict[str, str]:
+    """Read a Redis hash as `dict[str, str]`, narrowing away redis-py's shared Awaitable stub."""
+    return cast("dict[str, str]", redis_client.hgetall(key))
+
+
 @shared_task(queue="realtime_engine")
 def run_lifecycle_event(event: str, payload: dict[str, Any]) -> None:
+    """Dispatch a lifecycle event to `RunLifecycleService`, logging benign re-fires as warnings."""
     from runs.domain.lifecycle import RunLifecycleEvents, target_state_for_event
     from runs.services.exceptions import RunLifecycleError
 
@@ -70,10 +97,10 @@ def scan_stale_runs() -> str:
     """
     from runs.domain.detection.dispatch import detect_from_scan
 
-    run_ids = redis_client.smembers("runs:tracking")
+    run_ids = _smembers("runs:tracking")
     fired = 0
     for run_id in run_ids:
-        raw_last_seen = redis_client.get(f"runs:last_seen:{run_id}")
+        raw_last_seen = _get(f"runs:last_seen:{run_id}")
         if not raw_last_seen:
             continue
         try:
@@ -155,7 +182,8 @@ def fetch_positions() -> str:
         ).select_related("equipment__vehicle")
     )
 
-    def _sensor_vehicle_id(sensor) -> str | None:
+    def _sensor_vehicle_id(sensor: "Sensor") -> str | None:
+        """Resolve the vehicle id a sensor's equipment is currently assigned to."""
         equipment = getattr(sensor, "equipment", None)
         if equipment is None:
             return None
@@ -282,7 +310,7 @@ def process_position_update(run_id: str, vehicle_id: str) -> None:
     # original MQTT data since position is last-write-wins and speed survives
     # the validate_for_write → from_redis round-trip as a typed float.
     try:
-        raw_position = redis_client.hgetall(keys.position_key(vehicle_id))
+        raw_position = _hgetall(keys.position_key(vehicle_id))
         if raw_position:
             latest_position = position.from_redis(raw_position)
             from runs.domain.detection.dispatch import detect_from_telemetry

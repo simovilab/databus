@@ -34,18 +34,25 @@ testable without Django configured.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 import requests
 
 from . import base
 from .transforms import get_by_path, km_to_m, kmh_to_ms, parse_cr_datetime
 
+if TYPE_CHECKING:
+    # Type-checking only: the runtime import graph stays Django-free (see
+    # module docstring), but the real model gives accurate hover/mypy types.
+    from operations.models import Sensor
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_S = 5
 
 
-def _convert_unit(field: str, value, units: dict):
+def _convert_unit(field: str, value: Any, units: dict) -> Any:
+    """Convert `value` from the unit declared for `field` in `units` to SI, if known."""
     if value is None:
         return None
     unit = units.get(field)
@@ -123,12 +130,15 @@ def _extract_record(record: dict, mapping: dict) -> dict | None:
 class HttpJsonSourceAdapter:
     """Fetches vehicle positions from a generic HTTP+JSON endpoint."""
 
-    def fetch(self, sensor) -> list[tuple[str, dict]]:
+    def fetch(self, sensor: "Sensor") -> list[tuple[str, dict]]:
+        """Fetch and normalize position records from `sensor`'s HTTP+JSON endpoint."""
         url = sensor.source_http_url
         mapping = sensor.source_json_mapping or {}
 
         try:
-            response = requests.get(url, timeout=DEFAULT_TIMEOUT_S)
+            # source_http_url is a nullable DB field; a None here falls through
+            # to the except below rather than being type-safe. See task report.
+            response = requests.get(url, timeout=DEFAULT_TIMEOUT_S)  # type: ignore[arg-type]
             response.raise_for_status()
             body = response.json()
         except Exception:
@@ -162,7 +172,9 @@ class HttpJsonSourceAdapter:
                 if not vehicle_id:
                     # Lazy access — never imported/evaluated at module scope,
                     # so this stays safe for isolated (non-DB) test runs.
-                    vehicle_id = str(sensor.equipment.vehicle_id)
+                    # equipment is nullable; a None here is caught by the
+                    # except below rather than being type-safe. See task report.
+                    vehicle_id = str(sensor.equipment.vehicle_id)  # type: ignore[union-attr]
 
                 results.append((vehicle_id, extracted["payload"]))
             except Exception:

@@ -13,6 +13,7 @@ requests, or paho-mqtt.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 DEFAULT_TZ = "America/Costa_Rica"
@@ -46,7 +47,7 @@ def parse_cr_datetime(
     return int(aware.timestamp())
 
 
-def get_by_path(data: dict, path: str):
+def get_by_path(data: dict, path: str) -> Any:
     """Dotted-path getter over nested dicts, tolerant of missing keys.
 
     ``get_by_path({"a": {"b": 1}}, "a.b")`` -> ``1``.

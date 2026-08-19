@@ -13,11 +13,19 @@ tested without any I/O.
 
 from __future__ import annotations
 
-from typing import Protocol
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    # Type-checking only: the runtime import graph stays Django-free (see
+    # module docstring), but the real model gives accurate hover/mypy types.
+    from operations.models import Sensor
 
 
 class SourceAdapter(Protocol):
-    def fetch(self, sensor) -> list[tuple[str, dict]]:
+    """Structural contract for a telemetry source adapter."""
+
+    def fetch(self, sensor: "Sensor") -> list[tuple[str, dict]]:
         """Fetch and normalize telemetry for a sensor.
 
         Returns a list of ``(vehicle_id, position_payload)`` tuples. Each
@@ -32,14 +40,15 @@ class SourceAdapter(Protocol):
 _REGISTRY: dict[str, SourceAdapter] = {}
 
 
-def register(kind: str):
+def register(kind: str) -> Callable[[Any], Any]:
     """Class/function decorator registering an adapter under ``kind``.
 
     Usable on a class (instantiated once at registration time) or on an
     already-constructed adapter instance/function.
     """
 
-    def _decorator(adapter):
+    def _decorator(adapter: Any) -> Any:
+        """Register `adapter` (instantiating it first if it's a class) under `kind`."""
         _REGISTRY[kind] = adapter() if isinstance(adapter, type) else adapter
         return adapter
 
