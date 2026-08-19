@@ -1,3 +1,13 @@
+"""Celery app for databus: task discovery, the MQTT consumer bootstep, and the beat schedule.
+
+Beat schedule entries: `fetch-positions` polls HTTP telemetry sources every 10s (a run
+that hasn't started within its own cycle is revoked via `expires=10` rather than queuing
+up behind a slow source); `build-vehicle-positions-every-15s` and
+`build-trip-updates-every-15s` rebuild the two GTFS-RT feeds every 15s;
+`scan-stale-runs-every-30s` sweeps for runs that have gone quiet; and
+`build-schedule-daily` rebuilds the GTFS Schedule zip once a day.
+"""
+
 from datetime import timedelta
 import os
 
@@ -26,6 +36,7 @@ app.steps["worker"].add(MQTTConsumerStep)
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
+    """Print the current task's request context; used to sanity-check worker connectivity."""
     print(f"Celery request: {self.request!r}")
 
 

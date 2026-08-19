@@ -16,12 +16,14 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import URLPattern, URLResolver, path, include
 from django.conf import settings
 from django.conf.urls.static import static
 import os
 
-urlpatterns = [
+# static() below returns list[URLPattern], while the path(..., include(...)) entries
+# above are list[URLResolver] -- the explicit union lets both be appended in place.
+urlpatterns: list[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     path("", include("website.urls")),
     path("api/", include("api.urls")),
