@@ -1,3 +1,5 @@
+"""One-off script: convert an embedded shape-points CSV literal into shapes.json."""
+
 import csv
 import json
 

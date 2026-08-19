@@ -1,11 +1,37 @@
+"""Django admin registrations for the feed app's GTFS Schedule and Realtime models."""
+
 from django.contrib.gis import admin
 
-from .models import *
+from .models import (
+    Agency,
+    Calendar,
+    CalendarDate,
+    FareAttribute,
+    FareRule,
+    Feed,
+    FeedInfo,
+    FeedMessage,
+    GeoShape,
+    GTFSProvider,
+    Route,
+    RouteStop,
+    Shape,
+    Stop,
+    StopTime,
+    StopTimeUpdate,
+    Trip,
+    TripDuration,
+    TripTime,
+    TripUpdate,
+    VehiclePosition,
+)
 
 # Register your models here.
 
 
 class StopAdmin(admin.GISModelAdmin):
+    """Admin form for Stop that hides the raw lat/lon fields in favor of stop_point."""
+
     exclude = ["stop_lat", "stop_lon"]
 
 

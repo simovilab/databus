@@ -1,3 +1,5 @@
+"""One-off script: group shapes.json points by shape_id into geoshapes.json LINESTRINGs."""
+
 import json
 from collections import defaultdict
 

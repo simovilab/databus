@@ -12,8 +12,9 @@ from __future__ import annotations
 import csv
 import io
 import zipfile
+from datetime import date, time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from django.db import models as db_models
 
@@ -69,9 +70,12 @@ def _format_value(field: db_models.Field, value: object) -> str:
     if isinstance(field, db_models.DateField) and not isinstance(
         field, db_models.DateTimeField
     ):
-        return value.strftime("%Y%m%d")  # type: ignore[union-attr]
+        # `field`'s isinstance check narrows the *field* type, not `value`
+        # (declared `object` for genericity); cast reflects what the field
+        # type guarantees about the value Django hands us at this column.
+        return cast(date, value).strftime("%Y%m%d")
     if isinstance(field, db_models.TimeField):
-        return value.strftime("%H:%M:%S")  # type: ignore[union-attr]
+        return cast(time, value).strftime("%H:%M:%S")
     if isinstance(field, db_models.BooleanField):
         return "1" if value else "0"
     return str(value)
@@ -86,7 +90,7 @@ def _write_txt(
     zf: zipfile.ZipFile,
     filename: str,
     model: type[db_models.Model],
-    queryset,
+    queryset: db_models.QuerySet[db_models.Model],
 ) -> None:
     """Write one GTFS ``.txt`` file into *zf*.
 

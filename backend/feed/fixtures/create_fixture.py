@@ -1,3 +1,5 @@
+"""One-off script: build gtfs.json fixture data from the UCR bus GTFS Excel workbook."""
+
 import pandas as pd
 import json
 import sys
@@ -13,16 +15,15 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 # Setup Django
 django.setup()
 
-from datetime import datetime
-from django.db.models import (
+from datetime import datetime  # noqa: E402 (must follow django.setup() above)
+from django.db.models import (  # noqa: E402
     DateField,
     IntegerField,
     FloatField,
     DecimalField,
     ForeignKey,
 )
-from django.apps import apps
-from feed.models import *
+from django.apps import apps  # noqa: E402
 
 # Initialize a dictionary to hold the model field mappings
 model_field_mapping = {}
