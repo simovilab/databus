@@ -1,3 +1,5 @@
+"""Action functions executed by successful run lifecycle transitions — Redis state mutation and cleanup."""
+
 from typing import Any, TYPE_CHECKING
 from runs.models import Run
 import redis
@@ -108,6 +110,7 @@ class RunLifecycleActions:
     def add_to_tracking_set(
         run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> bool:
+        """Add the run to the `runs:tracking` Redis set."""
         r.sadd("runs:tracking", str(run.id))
         return True
 
@@ -115,6 +118,7 @@ class RunLifecycleActions:
     def remove_from_tracking_set(
         run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> bool:
+        """Remove the run from the `runs:tracking` Redis set."""
         r.srem("runs:tracking", str(run.id))
         return True
 
@@ -122,6 +126,7 @@ class RunLifecycleActions:
     def add_to_in_progress_set(
         run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> bool:
+        """Add the run to the `runs:in_progress` Redis set."""
         r.sadd("runs:in_progress", str(run.id))
         return True
 
@@ -129,6 +134,7 @@ class RunLifecycleActions:
     def remove_from_in_progress_set(
         run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> bool:
+        """Remove the run from the `runs:in_progress` Redis set."""
         r.srem("runs:in_progress", str(run.id))
         return True
 
@@ -136,6 +142,7 @@ class RunLifecycleActions:
     def remove_from_system_state(
         run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> bool:
+        """Delete the run's Redis hash and remove it from both the tracking and in-progress sets."""
         pipe = r.pipeline()
         pipe.delete(f"run:{run.id}")
         pipe.srem("runs:tracking", str(run.id))

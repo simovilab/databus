@@ -101,16 +101,17 @@ def build_polyline(
     # ---- cumulative haversine (always computed; used as fallback) -----------
     haversine_result: list[tuple[float, float, float]] = []
     cum = 0.0
-    prev_lat: float | None = None
-    prev_lon: float | None = None
+    # A single Optional pair (rather than two parallel Optionals) lets mypy
+    # narrow both coordinates together from one `is None` check.
+    prev_point: tuple[float, float] | None = None
 
     for lat, lon, _seq in points:
-        if prev_lat is None:
+        if prev_point is None:
             cum = 0.0
         else:
-            cum += haversine_m(prev_lat, prev_lon, lat, lon)
+            cum += haversine_m(prev_point[0], prev_point[1], lat, lon)
         haversine_result.append((lat, lon, cum))
-        prev_lat, prev_lon = lat, lon
+        prev_point = (lat, lon)
 
     # ---- decide whether to use provided dists_m ----------------------------
     if dists_m is not None:
@@ -120,6 +121,10 @@ def build_polyline(
 
     if not use_provided:
         return haversine_result
+
+    # use_provided is only True when dists_m is not None (see the branch
+    # above); this assert makes that invariant explicit for mypy.
+    assert dists_m is not None
 
     # Normalise so first entry is 0.0.
     offset = dists_m[0]

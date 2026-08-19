@@ -24,6 +24,7 @@ class RunTrackingLostDetector:
     def detect(
         self, run_state: str, staleness_s: float, payload: dict[str, Any]
     ) -> DetectionResult | None:
+        """Fire RUN_TRACKING_LOST when an IN_PROGRESS run's staleness falls in the grace-to-expiry window."""
         if (
             run_state == RunLifecycleStates.IN_PROGRESS.value
             and TELEMETRY_GRACE_S < staleness_s <= TELEMETRY_EXPIRY_S
@@ -42,6 +43,7 @@ class RunTrackingExpiredDetector:
     def detect(
         self, run_state: str, staleness_s: float, payload: dict[str, Any]
     ) -> DetectionResult | None:
+        """Fire RUN_TRACKING_EXPIRED when a NO_SIGNAL run's staleness exceeds the expiry window."""
         if (
             run_state == RunLifecycleStates.NO_SIGNAL.value
             and staleness_s > TELEMETRY_EXPIRY_S

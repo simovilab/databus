@@ -1,4 +1,6 @@
-from typing import Any
+"""Drive Run FSM transitions: find candidates, check guards, execute actions, and persist the outcome."""
+
+from typing import Any, cast
 from django.utils.timezone import now
 from messages.publisher import publish_event
 from runs.domain.lifecycle import RunLifecycleEvents
@@ -10,12 +12,16 @@ from runs.models import Run, RunLifecycleTransition
 
 
 class RunLifecycleService:
+    """Execute run lifecycle events against the table-driven FSM, auditing every attempt."""
+
     def __init__(self) -> None:
+        """Initialize the transition registry used to look up candidate transitions."""
         self.registry: TransitionRegistry = TransitionRegistry()
 
     def process_event(
         self, event: RunLifecycleEvents, payload: dict[str, Any]
     ) -> tuple[RunLifecycleStates, dict[str, bool], dict[str, bool]]:
+        """Apply `event` to the run's current state, or raise RunLifecycleError if no transition succeeds."""
         run = self._load_run(payload)
         candidates = self.registry.find(run.run_lifecycle_state, event)
         attempts: list[dict[str, Any]] = []
@@ -46,7 +52,10 @@ class RunLifecycleService:
 
     def _load_run(self, payload: dict[str, Any]) -> Run:
         run_id = payload.get("run_id")
-        return Run.objects.get(id=run_id)
+        # payload is dict[str, Any], so .get() is typed as Any | None; cast is a
+        # static-only narrowing — a missing/malformed run_id still reaches the ORM
+        # unchanged and raises Run.DoesNotExist, exactly as before this annotation.
+        return Run.objects.get(id=cast(str, run_id))
 
     def _check_guards(
         self, run: Run, transition: Transition, payload: dict[str, Any]

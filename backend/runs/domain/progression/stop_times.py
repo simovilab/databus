@@ -24,6 +24,7 @@ ETA_DEFAULT_UNCERTAINTY_S
 import logging
 import os
 from datetime import datetime, timezone
+from typing import cast
 
 import redis
 
@@ -55,6 +56,17 @@ r = redis.Redis(
     db=0,
     decode_responses=True,
 )
+
+
+def _hgetall(key: str) -> dict[str, str]:
+    """Read a Redis hash as `dict[str, str]`.
+
+    Narrows away the `Awaitable[...]` branch that redis-py's stubs attach to
+    every command (shared between the sync and async client mixins) — `r`
+    here is always the synchronous, `decode_responses=True` client, so the
+    result is always a plain string-keyed, string-valued dict.
+    """
+    return cast("dict[str, str]", r.hgetall(key))
 
 
 # ---------------------------------------------------------------------------
@@ -274,14 +286,14 @@ def produce_stop_times(run_id: str, vehicle_id: str) -> None:
         The vehicle id whose position was just updated.
     """
     # Step 1 — run hash
-    run_hash = r.hgetall(keys.run_key(run_id))
+    run_hash = _hgetall(keys.run_key(run_id))
     if not run_hash:
         return
 
     # Step 2 — position hash (required; exit without overwriting if absent)
     from runs.domain.telemetry import position as position_module  # noqa: PLC0415
 
-    pos_raw = r.hgetall(keys.position_key(vehicle_id))
+    pos_raw = _hgetall(keys.position_key(vehicle_id))
     if not pos_raw:
         return
     pos = position_module.from_redis(pos_raw)
@@ -289,7 +301,7 @@ def produce_stop_times(run_id: str, vehicle_id: str) -> None:
         return
 
     # Step 3 — stop-status hash (tolerate absence)
-    stop_status_raw = r.hgetall(keys.stop_status_key(run_id))
+    stop_status_raw = _hgetall(keys.stop_status_key(run_id))
     stop_status = vehicle_stop_status.from_redis(stop_status_raw) if stop_status_raw else {}
 
     # Step 4 — shape geometry (exit without overwriting if unavailable)

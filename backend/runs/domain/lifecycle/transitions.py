@@ -1,5 +1,7 @@
+"""Static transition table mapping (state, event) pairs to their guards, actions, and resulting state."""
+
 from dataclasses import dataclass
-from typing import Callable, List
+from typing import Callable
 
 from .actions import RunLifecycleActions
 from .guards import RunLifecycleGuards
@@ -14,8 +16,8 @@ class Transition:
     from_state: RunLifecycleStates
     event: RunLifecycleEvents
     to_state: RunLifecycleStates
-    guards: List[Callable]
-    actions: List[Callable]
+    guards: list[Callable]
+    actions: list[Callable]
 
 
 TRANSITIONS = [
