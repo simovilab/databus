@@ -1,3 +1,7 @@
+"""Fleet/operator/vehicle/equipment domain models: Company, Operator, Vehicle, Equipment, Sensor, EquipmentLog."""
+
+from typing import Any
+
 from django.contrib.gis.db import models
 from django.contrib.auth.models import User
 import uuid
@@ -13,7 +17,11 @@ class Company(models.Model):
     """
 
     id = models.CharField(max_length=100, primary_key=True)
-    linked_agency = models.ManyToManyField(Agency, blank=True)
+    # django-stubs can't infer the implicit through-model type parameter for
+    # this M2M from the call alone; the explicit annotation resolves it.
+    linked_agency: models.ManyToManyField[Agency, Any] = models.ManyToManyField(
+        Agency, blank=True
+    )
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     legal_id = models.CharField(max_length=100, blank=True, null=True)
@@ -23,7 +31,8 @@ class Company(models.Model):
     location = models.PointField(blank=True, null=True)
     logo = models.ImageField(upload_to="companies/", blank=True, null=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the company's name."""
         return self.name
 
 
@@ -41,7 +50,8 @@ class Operator(models.Model):
     is_dispatcher = models.BooleanField(default=False)
     is_administrator = models.BooleanField(default=False)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the operator's full name and ID."""
         return f"{self.user.first_name} {self.user.last_name} ({self.id})"
 
 
@@ -58,7 +68,8 @@ class DataProvider(models.Model):
     phone = models.CharField(max_length=100, blank=True, null=True)
     logo = models.ImageField(upload_to="data-providers/", blank=True, null=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the data provider's name."""
         return self.name
 
 
@@ -117,11 +128,14 @@ class Vehicle(models.Model):
         ],
     )
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the vehicle's company and license plate."""
         return f"{self.company}: {self.license_plate}"
 
 
 class Equipment(models.Model):
+    """An onboard telemetry device (GPS/sensor unit) installed in a vehicle."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     data_provider = models.ForeignKey(
         DataProvider, on_delete=models.PROTECT, blank=True, null=True
@@ -145,7 +159,8 @@ class Equipment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Save the equipment, then append a snapshot of its current fields to EquipmentLog."""
         super(Equipment, self).save(*args, **kwargs)
         EquipmentLog.objects.create(
             equipment=self,
@@ -159,11 +174,14 @@ class Equipment(models.Model):
             status=self.status,
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the equipment's data provider, brand, model, and ID."""
         return f"{self.data_provider}: {self.brand} {self.model} ({self.id})"
 
 
 class Sensor(models.Model):
+    """A logical data feed (of one or more telemetry types) registered on a piece of Equipment."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, blank=True, null=True)
     equipment = models.ForeignKey(
@@ -201,11 +219,14 @@ class Sensor(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the sensor's name and ID."""
         return f"{self.name} ({self.id})"
 
 
 class EquipmentLog(models.Model):
+    """An immutable snapshot of an Equipment's fields, written each time the equipment is saved."""
+
     equipment = models.ForeignKey(Equipment, on_delete=models.PROTECT)
     data_provider = models.ForeignKey(
         DataProvider, on_delete=models.PROTECT, blank=True, null=True
@@ -226,5 +247,6 @@ class EquipmentLog(models.Model):
     )
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the log entry's data provider, brand, model, and timestamp."""
         return f"{self.data_provider}: {self.brand} {self.model} ({self.updated_at})"
