@@ -670,45 +670,42 @@ class ServiceTodayView(APIView):
 
 
 class WhichShapesView(APIView):
-    """Endpoint returning the distinct shapes used by a route's stops, given `?route_id=`."""
+    """First step of the run-registration UI cascade: given a route, return the distinct shapes used by its stops."""
 
     def get(self, request: Request) -> Response:
-        """Return the distinct GeoShapes used by the given route in the current feed."""
+        """Return shape metadata (shape_id, name, desc, from/to) for the distinct GeoShapes used by `?route_id=` in the current feed, or an empty list if the route/feed can't be resolved."""
         route_id = request.query_params.get("route_id")
         feed = Feed.objects.filter(is_current=True).first()
-        route = Route.objects.filter(feed=feed, route_id=route_id).first()
-        # Pre-existing bug, out of scope for this docs/type-hints pass: RouteStop
-        # has no "route"/"shape" fields (only linked_route/linked_shape), so this
-        # query raises FieldError at runtime; flagged in the task report rather
-        # than fixed here. `# type: ignore` silences the resulting mypy errors
-        # (field names it can't resolve, then a RouteStop row treated as a dict).
-        shapes = RouteStop.objects.filter(route=route)  # type: ignore[misc]
-        shapes = shapes.values("shape").distinct()  # type: ignore[misc]
-        geo_shapes = []
-        for shape in shapes:
-            geo_shape = (
-                GeoShape.objects.filter(id=shape["shape"])  # type: ignore[index, misc]
-                .values(
-                    "shape_id",
-                    "direction_id",
-                    "shape_name",
-                    "shape_desc",
-                    "shape_from",
-                    "shape_to",
-                )
-                .first()
-            )
-            geo_shapes.append(geo_shape)
+        route = (
+            Route.objects.filter(feed=feed, route_id=route_id).first()
+            if route_id
+            else None
+        )
+        if not route:
+            return Response([])
+
+        shape_pks = (
+            RouteStop.objects.filter(linked_route=route)
+            .values_list("linked_shape", flat=True)
+            .distinct()
+        )
+        geo_shapes = GeoShape.objects.filter(id__in=shape_pks).values(
+            "shape_id",
+            "shape_name",
+            "shape_desc",
+            "shape_from",
+            "shape_to",
+        )
 
         serializer = WhichShapesSerializer(geo_shapes, many=True)
         return Response(serializer.data)
 
 
 class FindTripsView(APIView):
-    """Endpoint returning scheduled trips matching a route/service/shape, with their run lifecycle state."""
+    """Second step of the run-registration UI cascade: given a route/service/shape selection, return candidate trips."""
 
     def get(self, request: Request) -> Response:
-        """Return trips for `?route_id=&service_id=&shape_id=`, each tagged with its run's lifecycle state."""
+        """Return trips for `?route_id=&service_id=&shape_id=`, each tagged with its run's lifecycle state, or 400 if any parameter is missing."""
         # Get the query parameters
         route_id = request.query_params.get("route_id")
         service_id = request.query_params.get("service_id")
@@ -732,14 +729,13 @@ class FindTripsView(APIView):
 
         selected_trips = []
         for trip in trips:
-            # Pre-existing bug, out of scope for this docs/type-hints pass:
-            # TripTime has no "trip_time" field (it's "departure_time"), so this
-            # raises FieldError at runtime; flagged in the task report rather
-            # than fixed here.
+            # TripTime relates to Trip via the `linked_trip` FK (resolved on
+            # save from feed+trip_id) rather than the bare trip_id string, so
+            # this can't cross-match a same-numbered trip from another feed.
             this_trip = (
-                TripTime.objects.filter(trip_id=trip.trip_id)  # type: ignore[misc]
-                .order_by("trip_time")
-                .values("trip_id", "trip_time")
+                TripTime.objects.filter(linked_trip=trip)
+                .order_by("departure_time")
+                .values("trip_id", "departure_time")
                 .first()
             )
             if this_trip:
@@ -761,7 +757,7 @@ class FindTripsView(APIView):
                 selected_trips.append(
                     {
                         "trip_id": this_trip["trip_id"],
-                        "trip_time": this_trip["trip_time"],
+                        "trip_time": this_trip["departure_time"],
                         "run_lifecycle_state": run_lifecycle_state,
                         "direction_id": trip.direction_id,
                         "trip_headsign": trip.trip_headsign,

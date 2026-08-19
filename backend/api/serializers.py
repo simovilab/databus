@@ -400,14 +400,13 @@ class ServiceTodaySerializer(serializers.Serializer):
 
 
 class WhichShapesSerializer(serializers.Serializer):
-    """Serialize the distinct shapes used by a route's stop sequence."""
+    """Serialize the shape metadata for one of the distinct GeoShapes used by a route's stop sequence."""
 
     shape_id = serializers.CharField()
-    direction_id = serializers.IntegerField()
-    shape_name = serializers.CharField()
-    shape_desc = serializers.CharField()
-    shape_from = serializers.CharField()
-    shape_to = serializers.CharField()
+    shape_name = serializers.CharField(allow_null=True, required=False)
+    shape_desc = serializers.CharField(allow_null=True, required=False)
+    shape_from = serializers.CharField(allow_null=True, required=False)
+    shape_to = serializers.CharField(allow_null=True, required=False)
 
 
 class FindTripsSerializer(serializers.Serializer):
