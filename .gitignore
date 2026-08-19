@@ -203,3 +203,6 @@ graphify-out/
 llms.txt
 llms-full.txt
 CONTEXT_SYNC_NOTES.md
+
+# Published GTFS-RT / Schedule output (runtime artifacts)
+backend/feed/files/
