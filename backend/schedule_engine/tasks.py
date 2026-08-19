@@ -12,8 +12,6 @@ from google.protobuf import json_format
 from .builders import (
     build_vehicle_positions_feed,
     build_trip_updates_feed,
-    get_current_timestamp,
-    get_entity_id,
 )
 
 

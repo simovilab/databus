@@ -32,7 +32,7 @@ class RunLifecycleGuards:
     def is_gtfs_valid(
         run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> bool:
-        from feed.models import Feed, Route, Trip, Shape
+        from feed.models import Feed, Route, Trip
 
         route_id = payload.get("route_id")
         trip_id = payload.get("trip_id")

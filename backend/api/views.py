@@ -11,7 +11,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.views import SpectacularRedocView
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
-from realtime_engine.tasks import run_lifecycle_event
 from runs.services.exceptions import RunLifecycleError
 from runs.services.lifecycle import RunLifecycleService
 from runs.domain.lifecycle import RunLifecycleEvents

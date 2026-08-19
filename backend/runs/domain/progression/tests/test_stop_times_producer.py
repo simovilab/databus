@@ -8,7 +8,6 @@ Coverage:
 - Builder hardening: unsorted/duplicate projection is sorted+deduped
 """
 
-import json
 import os
 import subprocess
 import sys
@@ -21,7 +20,6 @@ import pytest
 import runs.domain.progression.stop_times as stop_times_module
 from runs.domain.progression.shapes import ShapeGeometry, assemble_geometry
 from runs.domain.progression.stop_times import (
-    ETA_DEFAULT_UNCERTAINTY_S,
     STOP_TIME_UPDATES_TTL_S,
     compute_stop_time_updates,
     produce_stop_times,

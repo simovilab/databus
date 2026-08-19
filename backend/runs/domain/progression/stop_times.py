@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 
 import redis
 
-from runs.domain.telemetry import keys, position, stop_time_updates, vehicle_stop_status
+from runs.domain.telemetry import keys, stop_time_updates, vehicle_stop_status
 from runs.domain.progression.geo import project_point_to_polyline
 from runs.domain.progression.shapes import ShapeGeometry, get_shape_geometry
 

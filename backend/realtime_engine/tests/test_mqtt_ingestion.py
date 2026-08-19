@@ -27,7 +27,7 @@ import pytest
 
 import realtime_engine.mqtt as mqtt_module
 from realtime_engine.mqtt import _handle_telemetry
-from runs.domain.telemetry import keys, occupancy, position
+from runs.domain.telemetry import keys, occupancy
 
 
 # ---------------------------------------------------------------------------

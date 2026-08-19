@@ -24,7 +24,7 @@ from dataclasses import dataclass
 
 from runs.domain.progression.geo import (
     haversine_m,
-    project_point_to_polyline,
+    project_point_to_polyline,  # noqa: F401 - used as shapes.project_point_to_polyline in compute.py
     project_point_to_segment,
 )
 

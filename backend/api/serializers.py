@@ -17,7 +17,6 @@ from runs.domain.lifecycle import RunLifecycleEvents
 from feed.models import *
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from django.contrib.gis.geos import Point
 from rest_framework_gis.serializers import GeoFeatureModelSerializer, GeometryField
 
 # --------------
