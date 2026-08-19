@@ -240,3 +240,18 @@ TRANSITIONS = [
         ],
     ),
 ]
+
+
+def target_state_for_event(event: RunLifecycleEvents) -> RunLifecycleStates | None:
+    """The state ``event`` deterministically leads to, if unambiguous.
+
+    Used to tell an idempotent re-fire (the event's dispatch lost a race and
+    the run already reached this event's target state) apart from a genuine
+    invalid transition. Returns ``None`` when ``event`` has no transitions, or
+    maps to more than one distinct ``to_state`` — callers should not guess in
+    that case.
+    """
+    to_states = {t.to_state for t in TRANSITIONS if t.event == event}
+    if len(to_states) == 1:
+        return next(iter(to_states))
+    return None

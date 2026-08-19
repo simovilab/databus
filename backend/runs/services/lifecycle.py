@@ -40,6 +40,7 @@ class RunLifecycleService:
             {
                 "detail": f"No valid transition for event '{event}' from state '{run.run_lifecycle_state}'.",
                 "attempts": attempts,
+                "current_state": run.run_lifecycle_state,
             }
         )
 

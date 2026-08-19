@@ -11,6 +11,7 @@ __all__ = [
     "RunLifecycleGuards",
     "Transition",
     "TRANSITIONS",
+    "target_state_for_event",
 ]
 
 
@@ -20,12 +21,14 @@ def __getattr__(name: str):
         "RunLifecycleGuards",
         "Transition",
         "TRANSITIONS",
+        "target_state_for_event",
     }:
         module_name = {
             "RunLifecycleActions": "actions",
             "RunLifecycleGuards": "guards",
             "Transition": "transitions",
             "TRANSITIONS": "transitions",
+            "target_state_for_event": "transitions",
         }[name]
         module = import_module(f"{__name__}.{module_name}")
         return getattr(module, name)

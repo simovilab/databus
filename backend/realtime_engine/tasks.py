@@ -21,7 +21,8 @@ redis_client = redis.Redis(
 
 @shared_task(queue="realtime_engine")
 def run_lifecycle_event(event: str, payload: dict[str, Any]) -> None:
-    from runs.domain.lifecycle import RunLifecycleEvents
+    from runs.domain.lifecycle import RunLifecycleEvents, target_state_for_event
+    from runs.services.exceptions import RunLifecycleError
 
     service = RunLifecycleService()
     try:
@@ -31,6 +32,27 @@ def run_lifecycle_event(event: str, payload: dict[str, Any]) -> None:
         return
     try:
         service.process_event(evt, payload)
+    except RunLifecycleError as exc:
+        # Detectors already gate on current run state before firing, but a
+        # detection can still lose a race against an in-flight transition for
+        # the same run (e.g. two position pings both see "Tracking" before the
+        # first RUN_STARTED lands). When that happens the run has already
+        # reached this event's target state by the time this dispatch runs —
+        # a harmless no-op re-fire, not a real failure. Genuine invalid
+        # transitions (target state unresolved/mismatched) still log loudly.
+        target_state = target_state_for_event(evt)
+        current_state = exc.errors.get("current_state")
+        if target_state is not None and current_state == target_state.value:
+            logger.warning(
+                "Lifecycle event %s for run %s: no-op re-fire, run already %s",
+                event,
+                payload.get("run_id"),
+                current_state,
+            )
+        else:
+            logger.exception(
+                "Lifecycle event %s failed for run %s", event, payload.get("run_id")
+            )
     except Exception:
         logger.exception(
             "Lifecycle event %s failed for run %s", event, payload.get("run_id")
