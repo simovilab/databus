@@ -20,6 +20,8 @@ real database.
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from celery.exceptions import SoftTimeLimitExceeded
+
 from operations.models import Sensor
 
 import realtime_engine.sources as sources_module
@@ -174,3 +176,149 @@ def test_fetch_positions_queries_only_active_http_position_sensors(monkeypatch):
     manager.filter.return_value.select_related.assert_called_once_with(
         "equipment__vehicle"
     )
+
+
+# ---------------------------------------------------------------------------
+# Pre-fetch filter: a sensor is never even called over HTTP unless its own
+# equipment/vehicle is in service.
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_positions_never_fetches_sensor_with_out_of_service_vehicle(monkeypatch):
+    fake_r = _fake_redis()  # only IN_SERVICE_VEHICLE_ID is in service
+    monkeypatch.setattr(tasks_module, "redis_client", fake_r)
+
+    out_of_service_sensor = SimpleNamespace(
+        id="sensor-oos",
+        source_http_url="http://example.test/positions",
+        source_json_mapping={},
+        equipment=SimpleNamespace(vehicle_id=OUT_OF_SERVICE_VEHICLE_ID),
+    )
+    monkeypatch.setattr(
+        Sensor, "objects", _fake_sensor_manager([out_of_service_sensor])
+    )
+
+    fake_adapter = MagicMock()
+    monkeypatch.setattr(sources_module, "get_adapter", lambda kind: fake_adapter)
+
+    fake_publisher = MagicMock()
+    monkeypatch.setattr(publisher_module, "MqttPublisher", lambda: fake_publisher)
+
+    result = fetch_positions()
+
+    fake_adapter.fetch.assert_not_called()
+    fake_publisher.publish_batch.assert_not_called()
+    assert "polled 1 sensors" in result
+    assert "0 fetched" in result
+
+
+def test_fetch_positions_skips_sensor_with_no_equipment_or_vehicle(monkeypatch):
+    fake_r = _fake_redis()
+    monkeypatch.setattr(tasks_module, "redis_client", fake_r)
+
+    no_equipment_sensor = SimpleNamespace(
+        id="sensor-no-equipment",
+        source_http_url="http://example.test/positions",
+        source_json_mapping={},
+        equipment=None,
+    )
+    no_vehicle_sensor = SimpleNamespace(
+        id="sensor-no-vehicle",
+        source_http_url="http://example.test/positions",
+        source_json_mapping={},
+        equipment=SimpleNamespace(vehicle_id=None),
+    )
+    monkeypatch.setattr(
+        Sensor,
+        "objects",
+        _fake_sensor_manager([no_equipment_sensor, no_vehicle_sensor]),
+    )
+
+    fake_adapter = MagicMock()
+    monkeypatch.setattr(sources_module, "get_adapter", lambda kind: fake_adapter)
+
+    fake_publisher = MagicMock()
+    monkeypatch.setattr(publisher_module, "MqttPublisher", lambda: fake_publisher)
+
+    result = fetch_positions()
+
+    fake_adapter.fetch.assert_not_called()
+    fake_publisher.publish_batch.assert_not_called()
+    assert "polled 2 sensors" in result
+    assert "0 fetched" in result
+
+
+def test_fetch_positions_still_fetches_and_publishes_in_service_sensor(monkeypatch):
+    """An in-service sensor is fetched and published even when another,
+    out-of-service sensor is present and correctly skipped."""
+    fake_r = _fake_redis()
+    monkeypatch.setattr(tasks_module, "redis_client", fake_r)
+
+    in_service_sensor = _make_sensor(sensor_id="sensor-in-service")
+    out_of_service_sensor = SimpleNamespace(
+        id="sensor-oos",
+        source_http_url="http://example.test/positions",
+        source_json_mapping={},
+        equipment=SimpleNamespace(vehicle_id=OUT_OF_SERVICE_VEHICLE_ID),
+    )
+    monkeypatch.setattr(
+        Sensor,
+        "objects",
+        _fake_sensor_manager([in_service_sensor, out_of_service_sensor]),
+    )
+
+    fake_adapter = MagicMock()
+    fake_adapter.fetch.return_value = [
+        (IN_SERVICE_VEHICLE_ID, {"latitude": 1.0, "longitude": 2.0}),
+    ]
+    monkeypatch.setattr(sources_module, "get_adapter", lambda kind: fake_adapter)
+
+    fake_publisher = MagicMock()
+    monkeypatch.setattr(publisher_module, "MqttPublisher", lambda: fake_publisher)
+
+    result = fetch_positions()
+
+    fake_adapter.fetch.assert_called_once_with(in_service_sensor)
+    fake_publisher.publish_batch.assert_called_once()
+    (published_records,), _ = fake_publisher.publish_batch.call_args
+    assert [vid for vid, _ in published_records] == [IN_SERVICE_VEHICLE_ID]
+    assert "polled 2 sensors" in result
+    assert "1 fetched" in result
+
+
+# ---------------------------------------------------------------------------
+# soft_time_limit: a pathological source can't hold the task open forever.
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_positions_handles_soft_time_limit_mid_loop(monkeypatch, caplog):
+    fake_r = _fake_redis()
+    monkeypatch.setattr(tasks_module, "redis_client", fake_r)
+
+    sensor_a = _make_sensor(sensor_id="sensor-a")
+    sensor_b = _make_sensor(sensor_id="sensor-b")
+    monkeypatch.setattr(
+        Sensor, "objects", _fake_sensor_manager([sensor_a, sensor_b])
+    )
+
+    fake_adapter = MagicMock()
+
+    def _fetch(sensor):
+        if sensor.id == "sensor-a":
+            raise SoftTimeLimitExceeded()
+        return [(IN_SERVICE_VEHICLE_ID, {"latitude": 1.0, "longitude": 2.0})]
+
+    fake_adapter.fetch.side_effect = _fetch
+    monkeypatch.setattr(sources_module, "get_adapter", lambda kind: fake_adapter)
+
+    fake_publisher = MagicMock()
+    monkeypatch.setattr(publisher_module, "MqttPublisher", lambda: fake_publisher)
+
+    with caplog.at_level("WARNING"):
+        result = fetch_positions()
+
+    # The loop stopped at sensor-a; sensor-b was never reached.
+    assert fake_adapter.fetch.call_count == 1
+    fake_publisher.publish_batch.assert_not_called()
+    assert "sensor-a" in caplog.text
+    assert "soft time limit" in result.lower()

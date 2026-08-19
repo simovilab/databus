@@ -42,7 +42,7 @@ from .transforms import get_by_path, km_to_m, kmh_to_ms, parse_cr_datetime
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT_S = 10
+DEFAULT_TIMEOUT_S = 5
 
 
 def _convert_unit(field: str, value, units: dict):

@@ -49,6 +49,12 @@ app.conf.beat_schedule = {
     "fetch-positions": {
         "task": "realtime_engine.tasks.fetch_positions",
         "schedule": timedelta(seconds=10),
+        # A task that couldn't even start within its own 10s cycle is stale
+        # by the time a worker slot frees up -- revoke it instead of letting
+        # queued fetch_positions runs pile up behind a slow/unreachable
+        # source (see fetch_positions' soft_time_limit for the in-flight
+        # bound on runs that DO start).
+        "options": {"expires": 10},
     },
     "build-schedule-daily": {
         "task": "schedule_engine.tasks.build_schedule",

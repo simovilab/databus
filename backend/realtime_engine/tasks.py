@@ -5,6 +5,7 @@ from typing import Any
 
 import redis
 from celery import shared_task
+from celery.exceptions import SoftTimeLimitExceeded
 from django.utils.timezone import now
 
 from runs.services.lifecycle import RunLifecycleService
@@ -88,7 +89,7 @@ def scan_stale_runs() -> str:
     return f"scan_stale_runs: checked {len(run_ids)} runs, fired {fired} events"
 
 
-@shared_task(queue="realtime_engine")
+@shared_task(queue="realtime_engine", soft_time_limit=25)
 def fetch_positions() -> str:
     """Poll active HTTP telemetry sources and publish in-service vehicle positions.
 
@@ -101,11 +102,37 @@ def fetch_positions() -> str:
        delivering that telemetry is exactly this task's job.
     2. Query ACTIVE sensors that provide position data over HTTP (source_type
        "http" or "both" both use the "http" adapter).
-    3. Fetch each sensor's readings, keep only the ones for in-service
-       vehicles, and publish the survivors on ``transit/vehicle/<id>/position``.
+    3. Pre-fetch filter: skip a sensor entirely -- never issue the HTTP call
+       -- when its own ``equipment.vehicle`` is not in the in-service set (or
+       the sensor has no equipment, or the equipment has no vehicle). This is
+       what stops the task from paying the full HTTP cost of every ACTIVE
+       sensor on every 10s tick regardless of whether anything behind it is
+       actually in service; previously, e.g. 6 ACTIVE sensors pointed at a
+       slow/unreachable host could occupy every worker slot and starve
+       ``process_position_update``.
+
+       CAVEAT (NavSat and similar fleet endpoints): some adapters can return
+       readings for MANY vehicles from a single sensor's URL, not only the
+       vehicle named by that sensor's own ``equipment.vehicle``. This
+       pre-fetch filter only decides whether to CALL a given sensor -- it
+       has no way to know what a fleet endpoint might actually return. A
+       sensor whose own vehicle is out of service, but whose fleet endpoint
+       would otherwise have served *other* in-service vehicles' positions,
+       is now skipped entirely, and those vehicles' positions are missed via
+       this sensor until it (or some other covering sensor) is in service
+       again. Accepted trade-off -- see the commit message / task report for
+       the reasoning.
+    4. Fetch each remaining sensor's readings, keep only the ones for
+       in-service vehicles (the *post*-fetch filter -- unaffected by the
+       above; still required to handle the fleet-endpoint case), and publish
+       the survivors on ``transit/vehicle/<id>/position``.
 
     Each sensor is fetched independently inside its own try/except so one
-    failing source can't sink the rest of the poll.
+    failing source can't sink the rest of the poll. The task also carries a
+    ``soft_time_limit`` so a single pathological source (e.g. a host that
+    hangs on every request) can never hold a worker slot indefinitely: on
+    ``SoftTimeLimitExceeded`` the sensor that was in flight is logged and the
+    task returns early instead of propagating the exception.
     """
     from operations.models import Sensor
     from runs.domain.telemetry import keys
@@ -120,30 +147,73 @@ def fetch_positions() -> str:
         for key in redis_client.scan_iter(match=keys.current_run_key("*"))
     }
 
-    sensors = Sensor.objects.filter(
-        status="ACTIVE",
-        provides_position=True,
-        source_type__in=["http", "both"],
-    ).select_related("equipment__vehicle")
+    sensors = list(
+        Sensor.objects.filter(
+            status="ACTIVE",
+            provides_position=True,
+            source_type__in=["http", "both"],
+        ).select_related("equipment__vehicle")
+    )
+
+    def _sensor_vehicle_id(sensor) -> str | None:
+        equipment = getattr(sensor, "equipment", None)
+        if equipment is None:
+            return None
+        vehicle_id = getattr(equipment, "vehicle_id", None)
+        return str(vehicle_id) if vehicle_id is not None else None
+
+    sensors_to_fetch = [
+        sensor
+        for sensor in sensors
+        if (vid := _sensor_vehicle_id(sensor)) is not None
+        and vid in in_service_vehicle_ids
+    ]
+
+    logger.info(
+        "fetch_positions: %d active HTTP position sensor(s), %d have an "
+        "in-service vehicle and will be fetched",
+        len(sensors),
+        len(sensors_to_fetch),
+    )
 
     readings: list[tuple[str, dict]] = []
-    sensor_count = 0
     failure_count = 0
-    for sensor in sensors:
-        sensor_count += 1
-        try:
-            adapter = get_adapter("http")
-            fetched = adapter.fetch(sensor)
-        except Exception:
-            failure_count += 1
-            logger.exception(
-                "Position fetch failed for sensor %s", getattr(sensor, "id", "?")
-            )
-            continue
+    in_flight_sensor_id: object = None
+    try:
+        for sensor in sensors_to_fetch:
+            in_flight_sensor_id = getattr(sensor, "id", "?")
+            try:
+                adapter = get_adapter("http")
+                fetched = adapter.fetch(sensor)
+            except SoftTimeLimitExceeded:
+                # Never let the blanket `except Exception` below swallow
+                # this -- it must propagate to the outer handler so the loop
+                # actually stops instead of moving on to the next sensor.
+                raise
+            except Exception:
+                failure_count += 1
+                logger.exception(
+                    "Position fetch failed for sensor %s", in_flight_sensor_id
+                )
+                continue
 
-        for vehicle_id, payload in fetched:
-            if vehicle_id in in_service_vehicle_ids:
-                readings.append((vehicle_id, payload))
+            for vehicle_id, payload in fetched:
+                if vehicle_id in in_service_vehicle_ids:
+                    readings.append((vehicle_id, payload))
+    except SoftTimeLimitExceeded:
+        logger.warning(
+            "fetch_positions hit its soft time limit while sensor %s was "
+            "in flight (%d/%d sensors fetched before the limit); returning "
+            "early without publishing",
+            in_flight_sensor_id,
+            len(readings),
+            len(sensors_to_fetch),
+        )
+        return (
+            f"fetch_positions: soft time limit exceeded while fetching "
+            f"sensor {in_flight_sensor_id}; polled {len(sensors)} sensors, "
+            f"{len(sensors_to_fetch)} eligible"
+        )
 
     if readings:
         try:
@@ -153,7 +223,8 @@ def fetch_positions() -> str:
             logger.exception("Failed to publish fetched positions batch")
 
     return (
-        f"fetch_positions: polled {sensor_count} sensors, "
+        f"fetch_positions: polled {len(sensors)} sensors, "
+        f"{len(sensors_to_fetch)} fetched, "
         f"{failure_count} failures, published {len(readings)} positions"
     )
 
