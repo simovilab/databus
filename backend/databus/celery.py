@@ -42,10 +42,6 @@ app.conf.beat_schedule = {
         "task": "schedule_engine.tasks.build_trip_updates",
         "schedule": timedelta(seconds=15),
     },
-    "build-alerts-every-10s": {
-        "task": "schedule_engine.tasks.build_alerts",
-        "schedule": timedelta(seconds=10),
-    },
     "scan-stale-runs-every-30s": {
         "task": "realtime_engine.tasks.scan_stale_runs",
         "schedule": timedelta(seconds=30),
