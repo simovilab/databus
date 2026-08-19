@@ -69,22 +69,6 @@ class RunLifecycleTransition(models.Model):
         ]
 
 
-class RunProgressEvent(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
-    run = models.ForeignKey(Run, on_delete=models.CASCADE)
-    event_type = models.CharField(max_length=128)
-    stop_id = models.CharField(max_length=64, null=True)
-    payload = models.JSONField(default=dict)
-    timestamp = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["run", "timestamp"]),
-            models.Index(fields=["event_type"]),
-        ]
-
-
 class Position(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     timestamp = models.DateTimeField()
