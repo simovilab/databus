@@ -2,7 +2,7 @@
   "polyreg_distance_global_baseline_v0": {
     "model_path": "polyreg_distance_global_baseline_v0.pkl",
     "meta_path": "polyreg_distance_global_baseline_v0_meta.json",
-    "saved_at": "2026-06-25T18:06:35.423137",
+    "saved_at": "2026-08-19T00:41:44.406894",
     "model_type": "polyreg_distance",
     "route_id": null,
     "dataset": "synthetic_constant_speed"
