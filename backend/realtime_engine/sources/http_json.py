@@ -135,10 +135,15 @@ class HttpJsonSourceAdapter:
         url = sensor.source_http_url
         mapping = sensor.source_json_mapping or {}
 
+        if not url:
+            logger.warning(
+                "sensor %s has source_type=http but no source_http_url; skipping",
+                getattr(sensor, "id", "?"),
+            )
+            return []
+
         try:
-            # source_http_url is a nullable DB field; a None here falls through
-            # to the except below rather than being type-safe. See task report.
-            response = requests.get(url, timeout=DEFAULT_TIMEOUT_S)  # type: ignore[arg-type]
+            response = requests.get(url, timeout=DEFAULT_TIMEOUT_S)
             response.raise_for_status()
             body = response.json()
         except Exception:
@@ -172,9 +177,15 @@ class HttpJsonSourceAdapter:
                 if not vehicle_id:
                     # Lazy access — never imported/evaluated at module scope,
                     # so this stays safe for isolated (non-DB) test runs.
-                    # equipment is nullable; a None here is caught by the
-                    # except below rather than being type-safe. See task report.
-                    vehicle_id = str(sensor.equipment.vehicle_id)  # type: ignore[union-attr]
+                    equipment = sensor.equipment
+                    if equipment is None:
+                        logger.warning(
+                            "sensor %s has no vehicle_id in record and no "
+                            "equipment association; skipping record",
+                            getattr(sensor, "id", "?"),
+                        )
+                        continue
+                    vehicle_id = str(equipment.vehicle_id)
 
                 results.append((vehicle_id, extracted["payload"]))
             except Exception:

@@ -201,6 +201,39 @@ def test_fetch_falls_back_to_sensor_equipment_vehicle_id_when_no_mapping(monkeyp
 
 
 # ---------------------------------------------------------------------------
+# Nullable Sensor fields: guarded explicitly rather than falling through to
+# the generic try/except.
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_skips_sensor_with_no_source_http_url(monkeypatch):
+    def fake_get(url, timeout):
+        raise AssertionError("requests.get should not be called for a None URL")
+
+    monkeypatch.setattr(http_json.requests, "get", fake_get)
+
+    sensor = _make_sensor(url=None)
+    results = http_json.HttpJsonSourceAdapter().fetch(sensor)
+
+    assert results == []
+
+
+def test_fetch_skips_record_when_fallback_vehicle_id_has_no_equipment(monkeypatch):
+    mapping = {**NAVSAT_MAPPING, "paths": {k: v for k, v in NAVSAT_MAPPING["paths"].items() if k != "vehicle_id"}}
+
+    def fake_get(url, timeout):
+        return FakeResponse([SAMPLE_RECORD])
+
+    monkeypatch.setattr(http_json.requests, "get", fake_get)
+
+    sensor = _make_sensor(mapping=mapping)
+    sensor.equipment = None
+    results = http_json.HttpJsonSourceAdapter().fetch(sensor)
+
+    assert results == []
+
+
+# ---------------------------------------------------------------------------
 # Contract compliance: produced payloads must pass position.validate_for_write
 # ---------------------------------------------------------------------------
 
