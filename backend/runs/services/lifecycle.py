@@ -1,5 +1,6 @@
 from typing import Any
 from django.utils.timezone import now
+from messages.publisher import publish_event
 from runs.domain.lifecycle import RunLifecycleEvents
 from runs.domain.lifecycle import RunLifecycleStates
 from runs.domain.lifecycle import Transition
@@ -81,7 +82,7 @@ class RunLifecycleService:
         except RunLifecycleError as exc:
             raise RunLifecycleError({"detail": str(exc)}) from exc
         self._update_run_lifecycle_state(run, transition, payload)
-        self._publish_run_lifecycle_transition(run, transition.to_state)
+        self._publish_run_lifecycle_transition(run, transition, payload)
         return transition.to_state, actions
 
     def _update_run_lifecycle_state(
@@ -92,9 +93,26 @@ class RunLifecycleService:
         run.save()
 
     def _publish_run_lifecycle_transition(
-        self, run: Run, new: RunLifecycleStates
+        self, run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> None:
-        pass
+        """Publish the completed transition as a run lifecycle domain event (fire-and-forget)."""
+        data: dict[str, Any] = {}
+        vehicle_id = payload.get("vehicle_id") or run.vehicle.values_list(
+            "id", flat=True
+        ).first()
+        if vehicle_id:
+            data["vehicle_id"] = str(vehicle_id)
+        if run.trip_id:
+            data["trip_id"] = run.trip_id
+        if run.route_id:
+            data["route_id"] = run.route_id
+        publish_event(
+            event=transition.event.value,
+            run_id=run.id,
+            from_state=transition.from_state.value,
+            to_state=transition.to_state.value,
+            data=data,
+        )
 
     def _persist_run_lifecycle_transition(
         self,
