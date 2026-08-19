@@ -44,6 +44,9 @@ dev = [
     "watchfiles>=0.24.0",
 ]
 
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "databus.settings"
+
 [tool.uv.workspace]
 members = [
     "gtfs-io",

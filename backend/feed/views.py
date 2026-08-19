@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.conf import settings
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponseNotFound
 from django.views.decorators.clickjacking import xframe_options_exempt
 
 # Create your views here.
@@ -11,8 +11,13 @@ def status(request):
 
 
 def schedule(request):
-    file_path = settings.BASE_DIR / "feed" / "files" / "bUCR_GTFS.zip"
-    return FileResponse(open(file_path, "rb"), filename="bUCR_GTFS.zip")
+    file_path = settings.BASE_DIR / "feed" / "files" / "gtfs.zip"
+    if not file_path.exists():
+        return HttpResponseNotFound(
+            "GTFS Schedule zip not yet available. "
+            "Run 'manage.py export_gtfs' or wait for the hourly Celery task."
+        )
+    return FileResponse(open(file_path, "rb"), as_attachment=True, filename="gtfs.zip")
 
 
 @xframe_options_exempt

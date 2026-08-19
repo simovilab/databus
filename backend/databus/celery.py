@@ -54,4 +54,8 @@ app.conf.beat_schedule = {
         "task": "realtime_engine.tasks.fetch_positions",
         "schedule": timedelta(seconds=10),
     },
+    "build-schedule-daily": {
+        "task": "schedule_engine.tasks.build_schedule",
+        "schedule": timedelta(days=1),
+    },
 }
