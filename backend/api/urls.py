@@ -1,3 +1,5 @@
+"""URL routing for the api app: DRF router-registered resources plus custom run/GTFS endpoints."""
+
 from django.urls import include, path
 from rest_framework import routers
 

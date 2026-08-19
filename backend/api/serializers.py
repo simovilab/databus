@@ -1,3 +1,5 @@
+"""DRF serializers for the operations, runs, and GTFS Schedule domains exposed by the api app."""
+
 from operations.models import (
     Company,
     Operator,
@@ -14,7 +16,20 @@ from runs.models import (
     OccupancyStatus,
 )
 from runs.domain.lifecycle import RunLifecycleEvents
-from feed.models import *
+from feed.models import (
+    Agency,
+    Stop,
+    Route,
+    Calendar,
+    CalendarDate,
+    Shape,
+    GeoShape,
+    Trip,
+    StopTime,
+    FareAttribute,
+    FareRule,
+    FeedInfo,
+)
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer, GeometryField
@@ -25,6 +40,8 @@ from rest_framework_gis.serializers import GeoFeatureModelSerializer, GeometryFi
 
 
 class LoginSerializer(serializers.Serializer):
+    """Serialize an auth token issued alongside the authenticated operator's ID."""
+
     token = serializers.CharField()
     operator_id = serializers.CharField()
 
@@ -35,6 +52,8 @@ class LoginSerializer(serializers.Serializer):
 
 
 class CompanySerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a Company, the legal entity operating vehicles under a GTFS Agency."""
+
     agency = serializers.PrimaryKeyRelatedField(queryset=Agency.objects.all())
 
     class Meta:
@@ -45,6 +64,8 @@ class CompanySerializer(serializers.HyperlinkedModelSerializer):
 
 
 class OperatorSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize an Operator (driver, dispatcher, or administrator) and their companies."""
+
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     company = serializers.PrimaryKeyRelatedField(
         queryset=Company.objects.all(), many=True
@@ -57,6 +78,8 @@ class OperatorSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class DataProviderSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a DataProvider, the owner of the telemetry equipment for a company."""
+
     company = serializers.PrimaryKeyRelatedField(
         queryset=Company.objects.all(), many=True
     )
@@ -68,6 +91,8 @@ class DataProviderSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class VehicleSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a Vehicle and its owning Company."""
+
     company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
 
     class Meta:
@@ -77,6 +102,8 @@ class VehicleSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a telemetry Equipment unit and its owning provider/vehicle."""
+
     data_provider = serializers.PrimaryKeyRelatedField(
         queryset=DataProvider.objects.all()
     )
@@ -89,6 +116,8 @@ class EquipmentSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class EquipmentLogSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a historical snapshot of an Equipment unit's identity and status."""
+
     equipment = serializers.PrimaryKeyRelatedField(queryset=Equipment.objects.all())
     data_provider = serializers.PrimaryKeyRelatedField(
         queryset=DataProvider.objects.all()
@@ -102,6 +131,8 @@ class EquipmentLogSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class RunSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a Run with its assigned vehicle and operator (currently unused; no route registers it)."""
+
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     operator = serializers.PrimaryKeyRelatedField(queryset=Operator.objects.all())
 
@@ -112,6 +143,8 @@ class RunSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class CreateRunSerializer(serializers.Serializer):
+    """Validate the payload for requesting a new run (vehicle, operator, and GTFS trip identifiers)."""
+
     vehicle_id = serializers.CharField(max_length=100)
     operator_id = serializers.CharField(max_length=100)
     route_id = serializers.CharField(max_length=100)
@@ -131,11 +164,15 @@ class CreateRunSerializer(serializers.Serializer):
 
 
 class RunUpdateSerializer(serializers.Serializer):
+    """Validate a run lifecycle update request: a lowercase `RunLifecycleEvents` value plus optional details."""
+
     event = serializers.ChoiceField(choices=RunLifecycleEvents)
     details = serializers.JSONField(required=False, default=dict)
 
 
 class PositionSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a vehicle Position sample, exposing latitude/longitude alongside the raw point."""
+
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     latitude = serializers.SerializerMethodField()
@@ -157,12 +194,14 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
         ]
         ordering = ["id"]
 
-    def get_latitude(self, obj):
+    def get_latitude(self, obj: Position) -> float | None:
+        """Return the position's latitude (point.y), or None if no point is set."""
         if obj.point:
             return obj.point.y
         return None
 
-    def get_longitude(self, obj):
+    def get_longitude(self, obj: Position) -> float | None:
+        """Return the position's longitude (point.x), or None if no point is set."""
         if obj.point:
             return obj.point.x
         return None
@@ -175,6 +214,8 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class VehicleStopStatusSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a vehicle's relationship to its current/next stop (GTFS-RT VehicleStopStatus)."""
+
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
     class Meta:
@@ -185,6 +226,8 @@ class VehicleStopStatusSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class CongestionLevelSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a vehicle's congestion level (GTFS-RT CongestionLevel)."""
+
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
     class Meta:
@@ -195,6 +238,8 @@ class CongestionLevelSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class OccupancyStatusSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a vehicle's passenger occupancy (GTFS-RT OccupancyStatus)."""
+
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
 
     class Meta:
@@ -210,6 +255,8 @@ class OccupancyStatusSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class AgencySerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS Agency (agency.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -218,6 +265,8 @@ class AgencySerializer(serializers.HyperlinkedModelSerializer):
 
 
 class StopSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS Stop (stops.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -226,6 +275,8 @@ class StopSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class GeoStopSerializer(GeoFeatureModelSerializer):
+    """Serialize GTFS Stops as GeoJSON features keyed on their point geometry."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
     stop_point = GeometryField()
 
@@ -236,6 +287,8 @@ class GeoStopSerializer(GeoFeatureModelSerializer):
 
 
 class RouteSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS Route (routes.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -244,6 +297,8 @@ class RouteSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class CalendarSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS weekly service Calendar (calendar.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -252,6 +307,8 @@ class CalendarSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class CalendarDateSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS CalendarDate service exception (calendar_dates.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -260,6 +317,8 @@ class CalendarDateSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ShapeSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS Shape point (shapes.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -268,6 +327,8 @@ class ShapeSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class GeoShapeSerializer(GeoFeatureModelSerializer):
+    """Serialize GTFS Shapes as GeoJSON LineString features."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
     geometry = GeometryField()
 
@@ -278,6 +339,8 @@ class GeoShapeSerializer(GeoFeatureModelSerializer):
 
 
 class TripSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS Trip (trips.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -286,6 +349,8 @@ class TripSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class StopTimeSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS StopTime (stop_times.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -294,6 +359,8 @@ class StopTimeSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class FareAttributeSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS FareAttribute (fare_attributes.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -302,6 +369,8 @@ class FareAttributeSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class FareRuleSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize a GTFS FareRule (fare_rules.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -310,6 +379,8 @@ class FareRuleSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class FeedInfoSerializer(serializers.HyperlinkedModelSerializer):
+    """Serialize GTFS FeedInfo (feed_info.txt)."""
+
     feed = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -323,10 +394,14 @@ class FeedInfoSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ServiceTodaySerializer(serializers.Serializer):
+    """Serialize a GTFS service ID active on a given date."""
+
     service_id = serializers.CharField()
 
 
 class WhichShapesSerializer(serializers.Serializer):
+    """Serialize the distinct shapes used by a route's stop sequence."""
+
     shape_id = serializers.CharField()
     direction_id = serializers.IntegerField()
     shape_name = serializers.CharField()
@@ -336,6 +411,8 @@ class WhichShapesSerializer(serializers.Serializer):
 
 
 class FindTripsSerializer(serializers.Serializer):
+    """Serialize a scheduled trip alongside its run's current lifecycle state, if any."""
+
     trip_id = serializers.CharField()
     trip_time = serializers.TimeField()
     run_lifecycle_state = serializers.CharField()
