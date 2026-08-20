@@ -138,3 +138,34 @@ def build_schedule() -> str | None:
 
     dest = publish_gtfs_zip(feed)
     return f"GTFS Schedule zip published: {dest} ({dest.stat().st_size} bytes)"
+
+
+@shared_task(queue="schedule_engine")
+def fetch_schedule() -> str:
+    """HEAD-check active providers' GTFS Schedule ETags and import any that changed."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    from feed.models import GTFSProvider
+    from feed.schedule.importer import import_schedule_if_changed
+
+    providers = list(GTFSProvider.objects.filter(is_active=True))
+    if not providers:
+        logger.warning("fetch_schedule: no active GTFSProvider rows found")
+        return "fetch_schedule: no active providers"
+
+    updated: list[str] = []
+    unchanged: list[str] = []
+    errored: list[str] = []
+    for provider in providers:
+        try:
+            if import_schedule_if_changed(provider):
+                updated.append(provider.code)
+            else:
+                unchanged.append(provider.code)
+        except Exception:
+            logger.exception("fetch_schedule: error importing provider %s", provider.code)
+            errored.append(provider.code)
+
+    return f"fetch_schedule: updated={updated} unchanged={unchanged} errored={errored}"

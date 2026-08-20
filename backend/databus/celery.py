@@ -4,14 +4,17 @@ Beat schedule entries: `fetch-positions` polls HTTP telemetry sources every 10s 
 that hasn't started within its own cycle is revoked via `expires=10` rather than queuing
 up behind a slow source); `build-vehicle-positions-every-15s` and
 `build-trip-updates-every-15s` rebuild the two GTFS-RT feeds every 15s;
-`scan-stale-runs-every-30s` sweeps for runs that have gone quiet; and
-`build-schedule-daily` rebuilds the GTFS Schedule zip once a day.
+`scan-stale-runs-every-30s` sweeps for runs that have gone quiet;
+`build-schedule-daily` rebuilds the GTFS Schedule zip once a day; and
+`fetch-schedule-hourly-at-30` HEAD-checks each active GTFSProvider's schedule_url ETag
+every hour at :30 and imports the GTFS Schedule when it changed.
 """
 
 from datetime import timedelta
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "databus.settings")
@@ -70,5 +73,9 @@ app.conf.beat_schedule = {
     "build-schedule-daily": {
         "task": "schedule_engine.tasks.build_schedule",
         "schedule": timedelta(days=1),
+    },
+    "fetch-schedule-hourly-at-30": {
+        "task": "schedule_engine.tasks.fetch_schedule",
+        "schedule": crontab(minute=30),
     },
 }
