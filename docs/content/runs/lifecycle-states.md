@@ -6,8 +6,8 @@ icon: lucide/git-branch
 
 The run lifecycle FSM is defined in `backend/runs/domain/lifecycle/`. Every run moves through exactly one state at a time; every state change requires a matching event, a passing set of guards, and the execution of a set of actions.
 
-!!! warning "State name correction"
-    The existing placeholder diagram in `docs/content/processes/run-lifecycle.md` uses `CANCELED`. The code uses `"Cancelled"` (British spelling, mixed case). Always use the value from `RunLifecycleStates` — never the enum member name.
+!!! note "Spelling: use the enum value, not the member name"
+    The code spells the cancelled state `"Cancelled"` (British spelling, mixed case) as the `RunLifecycleStates.CANCELLED` value — not `CANCELED`. Always use the value from `RunLifecycleStates`, never the enum member name, when comparing against Redis or API responses.
 
 ## State set
 
@@ -96,10 +96,10 @@ Defined in `backend/runs/domain/lifecycle/guards.py`.
 **Registration guards:**
 
 - `is_gtfs_valid` — checks that `route_id`, `trip_id`, `direction_id`, `shape_id`, and `schedule_relationship` are present and consistent with the current GTFS feed in PostgreSQL.
-- `is_trip_available` — checks Redis `trip:<trip_id>:current_run` is not already assigned to another run.
-- `is_vehicle_available` — checks Redis `vehicle:<vehicle_id>:current_run` is not assigned elsewhere.
-- `is_operator_available` — checks Redis `operator:<operator_id>:current_run` is not assigned elsewhere.
-- `is_run_validated` — always returns `True`; placeholder for future validation checks.
+- `is_trip_available` — checks Redis `trip:<trip_id>:current_run` is not claimed by a *different* run, raising `RunLifecycleError` if it is. `trip_id` comes from the payload, falling back to the run record's `trip_id` when the payload omits it; if neither is set the guard passes trivially.
+- `is_vehicle_available` — checks Redis `vehicle:<vehicle_id>:current_run` is not claimed by a *different* run, raising `RunLifecycleError` if it is. `vehicle_id` comes from the payload, falling back to the run's assigned vehicle when the payload omits it; if neither is set the guard passes trivially.
+- `is_operator_available` — checks Redis `operator:<operator_id>:current_run` is not claimed by a *different* run, raising `RunLifecycleError` if it is. `operator_id` comes from the payload, falling back to the run's assigned operator when the payload omits it; if neither is set the guard passes trivially.
+- `is_run_validated` — revalidates before `INITIALIZE_RUN`, closing the race window between `VALIDATE_RUN` and `INITIALIZE_RUN` (commit `2770788`): re-runs `is_vehicle_available`, `is_trip_available`, and `is_operator_available` (each only raises if the resource is claimed by a *different* run, so a re-fire where this run already holds its own claims still passes), then re-confirms the run's `trip_id` still exists in whichever GTFS feed is current *now* — covering the nightly `build_schedule` feed rotation that may have happened between validation and initialization. Raises `RunLifecycleError` with field-keyed detail on any failure.
 
 **Authorization guards:**
 
@@ -112,9 +112,9 @@ Defined in `backend/runs/domain/lifecycle/guards.py`.
 
 - `is_vehicle_tracked` — checks `SISMEMBER runs:tracking <run_id>` in Redis.
 - `is_vehicle_moving` — checks `speed > 0.5` m/s in the payload.
-- `is_telemetry_stale` — checks `staleness > TELEMETRY_GRACE_S` (60 s).
-- `is_telemetry_fresh` — checks `staleness <= TELEMETRY_GRACE_S` (60 s).
-- `is_telemetry_grace_period_exceeded` — checks `staleness > TELEMETRY_EXPIRY_S` (600 s).
+- `is_telemetry_stale` — checks `staleness > TELEMETRY_GRACE_S` (60 s), where `staleness` is computed from the payload's `last_seen_at` (falling back to the run record's `last_event_at` if absent).
+- `is_telemetry_fresh` — checks `staleness <= TELEMETRY_GRACE_S` (60 s), same `last_seen_at`/`last_event_at` fallback.
+- `is_telemetry_grace_period_exceeded` — checks `staleness > TELEMETRY_EXPIRY_S` (600 s), same `last_seen_at`/`last_event_at` fallback.
 - `is_at_terminal_stop` — checks that the `stop_id` in the payload matches the last stop of the run's trip in the current GTFS feed.
 
 ## Actions
