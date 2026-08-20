@@ -18,6 +18,7 @@ from django.conf import settings
 from google.protobuf import json_format
 from google.transit import gtfs_realtime_pb2 as gtfs_rt
 
+from databus.redis_client import create_redis_client
 from .builders import (
     build_trip_updates_feed,
     build_vehicle_positions_feed,
@@ -34,12 +35,7 @@ def get_redis() -> redis.Redis:
     """Return the module-level Redis client, lazily creating it on first use."""
     global _redis
     if _redis is None:
-        _redis = redis.Redis(
-            host=os.environ.get("REDIS_HOST", "state"),
-            port=int(os.environ.get("REDIS_PORT", "6379")),
-            db=int(os.environ.get("REDIS_DB", "0")),
-            decode_responses=True,
-        )
+        _redis = create_redis_client(db=int(os.environ.get("REDIS_DB", "0")))
     return _redis
 
 

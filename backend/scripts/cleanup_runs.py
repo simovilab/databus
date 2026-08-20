@@ -104,9 +104,11 @@ def get_db(
     )
 
 
-def get_redis(host: str, port: int, db: int) -> redis.Redis:
+def get_redis(host: str, port: int, db: int, password: str | None = None) -> redis.Redis:
     """Open a Redis client with the given connection parameters."""
-    return redis.Redis(host=host, port=port, db=db, decode_responses=True)
+    return redis.Redis(
+        host=host, port=port, db=db, password=password or None, decode_responses=True
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -505,6 +507,7 @@ Common recipes:
     parser.add_argument("--redis-host", default=os.getenv("REDIS_HOST", "localhost"))
     parser.add_argument("--redis-port", default=int(os.getenv("REDIS_PORT", "6379")), type=int)
     parser.add_argument("--redis-db",   default=int(os.getenv("REDIS_DB", "0")), type=int)
+    parser.add_argument("--redis-password", default=os.getenv("REDIS_PASSWORD", ""))
 
     args = parser.parse_args()
 
@@ -526,7 +529,7 @@ Common recipes:
 
     if need_redis:
         try:
-            r = get_redis(args.redis_host, args.redis_port, args.redis_db)
+            r = get_redis(args.redis_host, args.redis_port, args.redis_db, args.redis_password)
             r.ping()
         except Exception as e:
             print(f"\n⚠️  Cannot connect to Redis at {args.redis_host}:{args.redis_port}")

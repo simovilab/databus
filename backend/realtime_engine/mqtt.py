@@ -26,10 +26,10 @@ import socket
 from typing import Any, cast
 
 import paho.mqtt.client as mqtt
-import redis
 from celery import bootsteps
 from django.utils.timezone import now
 
+from databus.redis_client import create_redis_client
 from runs.domain.telemetry import keys, occupancy, position
 
 logger = logging.getLogger(__name__)
@@ -42,12 +42,7 @@ MQTT_CONSUMER_ENABLED = os.getenv("MQTT_CONSUMER_ENABLED", "false").lower() in (
     "yes",
 )
 
-r = redis.Redis(
-    host=os.getenv("REDIS_HOST", "state"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    db=0,
-    decode_responses=True,
-)
+r = create_redis_client()
 
 
 def _vehicle_id_from_topic(topic: str) -> str | None:

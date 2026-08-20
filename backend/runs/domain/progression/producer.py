@@ -13,22 +13,15 @@ package: module-level client configured from environment variables.
 """
 
 import logging
-import os
 from typing import cast
 
-import redis
-
+from databus.redis_client import create_redis_client
 from runs.domain.telemetry import keys, position, vehicle_stop_status
 from runs.domain.progression.compute import compute_stop_status
 
 logger = logging.getLogger(__name__)
 
-r = redis.Redis(
-    host=os.getenv("REDIS_HOST", "state"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    db=0,
-    decode_responses=True,
-)
+r = create_redis_client()
 
 
 def _hgetall(key: str) -> dict[str, str]:

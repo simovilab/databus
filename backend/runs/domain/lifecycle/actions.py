@@ -2,13 +2,18 @@
 
 from typing import Any, TYPE_CHECKING
 from runs.models import Run
-import redis
+from databus.redis_client import create_redis_client
 from runs.domain.telemetry import keys, trip
 
 if TYPE_CHECKING:
     from runs.domain.lifecycle import Transition
 
-r = redis.Redis(host="state", port=6379, db=0)
+# decode_responses=False preserves this module's prior hardcoded
+# `redis.Redis(host="state", port=6379, db=0)` default — this module never
+# reads back string values (only writes via hset/sadd/srem/delete), so the
+# bytes-vs-str distinction is behaviorally inert here, but kept explicit and
+# consistent with guards.py, which does depend on raw bytes.
+r = create_redis_client(decode_responses=False)
 
 
 class RunLifecycleActions:

@@ -26,8 +26,7 @@ import os
 from datetime import datetime, timezone
 from typing import cast
 
-import redis
-
+from databus.redis_client import create_redis_client
 from runs.domain.telemetry import keys, stop_time_updates, vehicle_stop_status
 from runs.domain.progression.geo import project_point_to_polyline
 from runs.domain.progression.shapes import ShapeGeometry, get_shape_geometry
@@ -50,12 +49,7 @@ ETA_MAX_STOPS = int(os.getenv("ETA_MAX_STOPS", "3"))
 # GTFS-RT feed; callers (e.g. apps) can use it for confidence UX.
 ETA_DEFAULT_UNCERTAINTY_S = int(os.getenv("ETA_DEFAULT_UNCERTAINTY_S", "120"))
 
-r = redis.Redis(
-    host=os.getenv("REDIS_HOST", "state"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    db=0,
-    decode_responses=True,
-)
+r = create_redis_client()
 
 
 def _hgetall(key: str) -> dict[str, str]:

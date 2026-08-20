@@ -133,6 +133,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REDIS_HOST = config("REDIS_HOST")
 REDIS_PORT = config("REDIS_PORT")
+REDIS_PASSWORD = config("REDIS_PASSWORD", default="")
 
 # RabbitMQ settings
 
@@ -167,11 +168,17 @@ SPECTACULAR_SETTINGS = {
 
 # Channels settings
 
+_CHANNEL_LAYER_HOSTS: list[str | tuple[str, str]] = (
+    [f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"]
+    if REDIS_PASSWORD
+    else [(REDIS_HOST, REDIS_PORT)]
+)
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "hosts": _CHANNEL_LAYER_HOSTS,
         },
     },
 }

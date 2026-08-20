@@ -12,21 +12,15 @@ Two layers:
 logic of their own.
 """
 
-import os
 from typing import Any, cast
 
-import redis
 from django.utils.timezone import now
 
+from databus.redis_client import create_redis_client
 from runs.domain.detection.result import DetectionResult
 from runs.domain.detection import registry
 
-r = redis.Redis(
-    host=os.getenv("REDIS_HOST", "state"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    db=0,
-    decode_responses=True,
-)
+r = create_redis_client()
 
 # Lifecycle events whose guard (``is_vehicle_tracked``) requires the run to
 # already be in ``runs:tracking``. The arrival of telemetry is precisely the

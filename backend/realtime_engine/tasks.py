@@ -1,15 +1,14 @@
 """Celery tasks for the realtime-engine worker: lifecycle events, staleness scanning, HTTP polling."""
 
 import logging
-import os
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, cast
 
-import redis
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from django.utils.timezone import now
 
+from databus.redis_client import create_redis_client
 from runs.services.lifecycle import RunLifecycleService
 
 if TYPE_CHECKING:
@@ -17,12 +16,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "state"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    db=0,
-    decode_responses=True,
-)
+redis_client = create_redis_client()
 
 
 def _smembers(key: str) -> set[str]:

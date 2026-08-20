@@ -6,12 +6,15 @@ from django.utils.timezone import now
 from runs.models import Run
 from runs.services.exceptions import RunLifecycleError
 from runs.domain.detection.thresholds import TELEMETRY_GRACE_S, TELEMETRY_EXPIRY_S
-import redis
+from databus.redis_client import create_redis_client
 
 if TYPE_CHECKING:
     from runs.domain.lifecycle import Transition
 
-r = redis.Redis(host="state", port=6379, db=0)
+# decode_responses=False preserves this module's prior hardcoded
+# `redis.Redis(host="state", port=6379, db=0)` default — `_get_bytes` below
+# relies on raw bytes (`.decode()` is called explicitly by callers).
+r = create_redis_client(decode_responses=False)
 
 
 def _get_bytes(key: str) -> bytes | None:
