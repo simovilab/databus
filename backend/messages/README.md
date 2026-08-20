@@ -69,10 +69,8 @@ docker compose -f compose.dev.yml run --rm orchestrator uv run pytest messages/ 
 publish-with-mocked-pool happy path, error-swallowing on connection/publish failures, and lazy
 connection caching. `make test` runs the full suite.
 
-## Note on docs drift
+## See also
 
-`docs/content/interfaces/amqp-events.md` currently describes this publisher as an unwired stub
-(direct exchange, `print()` instead of `producer.publish()`, different routing-key namespace). That
-page is stale — the code in this app is fully implemented as described above (topic exchange,
-`runs.lifecycle.*` routing keys, real `producer.publish()` via kombu's pool). Worth a doc refresh,
-out of scope for this README.
+`docs/content/interfaces/amqp-events.md` documents this publisher's exchange, routing-key
+namespace, envelope schema, and error policy in more detail, including a sequence diagram of the
+publish path.
