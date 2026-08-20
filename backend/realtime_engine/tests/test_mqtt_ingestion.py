@@ -26,7 +26,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import realtime_engine.mqtt as mqtt_module
+import realtime_engine.tasks as tasks_module
 from realtime_engine.mqtt import _handle_telemetry
+from realtime_engine.tasks import process_position_update
 from runs.domain.telemetry import keys, occupancy
 
 
@@ -312,9 +314,6 @@ def test_on_connect_subscribes_position_and_occupancy_only():
 # Task-level tests for process_position_update
 # ---------------------------------------------------------------------------
 
-
-import realtime_engine.tasks as tasks_module
-from realtime_engine.tasks import process_position_update
 
 _POSITION_RAW_REDIS = {
     "latitude": "51.5074",
