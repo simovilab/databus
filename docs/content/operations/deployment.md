@@ -27,7 +27,10 @@ cp .env.example .env
 ./scripts/prod.sh
 ```
 
-`prod.sh` initialises submodules, builds images, and starts `compose.prod.yml`.
+`prod.sh` builds images and starts `compose.prod.yml`.
+
+!!! warning "gtfs-eta has no production dependency path yet"
+    `backend/gtfs-eta` is a committed symlink to `../../gtfs-eta` (a sibling repo, `simovilab/gtfs-eta`), and `backend/pyproject.toml` declares it as an editable `[tool.uv.sources]` path dependency. `compose.dev.yml` makes this work by bind-mounting `../gtfs-eta:/gtfs-eta` into every backend service — but `compose.prod.yml` has **no equivalent bind mount or build-context provision** for `gtfs-eta`. The `backend` build stage's `COPY --chown=app:app . .` (`backend/Dockerfile`) only has access to `./backend` as its build context, so the symlink has no target to resolve inside the image, and the `uv sync` that installs it as an editable path dependency will fail. This is a known pre-release gap — the deployment host needs a working `gtfs-eta` dependency path before a production build succeeds; how that gets resolved is not yet decided.
 
 ## Environment variables
 
@@ -138,12 +141,14 @@ Redis runs with `--appendonly yes` for durability. The AOF journal persists the 
 
 ## Common operations
 
+`backend/docker-entrypoint.sh` already runs `manage.py migrate --noinput` automatically every time the `orchestrator` container starts (gated on `DJANGO_SETUP=True`, which only `orchestrator` sets). Unlike development, it does **not** run `makemigrations` in production — that step is gated on `DEBUG`, and `.env.prod` sets `DEBUG=False`. Migration directories are gitignored (not committed), so `manage.py migrate` in production applies whatever migration files happen to be present in the Docker build context when `compose.prod.yml build` runs — a fresh `git clone` with no prior dev build has none. In practice this means production deploys today rely on migrations already having been generated on the build machine (e.g. by a prior dev build) rather than on a committed or CI-generated set.
+
 ```bash
 # Rebuild and restart after code changes
 docker compose -f compose.prod.yml build orchestrator user-interface
 docker compose -f compose.prod.yml up -d orchestrator user-interface
 
-# Django management in production
+# Django management in production (manual migrate is rarely needed — see above)
 docker compose -f compose.prod.yml exec orchestrator uv run python manage.py migrate
 docker compose -f compose.prod.yml exec orchestrator uv run python manage.py createsuperuser
 

@@ -4,7 +4,7 @@ icon: lucide/terminal
 
 # Local development
 
-All development is Docker-based. The `scripts/dev.sh` wrapper handles submodule initialisation, image pulls, and health-check waiting, so the recommended workflow is a single command.
+All development is Docker-based. The `scripts/dev.sh` wrapper handles image pulls and health-check waiting, so the recommended workflow is a single command. (It also runs a legacy Git-submodule step that is a no-op today — see the note below.)
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ All development is Docker-based. The `scripts/dev.sh` wrapper handles submodule 
 
 For macOS/Linux bare-metal work (without Docker), you additionally need:
 
-- Python 3.11+
+- Python 3.14+ (`backend/pyproject.toml` pins `requires-python = ">=3.14"`)
 - `uv` (package manager)
 - Redis, PostgreSQL/PostGIS, RabbitMQ, NanoMQ running locally
 
@@ -31,7 +31,15 @@ cp .env.example .env
 ./scripts/dev.sh
 ```
 
-`dev.sh` initialises Git submodules (the `gtfs` submodule under `backend/`), pulls and builds images, starts all compose services, and waits for health checks to pass. On first run this takes 1–2 minutes.
+`dev.sh` pulls and builds images, starts all compose services, and waits for health checks to pass. On first run this takes 1–2 minutes.
+
+!!! note "GTFS dependencies: three different mechanisms, not a submodule"
+    `scripts/dev.sh` still contains a legacy step that tries to `git submodule update --init --recursive` for a `backend/gtfs` submodule — but the repo has no `.gitmodules` file and no `backend/gtfs` directory, so that step is a no-op today. The GTFS dependencies actually come from:
+
+    - **`gtfs-io`** and **`gtfs-django`** — cloned directly from GitHub (`simovilab/gtfs-io`, `simovilab/gtfs-django`) by `backend/docker-entrypoint.sh` the first time any backend container starts, then installed editable (`uv add --editable ./gtfs-io`, `./gtfs-django`) as part of Django setup on the `orchestrator` container (gated by `DJANGO_SETUP=True`). All four Python services share the resulting `backend_venv` volume.
+    - **`gtfs-eta`** — a sibling-repo path dependency, *not* cloned automatically. `backend/gtfs-eta` is a committed symlink to `../../gtfs-eta`, and `compose.dev.yml` bind-mounts `../gtfs-eta:/gtfs-eta` (read-write, since `uv sync`'s editable install writes a gitignored `.egg-info/` into the source tree) for `orchestrator`, `realtime-engine`, `schedule-engine`, and `scheduler`. You must have `simovilab/gtfs-eta` checked out as a sibling directory of `databus/` (i.e. `../gtfs-eta` relative to this repo) before `docker compose -f compose.dev.yml up` will build successfully. See `backend/pyproject.toml`'s `[tool.uv.sources]` comment for the full path-resolution rationale.
+
+    `compose.prod.yml` has no equivalent `gtfs-eta` bind mount yet — this is a known pre-release gap, not something resolved in the current compose files.
 
 ## Daily workflow
 
@@ -56,8 +64,11 @@ docker compose -f compose.dev.yml down
 
 All management commands run inside the `orchestrator` container:
 
+!!! note "Migrations are regenerated automatically at container start"
+    `backend/docker-entrypoint.sh` runs `manage.py makemigrations feed schedule_engine realtime_engine operations` (when `DEBUG` is true) followed by `manage.py migrate --noinput` every time the `orchestrator` container starts (gated by `DJANGO_SETUP=True`, which only `orchestrator` sets in both compose files). Migration directories are gitignored (`migrations/` in the root `.gitignore`) and regenerated from current models rather than committed — you normally don't need to run `makemigrations`/`migrate` by hand in dev; the commands below are for the cases where you do (e.g. re-running after editing models without restarting the container).
+
 ```bash
-# Migrations
+# Migrations (usually not needed — see note above)
 docker compose -f compose.dev.yml exec orchestrator uv run python manage.py makemigrations
 docker compose -f compose.dev.yml exec orchestrator uv run python manage.py migrate
 
@@ -89,7 +100,17 @@ docker compose -f compose.dev.yml exec orchestrator uv run python manage.py upda
 
 ## Code quality
 
-All quality tools run from `backend/`:
+The repository root has a `Makefile` with the three canonical entry points — use these unless you have a reason not to:
+
+```bash
+make lint       # ruff check . — runs locally against backend/, no Docker needed
+make typecheck  # mypy . — runs inside the orchestrator container (docker compose run --rm)
+make test       # pytest -q — runs inside the orchestrator container (docker compose run --rm)
+```
+
+`lint` runs locally because `ruff` doesn't import Django settings. `typecheck` and `test` run inside the `orchestrator` container because `mypy`'s `django-stubs` plugin (and `pytest-django`) import `databus.settings`, which reads env vars via `python-decouple` and fails outside the container. See the comments in the root `Makefile` for the full rationale.
+
+Equivalently, from `backend/` (matches what the Makefile invokes):
 
 ```bash
 cd backend
@@ -98,48 +119,50 @@ cd backend
 ruff check .
 ruff format .
 
-# Type checking
+# Type checking (inside the orchestrator container — see above)
 mypy .
 
-# Tests
+# Tests (inside the orchestrator container — see above)
 pytest
 pytest tests/ -v
 pytest tests/test_specific.py::test_function  # single test
 ```
+
+`ruff` enforces the `D1` (missing-docstring) rule family — every module, class, and function needs a docstring (see `[tool.ruff.lint]` in `backend/pyproject.toml`). `mypy` runs with `django-stubs` and `check_untyped_defs = false`. Both exclude `gtfs-eta` (the sibling repo's own lint/type baseline) and `migrations/` (gitignored, regenerated at container start — see above).
 
 ## Non-Docker (bare-metal) setup
 
 For situations where Docker is not available:
 
 ```bash
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Linux / macOS
-
-# Install dependencies
-uv pip install -r backend/requirements.txt
-
 # Copy environment variables
 cp .env.example .env
 # Edit .env: set DB_HOST=localhost, REDIS_HOST=localhost, etc.
 
-# Run migrations
+# Install dependencies (creates backend/.venv from pyproject.toml + uv.lock —
+# there is no backend/requirements.txt in this project)
 cd backend
-python manage.py migrate
+uv sync
+
+# Run migrations
+uv run python manage.py migrate
 
 # Start workers separately (requires Redis, RabbitMQ, NanoMQ running locally)
 # Terminal 1: Django
-python manage.py runserver
+uv run python manage.py runserver
 
 # Terminal 2: realtime-engine Celery worker (with MQTT consumer)
-MQTT_CONSUMER_ENABLED=true celery -A databus worker -Q realtime_engine -l info
+MQTT_CONSUMER_ENABLED=true uv run celery -A databus worker -Q realtime_engine --loglevel=info
 
 # Terminal 3: schedule-engine Celery worker
-celery -A databus worker -Q schedule_engine -l info
+uv run celery -A databus worker -Q schedule_engine --loglevel=info
 
 # Terminal 4: Celery beat
-celery -A databus beat -l info
+uv run celery -A databus beat --loglevel=info
 ```
+
+!!! note "GTFS workspace members aren't fetched automatically outside Docker"
+    `backend/pyproject.toml` declares `gtfs-io` and `gtfs-django` as `[tool.uv.workspace]` members and `gtfs-eta` as an editable `[tool.uv.sources]` path dependency (`backend/gtfs-eta`). Inside Docker, `backend/docker-entrypoint.sh` clones `gtfs-io`/`gtfs-django` from GitHub automatically and `gtfs-eta` arrives via the `compose.dev.yml` bind mount (see the GTFS dependencies note above) — none of that automation runs bare-metal. For a bare-metal `uv sync` to succeed you need `backend/gtfs-io/` and `backend/gtfs-django/` cloned manually (`git clone https://github.com/simovilab/gtfs-io.git backend/gtfs-io`, same for `gtfs-django`) and a `gtfs-eta` checkout reachable at the path `backend/gtfs-eta` resolves to.
 
 !!! note "macOS GDAL/GEOS"
     PostGIS/GeoDjango on macOS requires GDAL and GEOS to be installed and discoverable. A common approach is `brew install gdal geos`. If Django raises `OSError: Could not find the GDAL library`, set `GDAL_LIBRARY_PATH` and `GEOS_LIBRARY_PATH` in your environment to point to the Homebrew lib paths (e.g. `/opt/homebrew/lib/libgdal.dylib`).
