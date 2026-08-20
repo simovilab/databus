@@ -63,21 +63,28 @@ This is how `RunCompletedDetector` works post-decommission: it no longer reads a
 !!! note "Why the leaf name is still 'progression'"
     `RunCompletedDetector` was written to match the `"progression"` leaf and inspect `current_status`. Passing the server-computed dict under the same leaf name preserved backward compatibility with the detector contract without touching the detection layer. The leaf is now synthetic (server-generated), not edge-sent.
 
-### Step 3: stop-time-updates projection
+### Step 3: stop-time-updates projection (real ETA estimation)
 
 ```python
 from runs.domain.progression.stop_times import produce_stop_times
 produce_stop_times(run_id, vehicle_id)
 ```
 
-`produce_stop_times` (`backend/runs/domain/progression/stop_times.py`) reads the current run hash and stop-status progression from Redis, delegates to `schedule_engine.fake_stop_times.build_stop_time_updates`, maps the output to the typed contract, and writes the JSON array to `run:<run_id>:stop_time_updates` with a 60-second TTL:
+`produce_stop_times` (`backend/runs/domain/progression/stop_times.py`) is the impure glue layer for a real ETA estimator — not a fake/placeholder generator:
+
+1. Read the run hash and the latest position from Redis. Exit without writing if the run hash is missing, or the position has no `latitude`/`longitude`.
+2. Resolve `shape_id`/`trip_id` from the run hash and load the cached `ShapeGeometry` (`runs/domain/progression/shapes.py`, the same geometry map-matching uses). Exit without writing if either id is missing or the geometry can't be loaded — this leaves the last-good projection in Redis to expire naturally via its TTL rather than clobbering it with an empty result.
+3. Project the vehicle onto the polyline and build the `upcoming_stops` list: stops at/after the current `current_stop_sequence` (strictly after it when `current_status == "STOPPED_AT"`).
+4. Call `gtfs_eta.eta_service.estimator.estimate_stop_times(...)`, imported lazily inside the function so a missing/unconfigured ETA model registry never breaks Celery worker startup. `MODEL_REGISTRY_DIR` (read by `gtfs_eta` itself), `ETA_MAX_STOPS` (default `3`), and `ETA_DEFAULT_UNCERTAINTY_S` (default `120`) control the call.
+5. Map each prediction to the `stop_time_updates` contract (`stop_sequence`, `stop_id`, `arrival_time`, `departure_time`, `uncertainty`), dedup by `stop_sequence`, sort ascending.
+6. **Write only when the estimator returns at least one prediction.** If the estimator errors, or the route has no trained model, `produce_stop_times` returns without touching Redis at all — the previous projection is left in place to TTL-expire on its own, rather than being overwritten with an empty array.
 
 ```python
 STOP_TIME_UPDATES_TTL_S = 60
 r.set(keys.stop_time_updates_key(run_id), payload, ex=STOP_TIME_UPDATES_TTL_S)
 ```
 
-The TTL ensures that if a vehicle goes silent, the GTFS-RT builder reads an empty/expired key rather than serving stale arrival predictions.
+The TTL ensures that if a vehicle goes silent and nothing refreshes the key, the GTFS-RT builder eventually reads an empty/expired key rather than serving indefinitely stale arrival predictions.
 
 ### Step 4: position-leaf detection
 
@@ -107,6 +114,17 @@ flowchart TD
 
 Each step is wrapped in its own `try/except`. A failure in any one step is logged and does not abort the remaining steps — the task always attempts all four phases.
 
+## Downstream: `run_lifecycle_event` and idempotent re-fires
+
+Steps 2 and 4 call `detect_from_telemetry` (`backend/runs/domain/detection/dispatch.py`). When a detector matches, the dispatcher itself queues `realtime_engine.tasks.run_lifecycle_event.delay(event, payload)` — that task, not `process_position_update`, is what actually calls `RunLifecycleService.process_event` and commits the FSM transition.
+
+Detectors already gate on the run's current lifecycle state before firing, but a detection can still lose a race against an in-flight transition for the same run — e.g. two position pings both observe `Tracking` before the first `RUN_STARTED` transition has landed, so both queue a `run_started` event. `run_lifecycle_event` (`backend/realtime_engine/tasks.py`) tells that harmless re-fire apart from a genuine invalid transition using `target_state_for_event()` (`backend/runs/domain/lifecycle/transitions.py`), which resolves the single `to_state` an event deterministically leads to (or `None` if the event has no transitions or maps to more than one distinct target):
+
+- If the event's target state resolves unambiguously and the run has *already* reached it, the re-fire is logged at `WARNING` ("no-op re-fire, run already `<state>`") and swallowed — not a failure.
+- Any other `RunLifecycleError` — a real invalid transition, or a target state that can't be resolved unambiguously — is logged at `ERROR` via `logger.exception`.
+
+(commit `452ce10`, which downgraded these benign re-fires from `ERROR` to `WARNING`.)
+
 ## Occupancy: inline, not off-thread
 
 Occupancy processing (`HSET vehicle:<id>:occupancy` + lifecycle detection) remains inline in the MQTT callback and is not delegated to a Celery task. There are two reasons:
@@ -117,6 +135,7 @@ Occupancy processing (`HSET vehicle:<id>:occupancy` + lifecycle detection) remai
 ## Related pages
 
 - [Telemetry ingestion](telemetry-ingestion.md) — the MQTT callback that enqueues this task.
-- [Map-matching & progression](map-matching.md) — step 1 in detail.
+- [Map-matching & progression](map-matching.md) — step 1 in detail, plus the ETA/stop-time projection covered in step 3.
 - [Celery workers, queues & beat](../operations/celery.md) — queue routing and worker configuration.
 - [Detection layer](../runs/detection.md) — how `detect_from_telemetry` works.
+- [Lifecycle states](../runs/lifecycle-states.md) — the FSM `run_lifecycle_event` drives.

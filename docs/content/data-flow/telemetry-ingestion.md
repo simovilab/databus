@@ -2,9 +2,9 @@
 icon: lucide/radio
 ---
 
-# Telemetry ingestion (MQTT)
+# Telemetry ingestion (MQTT + HTTP polling)
 
-Vehicles publish telemetry to NanoMQ over MQTT. The `realtime-engine` Celery worker picks it up through an in-process bootstep and routes it into Redis.
+Vehicles publish telemetry to NanoMQ over MQTT. The `realtime-engine` Celery worker picks it up through an in-process bootstep and routes it into Redis. A second path exists for devices that only expose an HTTP+JSON endpoint: the `fetch_positions` Celery Beat task polls them and republishes onto the same MQTT topic, so everything below this point in the pipeline is identical regardless of which path produced the message (see [HTTP polling: a second producer](#http-polling-a-second-producer) below).
 
 ## The MQTT consumer is a Celery bootstep
 
@@ -131,6 +131,20 @@ r.set(keys.last_seen_key(run_id), now().isoformat())
 ```
 
 This key drives the stale-run scanner (`scan_stale_runs`, every 30 s). Writing it synchronously ensures staleness detection is never delayed by queue backlog, even when the `realtime_engine` Celery queue is under load.
+
+## HTTP polling: a second producer
+
+Not every telemetry device speaks MQTT. `realtime_engine.tasks.fetch_positions` (`backend/realtime_engine/tasks.py`) is a Celery Beat task — scheduled every 10 s as `fetch-positions` in `backend/databus/celery.py`, with `expires=10` so a poll that couldn't even start within its own cycle is revoked instead of queuing up behind a slow/unreachable source — that polls HTTP+JSON telemetry sources (`backend/realtime_engine/sources/http_json.py`) and republishes what it fetches onto the same `transit/vehicle/<id>/position` topic this bootstep subscribes to. From that point on, ingestion is indistinguishable from a native MQTT publish.
+
+Key behaviors:
+
+- **Same in-service gate as the MQTT consumer.** Only sensors whose assigned vehicle has a `vehicle:<id>:current_run` Redis key are fetched at all (commit `6936b30`) — gating on `runs:in_progress` instead would deadlock a `CONFIRMED` run, since it only reaches `IN_PROGRESS` once telemetry proves the vehicle is moving.
+- **`soft_time_limit=25`** on the task: a single pathological source (a host that hangs on every request) can't hold a worker slot indefinitely. On `SoftTimeLimitExceeded` the in-flight sensor is logged and the task returns early without publishing.
+- **`DEFAULT_TIMEOUT_S = 5`** on the underlying HTTP adapter's own request (`http_json.py`), independent of the task-level soft limit.
+- **Misconfigured sensors are skipped with explicit guards, not exceptions** (commit `ee39467`): a sensor with `source_type="http"`/`"both"` but no `source_http_url` is skipped and logged; a record whose mapping doesn't resolve a `vehicle_id` and whose sensor has no `equipment` association is skipped and logged.
+- Fetched readings are filtered down to in-service vehicles a second time after the HTTP call returns (a fleet endpoint can report many vehicles from one sensor's URL), then published via `MqttPublisher.publish_batch` (`backend/realtime_engine/sources/publisher.py`) — QoS 0, not retained, same topic and payload shape as a direct device publish.
+
+This page only summarizes the ingestion mechanics; the full field-by-field mapping contract (JSON-path mapping schema, unit conversions, pre-fetch vs. post-fetch filtering) is documented on [MQTT telemetry contract → HTTP polling ingestion path](../interfaces/mqtt-telemetry.md#http-polling-ingestion-path) — read that page rather than duplicating it here.
 
 ## Consumer pipeline summary
 

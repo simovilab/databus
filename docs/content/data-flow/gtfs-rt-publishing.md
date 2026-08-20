@@ -23,26 +23,46 @@ app.conf.beat_schedule = {
         "task": "schedule_engine.tasks.build_trip_updates",
         "schedule": timedelta(seconds=15),
     },
-    "build-alerts-every-10s": {
-        "task": "schedule_engine.tasks.build_alerts",
-        "schedule": timedelta(seconds=10),
-    },
     "scan-stale-runs-every-30s": {
         "task": "realtime_engine.tasks.scan_stale_runs",
         "schedule": timedelta(seconds=30),
     },
+    "fetch-positions": {
+        "task": "realtime_engine.tasks.fetch_positions",
+        "schedule": timedelta(seconds=10),
+        # A task that couldn't even start within its own 10s cycle is stale
+        # by the time a worker slot frees up -- revoke it instead of letting
+        # queued fetch_positions runs pile up behind a slow/unreachable
+        # source.
+        "options": {"expires": 10},
+    },
+    "build-schedule-daily": {
+        "task": "schedule_engine.tasks.build_schedule",
+        "schedule": timedelta(days=1),
+    },
 }
 ```
+
+`build_alerts` (`schedule_engine.tasks.build_alerts`) is **not** in this dict —
+it is deliberately excluded from beat, see the warning below.
 
 | Task | Queue | Cadence | Output |
 |---|---|---|---|
 | `build_vehicle_positions` | `schedule_engine` | 15 s | `vehicle_positions.{pb,json}` |
 | `build_trip_updates` | `schedule_engine` | 15 s | `trip_updates.{pb,json}` + WebSocket push |
-| `build_alerts` | `schedule_engine` | 10 s | stub (returns `"Feed ServiceAlert built"`) |
-| `scan_stale_runs` | `realtime_engine` | 30 s | lifecycle events only |
+| `build_schedule` | `schedule_engine` | daily | GTFS Schedule zip, via `feed.schedule.exporter.publish_gtfs_zip` |
 
-!!! warning "Alerts are a stub"
-    `build_alerts` returns a string and does not write any file. ServiceAlert support is designed but not yet implemented.
+Two more beat entries fire on this same schedule but are **not** part of the
+feed-building pipeline — they belong to `realtime_engine` ingestion and are
+covered on [Telemetry ingestion](telemetry-ingestion.md), not here:
+
+| Task | Queue | Cadence | Role |
+|---|---|---|---|
+| `scan_stale_runs` | `realtime_engine` | 30 s | Fires lifecycle events for quiet runs; writes no feed output. |
+| `fetch_positions` | `realtime_engine` | 10 s (`expires=10`) | Polls HTTP telemetry sources and republishes onto MQTT — an ingestion task, not a publisher. |
+
+!!! warning "Alerts are a stub, and it is not beat-scheduled"
+    `build_alerts` (`backend/schedule_engine/tasks.py`) still exists as a Celery task — it returns the string `"Feed ServiceAlert built"` and writes no file — but it was removed from `app.conf.beat_schedule`. It only runs if invoked manually (shell, Django admin); nothing calls it on a cadence. ServiceAlert support is designed but not yet implemented.
 
 ## Feed assembly: pure builders
 
@@ -120,7 +140,7 @@ backend/feed/files/
 └── trip_updates.json       # Debug JSON, same content
 ```
 
-The `feed` Django app serves these files via a static-file route. In production the `static_files` nginx service (see [Deployment](../operations/deployment.md)) serves them from a shared volume.
+These files are served by explicit `feed` app views (`backend/feed/views.py`, routed in `backend/feed/urls.py`) — `GET /realtime/vehicle_positions.{json,pb}` and `/realtime/trip_updates.{json,pb}` each `FileResponse` the corresponding file — not by a generic static-file/nginx route. In `compose.dev.yml` all three backend services bind-mount the same `./backend` host directory, so `feed/files/` written by `schedule-engine` is immediately visible to `orchestrator`. See [Deployment](../operations/deployment.md) for how the output directory is exposed in other environments.
 
 ## Feed cadence diagram
 
@@ -143,11 +163,17 @@ sequenceDiagram
         W-->>W: group_send("status", …)
     end
 
-    loop Every 10 s
-        B->>W: build_alerts
-        W-->>W: return stub string
+    loop Once a day
+        B->>W: build_schedule
+        W->>F: gtfs.zip
     end
 ```
+
+`build_alerts` fires on no schedule — it is not in `app.conf.beat_schedule`.
+`fetch_positions` (every 10 s, `expires=10`) and `scan_stale_runs` (every 30 s)
+also fire on Celery Beat, but on the `realtime_engine` worker, as ingestion
+tasks — see [Telemetry ingestion](telemetry-ingestion.md) rather than this
+diagram, which covers feed *publishing* only.
 
 ## Related pages
 
