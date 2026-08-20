@@ -30,8 +30,8 @@
   "occurred_at": "2026-08-19T00:00:00+00:00",
   "producer": "databus",
   "run_id": "<run uuid, stringified>",
-  "from_state": "INITIALIZED",
-  "to_state": "CONFIRMED",
+  "from_state": "Initialized",
+  "to_state": "Confirmed",
   "data": { "vehicle_id": "...", "trip_id": "...", "route_id": "..." }
 }
 ```
