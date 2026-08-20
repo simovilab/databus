@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+from urllib.parse import quote
 from decouple import config, Csv
 import platform
 import os
@@ -169,7 +170,7 @@ SPECTACULAR_SETTINGS = {
 # Channels settings
 
 _CHANNEL_LAYER_HOSTS: list[str | tuple[str, str]] = (
-    [f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"]
+    [f"redis://:{quote(REDIS_PASSWORD, safe='')}@{REDIS_HOST}:{REDIS_PORT}/0"]
     if REDIS_PASSWORD
     else [(REDIS_HOST, REDIS_PORT)]
 )
