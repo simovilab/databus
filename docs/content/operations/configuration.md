@@ -47,8 +47,7 @@ Databús is configured entirely through environment variables loaded from `.env`
 | `REDIS_PASSWORD` | `redispassword` | Yes (prod) | Redis AUTH password. Required in `compose.prod.yml` (the `state` service starts with `--requirepass`). Leave empty for bare-metal dev without auth. |
 | `REDIS_DB` | `0` | No | Redis database index. |
 
-!!! warning "`REDIS_PASSWORD` is not currently consumed by any Redis client"
-    Every place `databus` connects to Redis — `realtime_engine/tasks.py`, `realtime_engine/mqtt.py`, `schedule_engine/tasks.py`, `runs/domain/lifecycle/{guards,actions}.py`, `runs/domain/detection/dispatch.py`, `runs/domain/progression/{producer,stop_times}.py`, and the Channels `CHANNEL_LAYERS` config in `databus/settings.py` — builds its `redis.Redis(...)` / channel-layer host from `REDIS_HOST`/`REDIS_PORT` (or a hardcoded `"state"` in the two `runs/domain/lifecycle` modules) with no password argument. `compose.prod.yml` starts `state` with `--requirepass ${REDIS_PASSWORD}`, so as configured today those clients would fail to authenticate against a production Redis that actually enforces the password. Verified by reading every `redis.Redis(` call site and `settings.py` in this session — flagging as a known gap, not fixing it here (docs-only scope).
+All Redis clients in `databus` — `realtime_engine/tasks.py`, `realtime_engine/mqtt.py`, `schedule_engine/tasks.py`, `runs/domain/lifecycle/{guards,actions}.py`, `runs/domain/detection/dispatch.py`, `runs/domain/progression/{producer,stop_times}.py` — are built via the shared factory in `databus/redis_client.py`, and the Channels `CHANNEL_LAYERS` config in `databus/settings.py` follows the same env vars directly. All of them honor `REDIS_PASSWORD` when it is set. Leaving it empty or unset (the dev default) connects without AUTH, so bare-metal dev without auth keeps working unchanged.
 
 ### RabbitMQ (AMQP message broker)
 
