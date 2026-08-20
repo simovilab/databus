@@ -9,7 +9,6 @@ from operations.models import (
     EquipmentLog,
 )
 from runs.models import (
-    Run,
     Position,
     VehicleStopStatus,
     CongestionLevel,
@@ -33,18 +32,6 @@ from feed.models import (
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer, GeometryField
-
-# --------------
-# Login data
-# --------------
-
-
-class LoginSerializer(serializers.Serializer):
-    """Serialize an auth token issued alongside the authenticated operator's ID."""
-
-    token = serializers.CharField()
-    operator_id = serializers.CharField()
-
 
 # --------------
 # Telemetry data
@@ -127,18 +114,6 @@ class EquipmentLogSerializer(serializers.HyperlinkedModelSerializer):
         ordering = ["id"]
 
 
-class RunSerializer(serializers.HyperlinkedModelSerializer):
-    """Serialize a Run with its assigned vehicle and operator (currently unused; no route registers it)."""
-
-    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
-    operator = serializers.PrimaryKeyRelatedField(queryset=Operator.objects.all())
-
-    class Meta:
-        model = Run
-        fields = "__all__"
-        ordering = ["id"]
-
-
 class CreateRunSerializer(serializers.Serializer):
     """Validate the payload for requesting a new run (vehicle, operator, and GTFS trip identifiers)."""
 
@@ -171,7 +146,6 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
     """Serialize a vehicle Position sample, exposing latitude/longitude alongside the raw point."""
 
     vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
-    vehicle = serializers.PrimaryKeyRelatedField(queryset=Vehicle.objects.all())
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
 
@@ -179,7 +153,6 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
         model = Position
         fields = [
             "url",
-            "vehicle",
             "vehicle",
             "timestamp",
             "point",
@@ -203,12 +176,6 @@ class PositionSerializer(serializers.HyperlinkedModelSerializer):
             return obj.point.x
         return None
 
-    # def create(self, validated_data):
-    #     latitude = validated_data.pop("latitude")
-    #     longitude = validated_data.pop("longitude")
-    #     point = Point(longitude, latitude)
-    #     return Position.objects.create(point=point, **validated_data)
-
 
 class VehicleStopStatusSerializer(serializers.HyperlinkedModelSerializer):
     """Serialize a vehicle's relationship to its current/next stop (GTFS-RT VehicleStopStatus)."""
@@ -217,7 +184,6 @@ class VehicleStopStatusSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = VehicleStopStatus
-        fields = "__all__"
         fields = "__all__"
         ordering = ["id"]
 
@@ -230,7 +196,6 @@ class CongestionLevelSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = CongestionLevel
         fields = "__all__"
-        fields = "__all__"
         ordering = ["id"]
 
 
@@ -241,7 +206,6 @@ class OccupancyStatusSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = OccupancyStatus
-        fields = "__all__"
         fields = "__all__"
         ordering = ["id"]
 
