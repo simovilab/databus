@@ -83,7 +83,9 @@ A message produced by the realtime-engine when it detects a meaningful state
 change from telemetry — e.g., `run_tracking_started` or `run_completed`. In
 the ARCHITECTURE.md messaging model, observations are "derived facts" emitted
 by the engine and consumed by the orchestrator. The AMQP event publisher
-(`backend/messages/publisher.py`) is the intended transport.
+(`backend/messages/publisher.py`) is now live and carries these: every FSM
+transition (whether command- or detection-triggered) is broadcast on the
+`databus.events` topic exchange.
 
 See [Interfaces › AMQP event semantics](../interfaces/amqp-events.md).
 
@@ -105,7 +107,12 @@ the lifecycle. See [Run lifecycle › Commands vs detected facts](../runs/comman
 
 A message type in the ARCHITECTURE.md model: a claim by the schedule-engine
 about the published GTFS-RT output (e.g., "VehiclePositions feed written with
-N entities"). Currently not emitted (the publisher is a stub).
+N entities"). Not currently emitted as an AMQP message — the publisher
+(`backend/messages/publisher.py`) is fully implemented but is only called from
+the run lifecycle service (see [Observation](#observation)), not from
+`schedule_engine`. The closest existing analog is the WebSocket `"status"`
+group message `build_trip_updates` pushes via Django Channels after each
+build.
 
 ---
 

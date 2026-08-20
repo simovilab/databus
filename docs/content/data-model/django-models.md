@@ -58,25 +58,24 @@ Indexed on `(run, timestamp)` and `event_name`.
 The `GET /api/runs/<id>/history/` endpoint returns this log ordered by
 `(timestamp, created_at)`.
 
-### `RunProgressEvent`
-
-Records stop-level progress events (vehicle arrived at stop, departed, etc.)
-for analytics.
-
-| Field | Notes |
-| --- | --- |
-| `run` | ForeignKey to `Run` |
-| `event_type` | String event type |
-| `stop_id` | GTFS stop_id (nullable) |
-| `payload` | JSONField |
-| `timestamp` | Event time |
+!!! note "`RunProgressEvent` does not exist in current code"
+    The single checked-in migration (`runs/migrations/0001_initial.py`)
+    defines a `RunProgressEvent` model, but it is **not** present in the
+    current `backend/runs/models.py`. Do not document or rely on it — the
+    model file is the source of truth, not the migration.
 
 ### `Position`, `VehicleStopStatus`, `CongestionLevel`, `OccupancyStatus`
 
-Normalized GTFS-RT entity records for durable persistence and analytics.
-Written by the realtime-engine after processing. These are separate from the
-Redis keys — Redis holds the *live* snapshot; these models hold the
-*historical trace*.
+Normalized GTFS-RT entity tables intended for durable persistence and
+analytics, separate from the Redis keys (Redis holds the *live* snapshot;
+these models would hold the *historical trace*). All four are defined in
+`backend/runs/models.py` and exposed read-only-in-practice through DRF
+ViewSets in `backend/api/views.py`, but **no current code path writes rows
+into them** — a repo-wide search finds no `.objects.create(...)` call for any
+of the four, and the one write path that exists,
+`Position.objects.create(...)` in `api/serializers.py`, is commented out.
+Treat these as reserved schema until a producer is implemented, not as an
+active audit trail.
 
 ---
 
@@ -121,7 +120,30 @@ A physical vehicle that can be assigned to a run.
 ### `DataProvider`, `Equipment`, `EquipmentLog`
 
 Support models for on-board equipment registration and telemetry source
-tracking.
+tracking. `Equipment.save()` appends an immutable snapshot to `EquipmentLog`
+on every save.
+
+### `Sensor`
+
+A logical telemetry feed (of one or more data types) registered on a piece of
+`Equipment`. Most fields are nullable — code that reads a `Sensor` guards
+against `equipment`, `equipment.vehicle`, and the `source_*` fields all being
+absent.
+
+| Field | Notes |
+| --- | --- |
+| `id` | UUID primary key |
+| `equipment` | ForeignKey to `Equipment` (nullable) |
+| `provides_position`, `provides_occupancy`, `provides_vehicle`, … | Booleans flagging which data types this sensor supplies |
+| `source_type` | `mqtt` / `http` / `both` (nullable) |
+| `source_http_url` | URL polled by the `"http"` adapter when `source_type` is `http` or `both` |
+| `source_json_mapping` | JSONField describing how to extract `lat`/`lon`/`speed`/`odometer`/`timestamp`/`vehicle_id` from the endpoint's response |
+| `status` | `ACTIVE` / `INACTIVE` |
+
+`realtime_engine.tasks.fetch_positions` (every 10 s) queries `ACTIVE` sensors
+with `provides_position=True` and `source_type` in `["http", "both"]`, fetches
+each via `realtime_engine/sources/http_json.py`, and republishes readings for
+in-service vehicles onto MQTT. See [Architecture › Services & mandates](../architecture/services.md#realtime-engine).
 
 ---
 
