@@ -298,7 +298,8 @@ class RunLifecycleGuards:
                 {"trip_id": f"No stop times found for trip '{trip_id}'"}
             )
 
-        terminal = stop_times.last()
+        # `.exists()` above already guarantees `.last()` is non-None here.
+        terminal = cast(StopTime, stop_times.last())
         stop_ids = list(stop_times.values_list("stop_id", flat=True))
 
         if short_turn_stop_id not in stop_ids:

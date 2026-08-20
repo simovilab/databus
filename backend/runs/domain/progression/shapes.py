@@ -432,7 +432,10 @@ def load_shape_geometry(
 
     stop_ids = [sid for sid, _seq in st_rows]
     stop_coord_map = {
-        row["stop_id"]: (float(row["stop_lat"]), float(row["stop_lon"]))
+        row["stop_id"]: (
+            float(row["stop_lat"]),  # type: ignore[arg-type]
+            float(row["stop_lon"]),  # type: ignore[arg-type]
+        )
         for row in Stop.objects.filter(feed=feed, stop_id__in=stop_ids).values(
             "stop_id", "stop_lat", "stop_lon"
         )
