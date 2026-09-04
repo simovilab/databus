@@ -10,6 +10,7 @@ dependencies = [
     "channels-redis>=4.3.0",
     "daphne>=4.2.1",
     "django==6.0.4",
+    "django-cors-headers>=4.9.0",
     "django-celery-beat>=2.8.1",
     "django-celery-results>=2.6.0",
     "django-filter>=25.1",
@@ -19,6 +20,7 @@ dependencies = [
     "flower>=2.0.1",
     "geopandas>=1.1.1",
     "gtfs-django",
+    "gtfs-eta",
     "gtfs-io",
     "gtfs-realtime-bindings>=1.0.0",
     "gunicorn>=23.0.0",
@@ -37,18 +39,99 @@ dependencies = [
 [dependency-groups]
 dev = [
     "django-debug-toolbar>=6.0.0",
+    "django-stubs[compatible-mypy]>=6.0.4",
+    "mypy>=2.0.0",
     "pytest>=8.4.1",
     "pytest-django>=4.11.1",
     "ruff>=0.12.11",
     "watchfiles>=0.24.0",
 ]
 
+[tool.ruff]
+# gtfs-eta is a symlink to the sibling repo (see [tool.uv.sources] below), a
+# separately-maintained codebase with its own lint baseline — not databus's
+# to fix here. Config-level exclude so `ruff check .` stays clean without
+# every caller needing to remember a CLI --exclude flag.
+extend-exclude = ["gtfs-eta"]
+
+[tool.ruff.lint]
+# Missing-docstring rules only (D100-D107 family): we want *presence* of
+# docstrings, not pydocstyle's style nitpicks. extend-select (not select) so
+# ruff's default E/F rules stay active alongside this.
+extend-select = ["D1"]
+# D106 (missing docstring in nested class) is noise for Django's ubiquitous
+# `class Meta:` inner classes — ignored globally rather than per-file.
+ignore = ["D106"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"**/migrations/**" = ["D"]
+"**/tests/**" = ["D"]
+"**/tests.py" = ["D"]
+"**/test_*.py" = ["D"]
+"manage.py" = ["D"]
+"**/__init__.py" = ["D104"]
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+ignore_missing_imports = true
+check_untyped_defs = false
+# api/tests.py (a namespace package: no __init__.py, matching Django 6's
+# implicit-namespace app style) and gtfs-django/tests/ both resolve to the
+# bare module name "tests" without this — explicit_package_bases makes mypy
+# derive each module's qualified name from its position under mypy_path
+# instead of collapsing to the top-level basename.
+explicit_package_bases = true
+mypy_path = "."
+# migrations are gitignored/regenerated at container start; gtfs-eta is the
+# sibling repo's own codebase (see [tool.ruff] above for the full rationale);
+# .venv is the local virtualenv, not project code.
+exclude = "(^|/)(migrations|gtfs-eta|\\.venv)(/|$)"
+
+[tool.django-stubs]
+django_settings_module = "databus.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "databus.settings"
+# gtfs-eta is a symlink to the sibling repo (see [tool.uv.sources] below),
+# not a databus package: it carries its own full test suite (collector /
+# training tests needing duckdb, sch_pipeline, its own Django app config,
+# etc.) that has nothing to do with databus and fails to even collect here.
+# The previous vendored copy was a trimmed subset with no tests, so this
+# exclude wasn't needed before.
+addopts = "--ignore=gtfs-eta"
+
 [tool.uv.workspace]
-members = [
-    "gtfs-io",
-    "gtfs-django",
-]
+members = ["gtfs-io", "gtfs-django"]
 
 [tool.uv.sources]
+# gtfs-eta lives in the sibling repo (simovilab/gtfs-eta), not in this
+# workspace. `path` below is deliberately a bare, dot-free segment
+# ("gtfs-eta"), not a literal "../../gtfs-eta": uv normalizes `path` sources
+# itself before touching the filesystem, and rejects any string that walks
+# above the *container's* root (uv error: "cannot normalize a relative path
+# beyond the base directory") — which "../../gtfs-eta" does once /app (this
+# file's directory inside the container) is only one level below the
+# container's filesystem root. A literal ".." string therefore cannot work
+# identically on host and in-container.
+#
+# Fix: "gtfs-eta" here is a symlink (see backend/gtfs-eta -> ../../gtfs-eta)
+# committed in this directory. uv only ever normalizes the single path
+# segment "gtfs-eta"; walking past the symlink is then the OS's job, and the
+# OS clamps ".." at the filesystem root instead of erroring:
+#   host   : backend/gtfs-eta -> ../../gtfs-eta -> git.no_sync/gtfs-eta
+#   compose: ./backend bind-mounted at /app, so /app/gtfs-eta carries the
+#            same symlink; compose.dev.yml separately bind-mounts
+#            ../gtfs-eta:/gtfs-eta so the OS-resolved target exists there too.
+# `uv sync` runs at container start (docker-entrypoint.sh), after that mount
+# exists, not at image build time, so no build-context change is needed.
+#
+# Prod assumption: the deployment host must check out simovilab/gtfs-eta at
+# the same relative path (sibling of the databus checkout) and compose.prod.yml
+# must bind-mount it the same way as compose.dev.yml, OR this source must be
+# swapped to the published `gtfs-eta` PyPI package once it ships at release.
+gtfs-eta = { path = "gtfs-eta", editable = true }
 gtfs-io = { workspace = true, editable = true }
 gtfs-django = { workspace = true, editable = true }

@@ -23,12 +23,13 @@ External signals enter the platform at two surfaces:
 
 - **REST API** — the `api` Django app accepts operator commands (create-run, confirm, complete, interrupt, short-turn). Authenticated via DRF token auth.
 - **MQTT telemetry** — vehicles publish GPS and occupancy to the `telemetry-broker` (NanoMQ) on topics of the form `transit/vehicle/<id>/{position,occupancy}`. The `realtime-engine` Celery worker picks these up via its embedded MQTT bootstep.
+- **HTTP telemetry (polled)** — some vehicles are only reachable via a third-party HTTP+JSON endpoint rather than native MQTT. The `fetch_positions` beat task (every 10 s) polls ACTIVE `operations.Sensor` rows configured for HTTP, then republishes the readings onto the same `transit/vehicle/<id>/position` MQTT topic — so from the MQTT bootstep's point of view, HTTP-sourced and natively-MQTT vehicles are indistinguishable.
 
 ### Processing
 
 The `realtime-engine` worker converts raw telemetry into domain state:
 
-1. Parses and validates each MQTT message.
+1. Parses and validates each MQTT message (whether device-originated or bridged in by `fetch_positions`).
 2. Writes the telemetry leaf to Redis (`vehicle:<id>:position` or `:occupancy`).
 3. Enqueues `process_position_update` as a Celery task, which runs server-side map-matching and detection off the paho network thread.
 4. Fires lifecycle events (`run_tracking_started`, `run_started`, `run_completed`, …) via `run_lifecycle_event` tasks.
@@ -39,7 +40,7 @@ Redis (`state` service) holds the **authoritative real-time picture** of every a
 
 ### Projection
 
-Every 15 seconds the `scheduler` fires `build_vehicle_positions` and `build_trip_updates` on the `schedule-engine` worker. That worker reads the Redis snapshot, converts it to protobuf and JSON, and writes GTFS-RT files to `backend/feed/files/`. Alerts are rebuilt every 10 seconds (currently a stub returning an empty feed). See [../data-flow/gtfs-rt-publishing.md](../data-flow/gtfs-rt-publishing.md).
+Every 15 seconds the `scheduler` fires `build_vehicle_positions` and `build_trip_updates` on the `schedule-engine` worker. That worker reads the Redis snapshot, converts it to protobuf and JSON, and writes GTFS-RT files to `backend/feed/files/`. A `build_alerts` task exists but is a stub (returns a placeholder string, writes no feed file) and is **not** registered in the beat schedule — it is not currently fired periodically. Separately, `build_schedule` runs once a day to export the current GTFS Schedule zip. See [../data-flow/gtfs-rt-publishing.md](../data-flow/gtfs-rt-publishing.md).
 
 ### Persistence
 

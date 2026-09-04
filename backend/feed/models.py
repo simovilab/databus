@@ -1,4 +1,8 @@
+"""GTFS Schedule Django models, plus FeedPublisher/Feed for feed versioning."""
+
 import re
+from typing import TYPE_CHECKING, Any
+
 from django.db.models import UniqueConstraint
 from django.core.exceptions import ValidationError
 from django.contrib.gis.db import models
@@ -17,64 +21,90 @@ from gtfs.models import (
     BaseFeedInfo,
 )
 
+if TYPE_CHECKING:
+    from django.db.models.fields.related_descriptors import RelatedManager
 
-def validate_no_spaces_or_special_symbols(value):
+
+def validate_no_spaces_or_special_symbols(value: str) -> None:
+    """Reject values containing spaces or characters outside alphanumerics and underscores."""
     if re.search(r"[^a-zA-Z0-9_]", value):
         raise ValidationError(
             "Este campo no puede contener espacios ni símbolos especiales, solamente letras, números y guiones bajos."
         )
 
 
-class GTFSProvider(models.Model):
-    """A provider provides transportation services GTFS data.
+class TransitSystem(models.Model):
+    """A transit system is a collection of GTFS providers that serve a common purpose, for example, the public transportation system of a city or country."""
 
-    It might or might not be the same as the agency in the GTFS feed. A GTFS provider can serve multiple agencies.
-    """
-
-    provider_id = models.BigAutoField(primary_key=True)
+    name = models.CharField(max_length=255, help_text="Name of the transit system.")
     code = models.CharField(
         max_length=31,
-        help_text="Código (típicamente el acrónimo) de la empresa. No debe tener espacios ni símbolos especiales.",
+        help_text="Transit system code (typically its acronym). It must not contain spaces or special characters.",
         validators=[validate_no_spaces_or_special_symbols],
+        unique=True,
     )
-    name = models.CharField(max_length=255, help_text="Nombre de la empresa.")
     description = models.TextField(
-        blank=True, null=True, help_text="Descripción de la institución o empresa."
-    )
-    website = models.URLField(
-        blank=True, null=True, help_text="Sitio web de la empresa."
-    )
-    schedule_url = models.URLField(
-        blank=True,
-        null=True,
-        help_text="URL del suministro (Feed) de GTFS Schedule (.zip).",
-    )
-    trip_updates_url = models.URLField(
-        blank=True,
-        null=True,
-        help_text="URL del suministro (FeedMessage) de la entidad GTFS Realtime TripUpdates (.pb).",
-    )
-    vehicle_positions_url = models.URLField(
-        blank=True,
-        null=True,
-        help_text="URL del suministro (FeedMessage) de la entidad GTFS Realtime VehiclePositions (.pb).",
-    )
-    service_alerts_url = models.URLField(
-        blank=True,
-        null=True,
-        help_text="URL del suministro (FeedMessage) de la entidad GTFS Realtime ServiceAlerts (.pb).",
-    )
-    timezone = models.CharField(
-        max_length=63,
-        help_text="Zona horaria del proveedor de datos (asume misma zona horaria para todas las agencias). Ejemplo: America/Costa_Rica.",
+        blank=True, null=True, help_text="Description of the transit system."
     )
     is_active = models.BooleanField(
-        default=False,
-        help_text="¿Está activo el proveedor de datos? Si no, no se importarán los datos de este proveedor.",
+        default=False, help_text="Whether the transit system is active."
     )
 
     def __str__(self):
-        return f"{self.name} ({self.code})"
+        """Return the transit system code and name."""
+        return f"{self.code}: {self.name}"
+
+
+class FeedPublisher(models.Model):
+    """Represent a GTFS data publisher for one transit system, potentially distinct from and serving multiple feed agencies, with schedule and realtime endpoints."""
+
+    transit_system = models.ForeignKey(
+        TransitSystem,
+        help_text="Transit system served by the feed publisher.",
+        on_delete=models.CASCADE,
+    )
+    code = models.CharField(
+        max_length=31,
+        help_text="Company code (typically its acronym). It must not contain spaces or special characters.",
+        validators=[validate_no_spaces_or_special_symbols],
+        unique=True,
+    )
+    name = models.CharField(max_length=255, help_text="Name of the company.")
+    description = models.TextField(
+        blank=True, null=True, help_text="Description of the institution or company."
+    )
+    lang = models.CharField(
+        max_length=15,
+        blank=True,
+        null=True,
+        help_text="Language of the data provided by the publisher, in ISO 639-1 alpha-2 or alpha-3 format. Examples: es, en, fr.",
+    )
+    contact_email = models.EmailField(
+        blank=True,
+        null=True,
+        help_text="Contact email address for the data publisher.",
+    )
+    contact_url = models.URLField(
+        blank=True, null=True, help_text="Contact URL for the data publisher."
+    )
+    website = models.URLField(blank=True, null=True, help_text="Company website.")
+    schedule_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="URL of the GTFS Schedule feed (.zip).",
+    )
+    timezone = models.CharField(
+        max_length=63,
+        help_text="Time zone of the data publisher (assumed to be the same for all agencies). Example: America/Costa_Rica.",
+    )
+    is_active = models.BooleanField(
+        default=False,
+        help_text="Whether the data publisher is active. If inactive, data from this publisher will not be imported.",
+    )
+
+    def __str__(self):
+        """Return a string representation of the GTFS provider."""
+        return f"{self.transit_system.code}: {self.name} ({self.code})"
 
 
 # -------------
@@ -82,17 +112,43 @@ class GTFSProvider(models.Model):
 # -------------
 
 
-class Feed(models.Model):
+# mypy_django_plugin can't resolve the reverse managers below (agency_set,
+# stop_set, ...): each FK owner (Agency, Stop, Route, Calendar, CalendarDate,
+# Shape, Trip, StopTime, FareAttribute, FareRule, FeedInfo) is a concrete
+# subclass of an *abstract* Base* model imported from the separate `gtfs`
+# package (gtfs-django), and the plugin's `_default_manager` resolution for
+# such cross-package abstract-base subclasses never completes (confirmed:
+# neither an explicit `if TYPE_CHECKING: agency_set: RelatedManager[...]`
+# stub nor an explicit `objects = models.Manager()` on the FK owner changes
+# the outcome). This looks like an upstream django-stubs limitation, not a
+# real bug in these models.
+class Feed(models.Model):  # type: ignore[django-manager-missing]
+    """One retrieved version of a GTFS Schedule feed from a provider."""
+
     feed_id = models.CharField(max_length=100, primary_key=True, unique=True)
-    gtfs_provider = models.ForeignKey(
-        GTFSProvider, on_delete=models.SET_NULL, blank=True, null=True
+    feed_publisher = models.ForeignKey(
+        FeedPublisher, on_delete=models.SET_NULL, blank=True, null=True
     )
     http_etag = models.CharField(max_length=1023, blank=True, null=True)
     http_last_modified = models.DateTimeField(blank=True, null=True)
     is_current = models.BooleanField(blank=True, null=True)
     retrieved_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
+    if TYPE_CHECKING:
+        agency_set: RelatedManager["Agency"]
+        stop_set: RelatedManager["Stop"]
+        route_set: RelatedManager["Route"]
+        calendar_set: RelatedManager["Calendar"]
+        calendardate_set: RelatedManager["CalendarDate"]
+        shape_set: RelatedManager["Shape"]
+        trip_set: RelatedManager["Trip"]
+        stoptime_set: RelatedManager["StopTime"]
+        fareattribute_set: RelatedManager["FareAttribute"]
+        farerule_set: RelatedManager["FareRule"]
+        feedinfo_set: RelatedManager["FeedInfo"]
+
+    def __str__(self) -> str:
+        """Return the feed's identifier."""
         return self.feed_id
 
 
@@ -109,7 +165,8 @@ class Agency(BaseAgency):
         ]
         verbose_name_plural = "agencies"
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the agency's name."""
         return self.agency_name
 
 
@@ -144,7 +201,8 @@ class Stop(BaseStop):
         ]
 
     # Build stop_point or stop_lat and stop_lon
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Populate stop_lat/stop_lon from stop_point, or stop_point from stop_lat/stop_lon, before saving."""
         if self.stop_point:
             self.stop_lat = self.stop_point.y
             self.stop_lon = self.stop_point.x
@@ -152,7 +210,8 @@ class Stop(BaseStop):
             self.stop_point = Point(self.stop_lon, self.stop_lat)
         super(Stop, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the stop's ID and name."""
         return f"{self.stop_id}: {self.stop_name}"
 
 
@@ -173,13 +232,15 @@ class Route(BaseRoute):
             UniqueConstraint(fields=["feed", "route_id"], name="unique_route_in_feed")
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Resolve and cache the linked Agency for this route before saving."""
         self.linked_agency = Agency.objects.get(
             feed=self.feed, agency_id=self.agency_id
         )
         super(Route, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the route's short and long names."""
         return f"{self.route_short_name}: {self.route_long_name}"
 
 
@@ -197,7 +258,8 @@ class Calendar(BaseCalendar):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the service's identifier."""
         return self.service_id
 
 
@@ -223,13 +285,15 @@ class CalendarDate(BaseCalendarDate):
             )
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Resolve and cache the linked Calendar for this exception before saving."""
         self.linked_service = Calendar.objects.get(
             feed=self.feed, service_id=self.service_id
         )
         super(CalendarDate, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the holiday name and service ID."""
         return f"{self.holiday_name} ({self.service_id})"
 
 
@@ -248,7 +312,8 @@ class Shape(BaseShape):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the shape's ID and point sequence."""
         return f"{self.shape_id}: {self.shape_pt_sequence}"
 
 
@@ -273,14 +338,16 @@ class Trip(BaseTrip):
             UniqueConstraint(fields=["feed", "trip_id"], name="unique_trip_in_feed")
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Resolve and cache the linked Route and Calendar for this trip before saving."""
         self.linked_route = Route.objects.get(feed=self.feed, route_id=self.route_id)
         self.linked_service = Calendar.objects.get(
             feed=self.feed, service_id=self.service_id
         )
         super(Trip, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the trip's identifier."""
         return self.trip_id
 
 
@@ -305,12 +372,14 @@ class StopTime(BaseStopTime):
             )
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Resolve and cache the linked Trip and Stop for this stop time before saving."""
         self.linked_trip = Trip.objects.get(feed=self.feed, trip_id=self.trip_id)
         self.linked_stop = Stop.objects.get(feed=self.feed, stop_id=self.stop_id)
         super(StopTime, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the trip ID, stop ID, and stop sequence."""
         return f"{self.trip_id}: {self.stop_id} ({self.stop_sequence})"
 
 
@@ -331,14 +400,16 @@ class FareAttribute(BaseFareAttribute):
             )
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Resolve and cache the linked Agency for this fare, if any, before saving."""
         if self.agency_id:
             self.linked_agency = Agency.objects.get(
                 feed=self.feed, agency_id=self.agency_id
             )
         super(FareAttribute, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the fare's identifier."""
         return self.fare_id
 
 
@@ -370,14 +441,16 @@ class FareRule(BaseFareRule):
             )
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Resolve and cache the linked FareAttribute and Route for this rule before saving."""
         self.linked_fare = FareAttribute.objects.get(
             feed=self.feed, fare_id=self.fare_id
         )
         self.linked_route = Route.objects.get(feed=self.feed, route_id=self.route_id)
         super(FareRule, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the fare ID and route ID."""
         return f"{self.fare_id}: {self.route_id}"
 
 
@@ -388,7 +461,8 @@ class FeedInfo(BaseFeedInfo):
 
     feed = models.ForeignKey(Feed, on_delete=models.CASCADE)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the feed publisher name and version."""
         return f"{self.feed_publisher_name}: {self.feed_version}"
 
 
@@ -397,7 +471,10 @@ class FeedInfo(BaseFeedInfo):
 # ----------------
 
 
-class GeoShape(models.Model):
+# Same mypy_django_plugin limitation as Feed above: Trip (the FK owner via
+# Trip.geoshape) subclasses the cross-package abstract BaseTrip, so the
+# plugin can't resolve GeoShape's reverse `trip_set` manager either.
+class GeoShape(models.Model):  # type: ignore[django-manager-missing]
     """Rules for drawing lines on a map to represent a transit organization's routes.
     Maps to shapes.txt in the GTFS feed.
     """
@@ -425,7 +502,11 @@ class GeoShape(models.Model):
             )
         ]
 
-    def __str__(self):
+    if TYPE_CHECKING:
+        trip_set: RelatedManager["Trip"]
+
+    def __str__(self) -> str:
+        """Return the geoshape's identifier."""
         return self.shape_id
 
 
@@ -457,13 +538,15 @@ class RouteStop(models.Model):
             )
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Resolve and cache the linked Route, GeoShape, and Stop for this entry before saving."""
         self.linked_route = Route.objects.get(feed=self.feed, route_id=self.route_id)
         self.linked_shape = GeoShape.objects.get(feed=self.feed, shape_id=self.shape_id)
         self.linked_stop = Stop.objects.get(feed=self.feed, stop_id=self.stop_id)
         super(RouteStop, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the route, stop, shape, and sequence."""
         return f"{self.route_id}: {self.stop_id} ({self.shape_id} {self.stop_sequence})"
 
 
@@ -503,7 +586,8 @@ class TripDuration(models.Model):
             )
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Resolve and cache the linked Route, Shape, and Calendar for this duration before saving."""
         self.linked_route = Route.objects.get(feed=self.feed, route_id=self.route_id)
         self.linked_shape = Shape.objects.get(feed=self.feed, shape_id=self.shape_id)
         self.linked_service = Calendar.objects.get(
@@ -511,7 +595,8 @@ class TripDuration(models.Model):
         )
         super(TripDuration, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the route, service, and time window."""
         return (
             f"{self.route_id}: {self.service_id} ({self.start_time} - {self.end_time})"
         )
@@ -543,12 +628,14 @@ class TripTime(models.Model):
             )
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Resolve and cache the linked Trip and Stop for this timepoint before saving."""
         self.linked_trip = Trip.objects.get(feed=self.feed, trip_id=self.trip_id)
         self.linked_stop = Stop.objects.get(feed=self.feed, stop_id=self.stop_id)
         super(TripTime, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the trip ID, stop ID, and departure time."""
         return f"{self.trip_id}: {self.stop_id} ({self.departure_time})"
 
 
@@ -571,8 +658,8 @@ class FeedMessage(models.Model):
     )
 
     feed_message_id = models.CharField(max_length=63, primary_key=True)
-    provider = models.ForeignKey(
-        GTFSProvider, on_delete=models.SET_NULL, blank=True, null=True
+    feed_publisher = models.ForeignKey(
+        FeedPublisher, on_delete=models.SET_NULL, blank=True, null=True
     )
     entity_type = models.CharField(max_length=63, choices=ENTITY_TYPE_CHOICES)
     timestamp = models.DateTimeField(auto_now=True)
@@ -582,7 +669,8 @@ class FeedMessage(models.Model):
     class Meta:
         ordering = ["-timestamp"]
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the entity type and timestamp."""
         return f"{self.entity_type} ({self.timestamp})"
 
 
@@ -623,7 +711,8 @@ class TripUpdate(models.Model):
     # Delay (int32)
     delay = models.IntegerField(blank=True, null=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the entity ID and source feed message."""
         return f"{self.entity_id} ({self.feed_message})"
 
 
@@ -660,7 +749,8 @@ class StopTimeUpdate(models.Model):
     # ScheduleRelationship (enum)
     schedule_relationship = models.CharField(max_length=255, blank=True, null=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the stop ID and parent trip update."""
         return f"{self.stop_id} ({self.trip_update})"
 
 
@@ -730,13 +820,15 @@ class VehiclePosition(models.Model):
 
     # CarriageDetails (message): not implemented
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Derive vehicle_position_point from the vehicle's latitude and longitude before saving."""
         self.vehicle_position_point = Point(
             self.vehicle_position_longitude, self.vehicle_position_latitude
         )
         super(VehiclePosition, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the entity ID and source feed message."""
         return f"{self.entity_id} ({self.feed_message})"
 
 
@@ -814,5 +906,6 @@ class Alert(models.Model):
     )
     informed_entity = models.JSONField(help_text="Entidades informadas por la alerta.")
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the alert's identifier."""
         return self.alert_id

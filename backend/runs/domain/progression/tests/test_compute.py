@@ -247,8 +247,6 @@ class TestMapMatchingStatuses:
 
     def test_incoming_at_when_within_incoming_radius(self):
         """Place vehicle just under INCOMING_AT_RADIUS_M before S1."""
-        from runs.domain.progression.geo import haversine_m as hav
-
         # Find lat just inside INCOMING_AT_RADIUS_M of S1 (2.0, 0.0).
         # 1° ≈ 111 195 m.  INCOMING_AT_RADIUS_M = 50 m → Δlat ≈ 50/111195.
         delta_lat = (INCOMING_AT_RADIUS_M - 5) / 111_195.0  # a little inside

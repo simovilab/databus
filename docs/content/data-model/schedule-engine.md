@@ -81,14 +81,15 @@ Key constants:
 
 ## Celery tasks
 
-`backend/schedule_engine/tasks.py` contains the four periodic Celery tasks on
-the `schedule_engine` queue:
+`backend/schedule_engine/tasks.py` contains four Celery tasks routed to the
+`schedule_engine` queue; three of them are on the beat schedule:
 
 | Task | Schedule | Notes |
 | --- | --- | --- |
 | `build_vehicle_positions` | Every 15 s | Writes `vehicle_positions.{pb,json}` |
 | `build_trip_updates` | Every 15 s | Writes `trip_updates.{pb,json}` + pushes WebSocket heartbeat |
-| `build_alerts` | Every 10 s | **Stub** — returns `"Feed ServiceAlert built"` |
+| `build_schedule` | Daily | Exports the current GTFS Schedule zip via `feed.schedule.exporter.publish_gtfs_zip` |
+| `build_alerts` | **Not scheduled** | **Stub** — returns the placeholder string `"Feed ServiceAlert built"`, writes no feed file. Its own docstring notes it is "Deliberately NOT registered in the Celery beat schedule." Callable directly (routed to `schedule_engine`), but beat never fires it. |
 
 The schedule is configured in `backend/databus/celery.py` via `app.conf.beat_schedule`
 and **not** in `django_celery_beat` admin (despite what `AGENTS.md` states).

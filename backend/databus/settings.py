@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+from urllib.parse import quote
 from decouple import config, Csv
 import platform
 import os
@@ -35,6 +36,7 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 
 INSTALLED_APPS = [
     "gtfs",
+    "corsheaders",
     "feed.apps.FeedConfig",
     "schedule_engine.apps.ScheduleEngineConfig",
     "realtime_engine.apps.RealtimeEngineConfig",
@@ -61,6 +63,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -133,6 +136,12 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REDIS_HOST = config("REDIS_HOST")
 REDIS_PORT = config("REDIS_PORT")
+REDIS_PASSWORD = config("REDIS_PASSWORD", default="")
+
+# Browser origins permitted to call the API from separate frontend dev servers.
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS", cast=Csv(), default="http://localhost:5173"
+)
 
 # RabbitMQ settings
 
@@ -167,11 +176,17 @@ SPECTACULAR_SETTINGS = {
 
 # Channels settings
 
+_CHANNEL_LAYER_HOSTS: list[str | tuple[str, str]] = (
+    [f"redis://:{quote(REDIS_PASSWORD, safe='')}@{REDIS_HOST}:{REDIS_PORT}/0"]
+    if REDIS_PASSWORD
+    else [(REDIS_HOST, REDIS_PORT)]
+)
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(REDIS_HOST, REDIS_PORT)],
+            "hosts": _CHANNEL_LAYER_HOSTS,
         },
     },
 }

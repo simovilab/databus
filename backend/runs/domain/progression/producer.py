@@ -13,21 +13,26 @@ package: module-level client configured from environment variables.
 """
 
 import logging
-import os
+from typing import cast
 
-import redis
-
+from databus.redis_client import create_redis_client
 from runs.domain.telemetry import keys, position, vehicle_stop_status
 from runs.domain.progression.compute import compute_stop_status
 
 logger = logging.getLogger(__name__)
 
-r = redis.Redis(
-    host=os.getenv("REDIS_HOST", "state"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    db=0,
-    decode_responses=True,
-)
+r = create_redis_client()
+
+
+def _hgetall(key: str) -> dict[str, str]:
+    """Read a Redis hash as `dict[str, str]`.
+
+    Narrows away the `Awaitable[...]` branch that redis-py's stubs attach to
+    every command (shared between the sync and async client mixins) — `r`
+    here is always the synchronous, `decode_responses=True` client, so the
+    result is always a plain string-keyed, string-valued dict.
+    """
+    return cast("dict[str, str]", r.hgetall(key))
 
 
 def produce_stop_status(run_id: str, vehicle_id: str) -> dict | None:
@@ -55,16 +60,16 @@ def produce_stop_status(run_id: str, vehicle_id: str) -> dict | None:
         when position data is available, or ``None`` when there is no position
         data to derive from.
     """
-    pos_raw = r.hgetall(keys.position_key(vehicle_id))
+    pos_raw = _hgetall(keys.position_key(vehicle_id))
     if not pos_raw:
         # No position data yet — nothing to derive stop status from.
         return None
 
     position_hash = position.from_redis(pos_raw)
 
-    run_hash = r.hgetall(keys.run_key(run_id))
+    run_hash = _hgetall(keys.run_key(run_id))
 
-    prev_raw = r.hgetall(keys.stop_status_key(run_id))
+    prev_raw = _hgetall(keys.stop_status_key(run_id))
     prev_state = vehicle_stop_status.from_redis(prev_raw) if prev_raw else None
 
     computed = compute_stop_status(run_hash, position_hash, prev_state=prev_state)

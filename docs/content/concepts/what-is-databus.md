@@ -41,7 +41,7 @@ Vehicle (GPS + occupancy)
    `trip_updates.pb` — refreshed every 15 seconds, written to
    `backend/feed/files/`.
 4. **Manages** run lifecycle: from a dispatcher creating a run
-   (`POST /api/create-run`) through detection of tracking, motion,
+   (`POST /api/create-run/`) through detection of tracking, motion,
    completion, and eventual expiry.
 5. **Persists** durable operational traces in PostgreSQL (with PostGIS for
    geospatial queries) for auditing and analytics.

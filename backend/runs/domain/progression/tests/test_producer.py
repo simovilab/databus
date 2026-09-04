@@ -6,9 +6,7 @@ so all tests run entirely in-process.
 Patch target: ``runs.domain.progression.producer.r``
 """
 
-from unittest.mock import MagicMock, call
-
-import pytest
+from unittest.mock import MagicMock
 
 import runs.domain.progression.producer as producer_module
 from runs.domain.progression.producer import produce_stop_status

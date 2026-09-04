@@ -123,7 +123,8 @@ TELEMETRY_EXPIRY_S = 600  # NO_SIGNAL + silent > 600 s   → CANCELLED
 ```python
 _TRACKING_SEED_EVENTS = {"run_tracking_started", "run_tracking_restored"}
 
-def _fire(result: DetectionResult, base_payload: dict) -> None:
+def _fire(result: DetectionResult, base_payload: dict[str, Any]) -> None:
+    payload = {**base_payload, **result.extra_payload}
     if result.event in _TRACKING_SEED_EVENTS:
         r.sadd("runs:tracking", base_payload["run_id"])
     run_lifecycle_event.delay(result.event, payload)
@@ -143,7 +144,7 @@ class DetectionResult:
 
 ## Lifecycle event trigger table
 
-From `backend/realtime_engine/README.md`:
+Consistent with `backend/realtime_engine/README.md` and the detector conditions in `lifecycle_detectors.py` / `periodic_detectors.py` above:
 
 | Run state | Trigger condition | Event fired |
 |---|---|---|

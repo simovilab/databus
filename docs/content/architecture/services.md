@@ -25,7 +25,7 @@ Every Databús component has exactly one role and a hard "Does NOT" boundary. Th
 - `feed` — GTFS data models (Agency, Route, Trip, Stop, StopTime, Shape, Calendar).
 - `operations` — Vehicle and operator models.
 - `website` — UI-facing views.
-- `messages` — AMQP event publisher (see caveat below).
+- `messages` — AMQP domain-event publisher. Not registered in `INSTALLED_APPS` (no `apps.py`, no models) — it is a plain module (`backend/messages/publisher.py`) imported directly by `runs.services.lifecycle.RunLifecycleService`. Fully implemented (durable topic exchange, JSON envelope); see [Messaging model](messaging.md).
 - `gtfs` — GTFS submodule.
 
 **Responsibilities:**
@@ -69,6 +69,7 @@ Every Databús component has exactly one role and a hard "Does NOT" boundary. Th
     4. Re-reads the latest position from Redis and runs position-leaf detection (`RunStartedDetector`, etc.).
 - Processes `run_lifecycle_event(event, payload)` tasks — these call `RunLifecycleService.process_event` which executes FSM guards and actions.
 - Runs `scan_stale_runs` every 30 seconds (scheduled by the `scheduler`) to detect telemetry silence.
+- Runs `fetch_positions` every 10 seconds (scheduled by the `scheduler`) to poll HTTP telemetry sources: it builds the in-service vehicle-id set from `vehicle:<id>:current_run` keys, queries ACTIVE `operations.Sensor` rows with `source_type` `http`/`both` and `provides_position=True`, fetches each remaining sensor via the registered `"http"` adapter (`realtime_engine/sources/http_json.py`), keeps only readings for in-service vehicles, and republishes the survivors onto `transit/vehicle/<id>/position` via `realtime_engine/sources/publisher.py::MqttPublisher`. This re-enters the same NanoMQ topic the MQTT bootstep subscribes to — `fetch_positions` is an HTTP→MQTT bridge, not a separate ingestion path. A `soft_time_limit=25` bounds a single pathological source; the beat entry itself carries `expires=10` so a stale run is revoked rather than queued behind a slow source.
 
 **Does NOT:**
 
@@ -82,6 +83,7 @@ Every Databús component has exactly one role and a hard "Does NOT" boundary. Th
 - `process_position_update(run_id, vehicle_id)`
 - `run_lifecycle_event(event, payload)`
 - `scan_stale_runs()`
+- `fetch_positions()`
 
 ---
 
@@ -96,9 +98,10 @@ Every Databús component has exactly one role and a hard "Does NOT" boundary. Th
 **Responsibilities:**
 
 - Reads Redis snapshots of active runs and vehicles.
-- Builds GTFS-RT protobuf and JSON outputs for VehiclePositions, TripUpdates, and Alerts.
-- Writes output files to `backend/feed/files/` (`vehicle_positions.{pb,json}`, `trip_updates.{pb,json}`, `alerts.{pb,json}`).
+- Builds GTFS-RT protobuf and JSON outputs for VehiclePositions and TripUpdates.
+- Writes output files to `backend/feed/files/` (`vehicle_positions.{pb,json}`, `trip_updates.{pb,json}`).
 - Pushes a WebSocket `"status"` group message via Django Channels after each `build_trip_updates` call.
+- Exports the current GTFS Schedule zip daily via `build_schedule()`, which publishes it under `backend/feed/files/` through `feed.schedule.exporter.publish_gtfs_zip`.
 
 **Does NOT:**
 
@@ -111,7 +114,8 @@ Every Databús component has exactly one role and a hard "Does NOT" boundary. Th
 **Key tasks** (`backend/schedule_engine/tasks.py`):
 - `build_vehicle_positions()` — every 15 s
 - `build_trip_updates()` — every 15 s
-- `build_alerts()` — every 10 s (currently stub: returns `"Feed ServiceAlert built"`)
+- `build_schedule()` — daily
+- `build_alerts()` — defined but **not registered in the Celery beat schedule** (see its own docstring: "Deliberately NOT registered in the Celery beat schedule"). It is routed to the `schedule_engine` queue if invoked, and currently just returns the placeholder string `"Feed ServiceAlert built"` without writing a feed file.
 
 !!! note "AGENTS.md calls this the 'Publisher'"
     `ARCHITECTURE.md §5` and `AGENTS.md` describe a separate "Publisher" service. In the actual code the projection role is fulfilled by `schedule_engine` running inside the `schedule-engine` Celery worker. There is no standalone publisher process.
@@ -134,8 +138,11 @@ Every Databús component has exactly one role and a hard "Does NOT" boundary. Th
 |---|---|
 | `schedule_engine.tasks.build_vehicle_positions` | every 15 s |
 | `schedule_engine.tasks.build_trip_updates` | every 15 s |
-| `schedule_engine.tasks.build_alerts` | every 10 s |
 | `realtime_engine.tasks.scan_stale_runs` | every 30 s |
+| `realtime_engine.tasks.fetch_positions` | every 10 s (`expires=10`) |
+| `schedule_engine.tasks.build_schedule` | daily |
+
+`schedule_engine.tasks.build_alerts` is **not** in this schedule — it is a stub task, callable but never fired by beat.
 
 !!! note "Beat schedule is in code, not admin"
     `AGENTS.md` states that the beat schedule is managed via `django_celery_beat` in the admin UI. This is incorrect. The schedule is hardcoded in `app.conf.beat_schedule` in `backend/databus/celery.py` and requires a code change to modify.
@@ -193,7 +200,7 @@ In production, Traefik terminates TLS on port 8883 and forwards plain MQTT to Na
 
 **Primary use:** Celery task routing between `scheduler`, `realtime-engine`, and `schedule-engine`.
 
-**Designed use (not yet implemented):** AMQP domain events on exchange `databus.events`. See [messaging.md](messaging.md).
+**Also carries:** AMQP domain events on the durable topic exchange `databus.events` — live, published by `backend/messages/publisher.py` on every run lifecycle transition. See [messaging.md](messaging.md).
 
 ---
 

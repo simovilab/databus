@@ -58,15 +58,18 @@ runs:*              — index sets and timestamps (realtime-engine)
 | `run:<id>:trip` | Hash | `trip_id`, `route_id`, `direction_id?`, `schedule_relationship?`, `start_time?`, `start_date?` | `update_system_state` action |
 | `run:<id>:vehicle_stop_status` | Hash | `current_status`, `current_stop_sequence?`, `stop_id?` | `produce_stop_status` (progression producer) |
 | `run:<id>:congestion_level` | Hash | `congestion_level` | Producer TBD |
-| `run:<id>:stop_time_updates` | String (JSON) | JSON array of stop-time-update entries | `produce_stop_times` |
+| `run:<id>:stop_time_updates` | String (JSON) | JSON array of stop-time-update entries | `produce_stop_times` (60 s staleness TTL) |
 
 #### Index and timestamp keys
 
 | Key | Type | Purpose | Writer |
 |---|---|---|---|
-| `runs:tracking` | Set | Run IDs currently being tracked (scope for stale scan) | `add_to_tracking_set` / `remove_from_tracking_set` actions |
-| `runs:in_progress` | Set | Run IDs in the IN_PROGRESS state | `add_to_in_progress_set` / `remove_from_in_progress_set` actions |
+| `runs:tracking` | Set | Scan work queue for `scan_stale_runs`, not a state flag (see note below) | `add_to_tracking_set` / `remove_from_tracking_set` actions |
+| `runs:in_progress` | Set | Run IDs in `In Progress` **or** `No Signal` state (see note below) | `add_to_in_progress_set` / `remove_from_in_progress_set` actions |
 | `runs:last_seen:<id>` | String | ISO-8601 timestamp of last telemetry | MQTT consumer |
+
+!!! note "`runs:tracking` and `runs:in_progress` both outlive `run_tracking_lost`"
+    The `IN_PROGRESS → NO_SIGNAL` transition (`run_tracking_lost`, `backend/runs/domain/lifecycle/transitions.py`) only runs `sync_lifecycle_state` — it does **not** call `remove_from_tracking_set` or `remove_from_in_progress_set`. A `No Signal` run therefore stays in both sets until it reaches a fully-terminal outcome: `run_tracking_expired` (→ Cancelled), `run_interrupted`, `run_short_turned`, or `run_completed`, all of which do remove it from both. This is deliberate — the code comment on the transition calls `runs:tracking` "the work queue, not a status flag": staying in the set is what lets `scan_stale_runs` later fire `run_tracking_expired` for that same run. One consequence: the GTFS-RT feed builders, which iterate `runs:in_progress`, will still emit an entity for a `No Signal` run (using its last-written Redis snapshot) until it is removed by one of the terminal transitions above.
 
 !!! note "stop_time_updates is a string, not a hash"
     `run:<id>:stop_time_updates` is a Redis **string** key holding a JSON-encoded array, not a hash. It is written with a staleness TTL so a stalled producer lets it expire cleanly rather than serving stale arrival estimates. The GTFS-RT builder treats a missing or empty value as "skip stop_time_update entries."

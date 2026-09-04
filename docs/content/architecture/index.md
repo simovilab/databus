@@ -31,11 +31,11 @@ flowchart TD
 
     subgraph realtime_worker["realtime-engine (Celery worker)"]
         mqtt_bootstep[MQTT bootstep]
-        re_tasks[process_position_update\nrun_lifecycle_event\nscan_stale_runs]
+        re_tasks[process_position_update\nrun_lifecycle_event\nscan_stale_runs\nfetch_positions]
     end
 
     subgraph schedule_worker["schedule-engine (Celery worker)"]
-        se_tasks[build_vehicle_positions\nbuild_trip_updates\nbuild_alerts]
+        se_tasks[build_vehicle_positions\nbuild_trip_updates\nbuild_schedule]
     end
 
     scheduler_node(("scheduler\n(Celery Beat)"))

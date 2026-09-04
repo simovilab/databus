@@ -1,3 +1,5 @@
+"""Register operations domain models with the Django admin site."""
+
 from django.contrib.gis import admin
 from .models import (
     Vehicle,
@@ -6,6 +8,7 @@ from .models import (
     Company,
     Equipment,
     EquipmentLog,
+    Sensor,
 )
 
 # Register your models here.
@@ -16,3 +19,4 @@ admin.site.register(DataProvider)
 admin.site.register(Company, admin.GISModelAdmin)
 admin.site.register(Equipment)
 admin.site.register(EquipmentLog)
+admin.site.register(Sensor)

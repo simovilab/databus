@@ -20,39 +20,15 @@ See [../runs/commands-vs-detections.md](../runs/commands-vs-detections.md) for a
 
 ## AMQP layout
 
-The designed exchange topology is:
+The publisher module `backend/messages/publisher.py` is fully implemented — not a stub. It is called from a single seam, `RunLifecycleService._publish_run_lifecycle_transition` (`backend/runs/services/lifecycle.py`), immediately after every successful FSM transition except `run_requested` (that event enters `Requested` at record creation, outside `process_event`).
 
-- **Exchange:** `databus.events` (type: `direct`)
-- **Routing key namespace:** `runs.*`
+- **Exchange:** `databus.events` — a durable **topic** exchange (not `direct`).
+- **Routing key:** `runs.lifecycle.<event>`, where `<event>` is the lowercased `.value` of the `RunLifecycleEvents` member for the transition that just completed (`routing_key_for`, `publisher.py`) — e.g. `runs.lifecycle.run_confirmed_by_operator`.
+- **Binding:** subscribers interested in every run lifecycle event bind `runs.lifecycle.#`.
+- **Envelope:** a versioned JSON body — `event`, `version`, `occurred_at`, `producer`, `run_id`, `from_state`, `to_state`, `data` (`build_envelope`, `publisher.py`). `from_state`/`to_state` carry the FSM's display-style values (e.g. `"Initialized"`, `"Confirmed"`), not upper-snake enum member names.
+- **Delivery:** fire-and-forget. Publishing goes through kombu's connection pool with a small bounded retry (`max_retries=2`), but there are no publisher confirms — any broker/connection error is caught, logged, and dropped. This is deliberate: telemetry and lifecycle processing must never block or fail because RabbitMQ is unavailable. The durable audit trail is `GET /api/runs/<id>/history/`, not the AMQP stream.
 
-Routing keys sketched in `backend/messages/publisher.py`:
-
-```
-runs.submission.requested
-runs.submission.succeeded
-runs.submission.failed
-runs.validation.succeeded
-runs.validation.failed
-runs.initialization.succeeded
-runs.initialization.failed
-```
-
-Subscribers interested in all run events bind with `runs.*`.
-
-## Implementation status
-
-!!! warning "AMQP publisher is a stub"
-    The publisher module at `backend/messages/publisher.py` is **not yet wired**. The `publish_event` function currently only prints to stdout:
-
-    ```python
-    def publish_event(name: str, data: dict):
-        """Publish an event to the databus.events exchange."""
-        print(f"Printing event {name} with data: {data}")
-    ```
-
-    The `Connection`, `Exchange`, and `Producer` objects are instantiated at module import but `publish_event` does not use them. Domain event emission via AMQP is designed and the routing-key namespace is settled, but the actual publish call and delivery guarantees are not yet implemented.
-
-    Celery task routing (the RabbitMQ backbone that drives `realtime-engine` and `schedule-engine`) is fully operational and unaffected by this stub. The stub only concerns application-level domain events that other systems might subscribe to.
+Full contract details (the complete routing-key table, envelope field reference, sequence diagram, and integration guidance for consumers) live on [Interfaces › AMQP event semantics](../interfaces/amqp-events.md). This page stays at the architectural level; that page is the authoritative reference.
 
 ## Current inter-service communication
 
@@ -61,12 +37,14 @@ In the current implementation, inter-service coordination happens via:
 1. **Celery tasks over RabbitMQ** — `scheduler` fires beat tasks; `realtime-engine` and `schedule-engine` consume them. This is the primary coordination mechanism and is fully operational.
 2. **Redis** — `realtime-engine` writes state; `schedule-engine` reads snapshots. No pub/sub; pure key-value reads.
 3. **Django ORM (PostgreSQL)** — `orchestrator` persists domain records; `realtime-engine` reads run metadata during lifecycle service calls.
-
-The AMQP domain event layer (`databus.events` exchange) sits alongside this and will emit structured domain events for external subscribers once the stub is replaced.
+4. **AMQP domain events** (`databus.events` topic exchange) — live, not designed-but-pending. Every run lifecycle transition is broadcast fire-and-forget for external subscribers, alongside (not instead of) the three mechanisms above.
 
 ## Message envelope
 
-All internal messages share a common envelope that includes correlation metadata (run_id, vehicle_id, actor_role, last_seen_at). The Celery payload dict is the current concrete form of this envelope — see `backend/runs/domain/detection/dispatch.py` for how the dispatcher assembles it.
+Two distinct "envelope" concepts exist in the system — don't conflate them:
+
+- **AMQP domain-event envelope** — the JSON body described under [AMQP layout](#amqp-layout) above, built by `build_envelope` in `backend/messages/publisher.py`. See [Interfaces › AMQP event semantics](../interfaces/amqp-events.md) for the full field reference.
+- **Celery task payload** — the internal dict passed between the detection layer and `run_lifecycle_event`, carrying correlation metadata (`run_id`, `vehicle_id`, `actor_role`, `last_seen_at`). This is not published anywhere external; it only exists for the duration of one Celery task dispatch. See `backend/runs/domain/detection/dispatch.py` for how the dispatcher assembles it.
 
 ## External telemetry
 

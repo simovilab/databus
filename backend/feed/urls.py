@@ -1,3 +1,5 @@
+"""URL routes for the feed app's schedule and realtime endpoints."""
+
 from django.urls import path
 
 from . import views
