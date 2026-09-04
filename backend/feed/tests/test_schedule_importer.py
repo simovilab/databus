@@ -16,7 +16,7 @@ from feed.models import (
     Calendar,
     CalendarDate,
     Feed,
-    GTFSProvider,
+    FeedPublisher,
     Route,
     Shape,
     Stop,
@@ -66,9 +66,7 @@ def _build_gtfs_zip_bytes(*, lean_stop_times: bool = False) -> bytes:
             "start_date,end_date\n"
             "WD,1,1,1,1,1,0,0,20260101,20261231\n"
         ),
-        "calendar_dates.txt": (
-            "service_id,date,exception_type\nWD,20260101,2\n"
-        ),
+        "calendar_dates.txt": ("service_id,date,exception_type\nWD,20260101,2\n"),
         "routes.txt": (
             "route_id,agency_id,route_short_name,route_long_name,route_type\n"
             "R1,A1,1,Route One,3\n"
@@ -90,7 +88,9 @@ def _build_gtfs_zip_bytes(*, lean_stop_times: bool = False) -> bytes:
     return buf.getvalue()
 
 
-def _mock_head_response(etag: str | None = '"abc123"', last_modified: str | None = None) -> Mock:
+def _mock_head_response(
+    etag: str | None = '"abc123"', last_modified: str | None = None
+) -> Mock:
     headers = {}
     if etag is not None:
         headers["ETag"] = etag
@@ -112,7 +112,7 @@ def _mock_get_response(content: bytes) -> Mock:
 class TestImportScheduleIfChanged(TestCase):
     """Cover new-import, unchanged, and missing-header cases for import_schedule_if_changed."""
 
-    def _provider(self, **kwargs: object) -> GTFSProvider:
+    def _provider(self, **kwargs: object) -> FeedPublisher:
         defaults: dict[str, object] = {
             "code": "TESTP",
             "name": "Test Provider",
@@ -121,7 +121,7 @@ class TestImportScheduleIfChanged(TestCase):
             "is_active": True,
         }
         defaults.update(kwargs)
-        return GTFSProvider.objects.create(**defaults)
+        return FeedPublisher.objects.create(**defaults)
 
     @patch("feed.schedule.importer.requests.get")
     @patch("feed.schedule.importer.requests.head")
@@ -135,7 +135,7 @@ class TestImportScheduleIfChanged(TestCase):
         result = import_schedule_if_changed(provider)
 
         self.assertTrue(result)
-        feeds = Feed.objects.filter(gtfs_provider=provider, is_current=True)
+        feeds = Feed.objects.filter(feed_publisher=provider, is_current=True)
         self.assertEqual(feeds.count(), 1)
         feed = feeds.first()
         self.assertEqual(feed.http_etag, '"new-etag"')
@@ -179,12 +179,14 @@ class TestImportScheduleIfChanged(TestCase):
         """
         provider = self._provider()
         mock_head.return_value = _mock_head_response(etag='"lean-etag"')
-        mock_get.return_value = _mock_get_response(_build_gtfs_zip_bytes(lean_stop_times=True))
+        mock_get.return_value = _mock_get_response(
+            _build_gtfs_zip_bytes(lean_stop_times=True)
+        )
 
         result = import_schedule_if_changed(provider)
 
         self.assertTrue(result)
-        feed = Feed.objects.filter(gtfs_provider=provider, is_current=True).first()
+        feed = Feed.objects.filter(feed_publisher=provider, is_current=True).first()
         self.assertIsNotNone(feed)
         stop_times = StopTime.objects.filter(feed=feed)
         self.assertEqual(stop_times.count(), 2)
@@ -198,7 +200,7 @@ class TestImportScheduleIfChanged(TestCase):
         provider = self._provider()
         current_feed = Feed.objects.create(
             feed_id="TESTP (existing)",
-            gtfs_provider=provider,
+            feed_publisher=provider,
             http_etag='"same-etag"',
             is_current=True,
         )
@@ -220,7 +222,7 @@ class TestImportScheduleIfChanged(TestCase):
         provider = self._provider()
         old_feed = Feed.objects.create(
             feed_id="TESTP (old)",
-            gtfs_provider=provider,
+            feed_publisher=provider,
             http_etag='"old-etag"',
             is_current=True,
         )
@@ -242,7 +244,7 @@ class TestImportScheduleIfChanged(TestCase):
         provider = self._provider()
         Feed.objects.create(
             feed_id="TESTP (existing)",
-            gtfs_provider=provider,
+            feed_publisher=provider,
             http_etag=None,
             is_current=True,
         )
@@ -289,7 +291,7 @@ class TestFetchScheduleTask(TestCase):
     """Cover the fetch_schedule Celery task's provider iteration."""
 
     def test_no_active_providers_returns_message(self) -> None:
-        GTFSProvider.objects.create(
+        FeedPublisher.objects.create(
             code="INACTIVE",
             name="Inactive Provider",
             schedule_url="https://example.com/gtfs.zip",
@@ -302,8 +304,10 @@ class TestFetchScheduleTask(TestCase):
 
     @patch("feed.schedule.importer.requests.get")
     @patch("feed.schedule.importer.requests.head")
-    def test_active_provider_gets_updated(self, mock_head: Mock, mock_get: Mock) -> None:
-        provider = GTFSProvider.objects.create(
+    def test_active_provider_gets_updated(
+        self, mock_head: Mock, mock_get: Mock
+    ) -> None:
+        provider = FeedPublisher.objects.create(
             code="ACTIVEP",
             name="Active Provider",
             schedule_url="https://example.com/gtfs.zip",
@@ -318,5 +322,5 @@ class TestFetchScheduleTask(TestCase):
         self.assertIn("ACTIVEP", result)
         self.assertIn("updated=", result)
         self.assertEqual(
-            Feed.objects.filter(gtfs_provider=provider, is_current=True).count(), 1
+            Feed.objects.filter(feed_publisher=provider, is_current=True).count(), 1
         )

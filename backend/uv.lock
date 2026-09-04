@@ -1250,6 +1250,9 @@ requires-dist = [
 ]
 provides-extras = ["train", "collect", "viz", "all"]
 
+[package.metadata.requires-dev]
+bucr = [{ name = "etaval", directory = "etaval" }]
+
 [[package]]
 name = "gtfs-io"
 version = "0.0.1"

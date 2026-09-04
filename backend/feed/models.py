@@ -1,4 +1,4 @@
-"""GTFS Schedule Django models, plus GTFSProvider/Feed for feed versioning."""
+"""GTFS Schedule Django models, plus FeedPublisher/Feed for feed versioning."""
 
 import re
 from typing import TYPE_CHECKING, Any
@@ -33,57 +33,78 @@ def validate_no_spaces_or_special_symbols(value: str) -> None:
         )
 
 
-class GTFSProvider(models.Model):
-    """A provider provides transportation services GTFS data.
+class TransitSystem(models.Model):
+    """A transit system is a collection of GTFS providers that serve a common purpose, for example, the public transportation system of a city or country."""
 
-    It might or might not be the same as the agency in the GTFS feed. A GTFS provider can serve multiple agencies.
-    """
-
-    provider_id = models.BigAutoField(primary_key=True)
+    name = models.CharField(max_length=255, help_text="Name of the transit system.")
     code = models.CharField(
         max_length=31,
-        help_text="Código (típicamente el acrónimo) de la empresa. No debe tener espacios ni símbolos especiales.",
+        help_text="Transit system code (typically its acronym). It must not contain spaces or special characters.",
         validators=[validate_no_spaces_or_special_symbols],
+        unique=True,
     )
-    name = models.CharField(max_length=255, help_text="Nombre de la empresa.")
     description = models.TextField(
-        blank=True, null=True, help_text="Descripción de la institución o empresa."
+        blank=True, null=True, help_text="Description of the transit system."
     )
-    website = models.URLField(
-        blank=True, null=True, help_text="Sitio web de la empresa."
+    is_active = models.BooleanField(
+        default=False, help_text="Whether the transit system is active."
     )
+
+    def __str__(self):
+        """Return the transit system code and name."""
+        return f"{self.code}: {self.name}"
+
+
+class FeedPublisher(models.Model):
+    """Represent a GTFS data publisher for one transit system, potentially distinct from and serving multiple feed agencies, with schedule and realtime endpoints."""
+
+    transit_system = models.ForeignKey(
+        TransitSystem,
+        help_text="Transit system served by the feed publisher.",
+        on_delete=models.CASCADE,
+    )
+    code = models.CharField(
+        max_length=31,
+        help_text="Company code (typically its acronym). It must not contain spaces or special characters.",
+        validators=[validate_no_spaces_or_special_symbols],
+        unique=True,
+    )
+    name = models.CharField(max_length=255, help_text="Name of the company.")
+    description = models.TextField(
+        blank=True, null=True, help_text="Description of the institution or company."
+    )
+    lang = models.CharField(
+        max_length=15,
+        blank=True,
+        null=True,
+        help_text="Language of the data provided by the publisher, in ISO 639-1 alpha-2 or alpha-3 format. Examples: es, en, fr.",
+    )
+    contact_email = models.EmailField(
+        blank=True,
+        null=True,
+        help_text="Contact email address for the data publisher.",
+    )
+    contact_url = models.URLField(
+        blank=True, null=True, help_text="Contact URL for the data publisher."
+    )
+    website = models.URLField(blank=True, null=True, help_text="Company website.")
     schedule_url = models.URLField(
         blank=True,
         null=True,
-        help_text="URL del suministro (Feed) de GTFS Schedule (.zip).",
-    )
-    trip_updates_url = models.URLField(
-        blank=True,
-        null=True,
-        help_text="URL del suministro (FeedMessage) de la entidad GTFS Realtime TripUpdates (.pb).",
-    )
-    vehicle_positions_url = models.URLField(
-        blank=True,
-        null=True,
-        help_text="URL del suministro (FeedMessage) de la entidad GTFS Realtime VehiclePositions (.pb).",
-    )
-    service_alerts_url = models.URLField(
-        blank=True,
-        null=True,
-        help_text="URL del suministro (FeedMessage) de la entidad GTFS Realtime ServiceAlerts (.pb).",
+        help_text="URL of the GTFS Schedule feed (.zip).",
     )
     timezone = models.CharField(
         max_length=63,
-        help_text="Zona horaria del proveedor de datos (asume misma zona horaria para todas las agencias). Ejemplo: America/Costa_Rica.",
+        help_text="Time zone of the data publisher (assumed to be the same for all agencies). Example: America/Costa_Rica.",
     )
     is_active = models.BooleanField(
         default=False,
-        help_text="¿Está activo el proveedor de datos? Si no, no se importarán los datos de este proveedor.",
+        help_text="Whether the data publisher is active. If inactive, data from this publisher will not be imported.",
     )
 
-    def __str__(self) -> str:
-        """Return the provider's display name and code."""
-        return f"{self.name} ({self.code})"
+    def __str__(self):
+        """Return a string representation of the GTFS provider."""
+        return f"{self.transit_system.code}: {self.name} ({self.code})"
 
 
 # -------------
@@ -105,8 +126,8 @@ class Feed(models.Model):  # type: ignore[django-manager-missing]
     """One retrieved version of a GTFS Schedule feed from a provider."""
 
     feed_id = models.CharField(max_length=100, primary_key=True, unique=True)
-    gtfs_provider = models.ForeignKey(
-        GTFSProvider, on_delete=models.SET_NULL, blank=True, null=True
+    feed_publisher = models.ForeignKey(
+        FeedPublisher, on_delete=models.SET_NULL, blank=True, null=True
     )
     http_etag = models.CharField(max_length=1023, blank=True, null=True)
     http_last_modified = models.DateTimeField(blank=True, null=True)
@@ -637,8 +658,8 @@ class FeedMessage(models.Model):
     )
 
     feed_message_id = models.CharField(max_length=63, primary_key=True)
-    provider = models.ForeignKey(
-        GTFSProvider, on_delete=models.SET_NULL, blank=True, null=True
+    feed_publisher = models.ForeignKey(
+        FeedPublisher, on_delete=models.SET_NULL, blank=True, null=True
     )
     entity_type = models.CharField(max_length=63, choices=ENTITY_TYPE_CHOICES)
     timestamp = models.DateTimeField(auto_now=True)

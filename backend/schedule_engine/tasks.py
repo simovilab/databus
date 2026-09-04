@@ -147,25 +147,37 @@ def fetch_schedule() -> str:
 
     logger = logging.getLogger(__name__)
 
-    from feed.models import GTFSProvider
+    from feed.models import TransitSystem, FeedPublisher
     from feed.schedule.importer import import_schedule_if_changed
 
-    providers = list(GTFSProvider.objects.filter(is_active=True))
-    if not providers:
-        logger.warning("fetch_schedule: no active GTFSProvider rows found")
-        return "fetch_schedule: no active providers"
+    transit_systems = list(TransitSystem.objects.filter(is_active=True))
+    if not transit_systems:
+        logger.warning("fetch_schedule: no active TransitSystem rows found")
+        return "fetch_schedule: no active transit systems"
 
     updated: list[str] = []
     unchanged: list[str] = []
     errored: list[str] = []
-    for provider in providers:
-        try:
-            if import_schedule_if_changed(provider):
-                updated.append(provider.code)
-            else:
-                unchanged.append(provider.code)
-        except Exception:
-            logger.exception("fetch_schedule: error importing provider %s", provider.code)
-            errored.append(provider.code)
+    for transit_system in transit_systems:
+        providers = list(
+            FeedPublisher.objects.filter(is_active=True, transit_system=transit_system)
+        )
+        if not providers:
+            logger.warning(
+                "fetch_schedule: no active FeedPublisher rows found for TransitSystem %s",
+                transit_system.code,
+            )
+            return f"fetch_schedule: no active feed providers for TransitSystem {transit_system.code}"
+        for provider in providers:
+            try:
+                if import_schedule_if_changed(provider):
+                    updated.append(provider.code)
+                else:
+                    unchanged.append(provider.code)
+            except Exception:
+                logger.exception(
+                    "fetch_schedule: error importing provider %s", provider.code
+                )
+                errored.append(provider.code)
 
     return f"fetch_schedule: updated={updated} unchanged={unchanged} errored={errored}"

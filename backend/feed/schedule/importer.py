@@ -1,7 +1,7 @@
 """GTFS Schedule zip importer.
 
 Ported from infobús's ``save_schedule_to_database``, adapted for databús's
-``GTFSProvider``/``Feed`` schema. HEAD-checks a provider's upstream
+``FeedPublisher``/``Feed`` schema. HEAD-checks a provider's upstream
 ``schedule_url`` ETag; if it differs from the current ``Feed``'s, downloads
 and bulk-imports the new GTFS zip table-by-table, flips ``is_current``, and
 returns ``True``.
@@ -34,7 +34,7 @@ from feed.models import (
     CalendarDate,
     Feed,
     FeedInfo,
-    GTFSProvider,
+    FeedPublisher,
     Route,
     Shape,
     Stop,
@@ -104,7 +104,8 @@ def _importable_fields(model: type[db_models.Model]) -> list[db_models.Field]:
     return [
         field
         for field in model._meta.local_fields
-        if field.name not in _EXCLUDE_FIELD_NAMES and not field.name.startswith("linked_")
+        if field.name not in _EXCLUDE_FIELD_NAMES
+        and not field.name.startswith("linked_")
     ]
 
 
@@ -123,14 +124,18 @@ def _empty_value_for(field: db_models.Field) -> object:
     """
     if field.has_default():
         return field.get_default()
-    if isinstance(field, (db_models.IntegerField, db_models.FloatField, db_models.DecimalField)):
+    if isinstance(
+        field, (db_models.IntegerField, db_models.FloatField, db_models.DecimalField)
+    ):
         return 0
     if isinstance(field, (db_models.CharField, db_models.TextField)):
         return ""
     return None
 
 
-def _coerce_row(model: type[db_models.Model], row: dict[str, object]) -> dict[str, object]:
+def _coerce_row(
+    model: type[db_models.Model], row: dict[str, object]
+) -> dict[str, object]:
     """Normalize one CSV row's raw string values into model constructor kwargs.
 
     Iterates *model*'s full importable field set -- not just the columns
@@ -149,7 +154,11 @@ def _coerce_row(model: type[db_models.Model], row: dict[str, object]) -> dict[st
         value: object
         if column in row:
             raw_value = row[column]
-            value = gtfs_date(raw_value) if column in date_fields else normalize_gtfs_value(raw_value)
+            value = (
+                gtfs_date(raw_value)
+                if column in date_fields
+                else normalize_gtfs_value(raw_value)
+            )
         else:
             value = None
 
@@ -169,7 +178,9 @@ def _build_stop_point(row: dict[str, object]) -> Point | None:
     try:
         return Point(float(lon), float(lat))
     except (TypeError, ValueError) as exc:
-        logger.warning("Skipping stop_point for row with bad lat/lon (%s, %s): %s", lat, lon, exc)
+        logger.warning(
+            "Skipping stop_point for row with bad lat/lon (%s, %s): %s", lat, lon, exc
+        )
         return None
 
 
@@ -182,7 +193,9 @@ def _import_table(
         return 0
 
     fields = _model_fields(model)
-    table = pd.read_csv(zf.open(filename), dtype=str, keep_default_na=False, na_values="")
+    table = pd.read_csv(
+        zf.open(filename), dtype=str, keep_default_na=False, na_values=""
+    )
     columns = [c for c in fields if c in table.columns]
     table = table[columns]
 
@@ -222,23 +235,25 @@ def _parse_last_modified(resp: requests.Response) -> datetime:
     if not raw:
         return datetime.now(timezone.utc)
     try:
-        return datetime.strptime(raw, "%a, %d %b %Y %H:%M:%S %Z").replace(tzinfo=timezone.utc)
+        return datetime.strptime(raw, "%a, %d %b %Y %H:%M:%S %Z").replace(
+            tzinfo=timezone.utc
+        )
     except ValueError:
         logger.warning("Unparseable Last-Modified header %r; using now()", raw)
         return datetime.now(timezone.utc)
 
 
-def import_schedule_if_changed(provider: GTFSProvider) -> bool:
+def import_schedule_if_changed(provider: FeedPublisher) -> bool:
     """Import *provider*'s GTFS Schedule zip when its upstream ETag changed.
 
     Returns True if a new Feed was imported, False if unchanged or on error.
     """
     if not provider.schedule_url:
-        logger.warning("GTFSProvider %s has no schedule_url; skipping", provider.code)
+        logger.warning("FeedPublisher %s has no schedule_url; skipping", provider.code)
         return False
 
     current_feed = (
-        Feed.objects.filter(gtfs_provider=provider, is_current=True)
+        Feed.objects.filter(feed_publisher=provider, is_current=True)
         .order_by("-retrieved_at")
         .first()
     )
@@ -260,8 +275,10 @@ def import_schedule_if_changed(provider: GTFSProvider) -> bool:
         get_resp = requests.get(provider.schedule_url, timeout=_REQUEST_TIMEOUT)
         get_resp.raise_for_status()
         schedule_zip = zipfile.ZipFile(io.BytesIO(get_resp.content))
-    except (requests.RequestException, zipfile.BadZipFile):
-        logger.exception("Failed to download/parse schedule zip for provider %s", provider.code)
+    except requests.RequestException, zipfile.BadZipFile:
+        logger.exception(
+            "Failed to download/parse schedule zip for provider %s", provider.code
+        )
         return False
 
     last_modified = _parse_last_modified(head_resp)
@@ -284,12 +301,14 @@ def import_schedule_if_changed(provider: GTFSProvider) -> bool:
                 http_etag=new_tag,
                 http_last_modified=last_modified,
                 is_current=True,
-                gtfs_provider=provider,
+                feed_publisher=provider,
             )
 
             for table_name, model in _TABLES:
                 count = _import_table(table_name, model, schedule_zip, feed)
-                logger.info("Imported %d rows into %s for feed %s", count, table_name, feed_id)
+                logger.info(
+                    "Imported %d rows into %s for feed %s", count, table_name, feed_id
+                )
     except Exception:
         logger.exception(
             "Import failed for provider %s; rolled back feed %s", provider.code, feed_id

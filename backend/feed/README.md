@@ -1,11 +1,11 @@
 # Feed · GTFS Schedule domain + published feed files
 
-- **Purpose**: owns the GTFS Schedule domain models, feed versioning (`GTFSProvider`/`Feed`), the
+- **Purpose**: owns the GTFS Schedule domain models, feed versioning (`FeedPublisher`/`Feed`), the
   Schedule zip exporter, and the HTTP endpoints that serve published GTFS Schedule and GTFS
-  Realtime files from disk. Not to be confused with `schedule_engine`, which *builds* the GTFS-RT
+  Realtime files from disk. Not to be confused with `schedule_engine`, which _builds_ the GTFS-RT
   protobufs consumed here.
 - **Key modules**:
-  - `models.py` — `GTFSProvider`, `Feed`, and one concrete model per GTFS Schedule table
+  - `models.py` — `FeedPublisher`, `Feed`, and one concrete model per GTFS Schedule table
   - `schedule/exporter.py` — `build_gtfs_zip` / `publish_gtfs_zip`
   - `management/commands/export_gtfs.py` — `manage.py export_gtfs`
   - `views.py` / `urls.py` — file-serving endpoints
@@ -22,7 +22,7 @@ the registration-UI lookups in `api`. `FeedMessage`/`TripUpdate`/`StopTimeUpdate
 model the normalized GTFS-RT entities for persisted blobs; `Alert` is a placeholder (TODO in
 source, not fed by any current pipeline).
 
-`GTFSProvider` is the org that supplies a feed (may serve multiple agencies); `Feed` is one
+`FeedPublisher` is the org that supplies a feed (may serve multiple agencies); `Feed` is one
 retrieved version, marked `is_current=True` to select the active feed. `is_current` is read
 directly by `api`'s `WhichShapesView`/`FindTripsView` and by the exporter — there is no automatic
 supersession logic in this app; whichever `Feed` is flagged is authoritative.
@@ -56,6 +56,7 @@ No app-specific env vars.
 ```
 docker compose -f compose.dev.yml run --rm orchestrator uv run pytest feed/ -q
 ```
+
 `make test` runs the full suite.
 
 ## Docs
