@@ -61,7 +61,6 @@ class DataProvider(models.Model):
     """
 
     id = models.CharField(max_length=127, primary_key=True)
-    company = models.ManyToManyField(Company, blank=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
@@ -146,8 +145,8 @@ class Equipment(models.Model):
     )
     # Hardware/firmware information
     serial_number = models.CharField(max_length=100, blank=True, null=True)
-    brand = models.CharField(max_length=100)
-    model = models.CharField(max_length=100)
+    brand = models.CharField(max_length=100, blank=True, null=True)
+    model = models.CharField(max_length=100, blank=True, null=True)
     os_version = models.CharField(max_length=100, blank=True, null=True)
     app_version = models.CharField(max_length=100, blank=True, null=True)
 
@@ -176,7 +175,7 @@ class Equipment(models.Model):
 
     def __str__(self) -> str:
         """Return the equipment's data provider, brand, model, and ID."""
-        return f"{self.data_provider}: {self.brand} {self.model} ({self.id})"
+        return f"{self.data_provider}: {self.name} ({self.id})"
 
 
 class Sensor(models.Model):
@@ -236,8 +235,8 @@ class EquipmentLog(models.Model):
     )
     # Equipment information
     serial_number = models.CharField(max_length=100, blank=True, null=True)
-    brand = models.CharField(max_length=100)
-    model = models.CharField(max_length=100)
+    brand = models.CharField(max_length=100, blank=True, null=True)
+    model = models.CharField(max_length=100, blank=True, null=True)
     os_version = models.CharField(max_length=100, blank=True, null=True)
     app_version = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(

@@ -10,6 +10,7 @@ dependencies = [
     "channels-redis>=4.3.0",
     "daphne>=4.2.1",
     "django==6.0.4",
+    "django-cors-headers>=4.9.0",
     "django-celery-beat>=2.8.1",
     "django-celery-results>=2.6.0",
     "django-filter>=25.1",
@@ -103,10 +104,7 @@ DJANGO_SETTINGS_MODULE = "databus.settings"
 addopts = "--ignore=gtfs-eta"
 
 [tool.uv.workspace]
-members = [
-    "gtfs-io",
-    "gtfs-django",
-]
+members = ["gtfs-io", "gtfs-django"]
 
 [tool.uv.sources]
 # gtfs-eta lives in the sibling repo (simovilab/gtfs-eta), not in this
