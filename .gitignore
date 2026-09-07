@@ -16,7 +16,7 @@ backend/.gtfs-io-clone.lockdir
 backend/.gtfs-django-clone.lockdir
 
 # GTFS files
-feed/files/bUCR_GTFS.zip
+backend/feed/files/*.zip
 backend/feed/files/*.pb
 backend/feed/files/*.json
 gtfs/

@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Virtual environment paths
 VENV_DIR="${UV_PROJECT_ENVIRONMENT:-/home/app/.venv}"
-UV_SYNC_LOCKDIR="/app/.uv-sync.lockdir"
+UV_SYNC_LOCKDIR="${VENV_DIR}/.uv-sync.lockdir"
 
 # Colors for output
 RED='\033[0;31m'
@@ -171,16 +171,6 @@ if [ -d "${VENV_DIR}/bin" ]; then
     export PATH="${VENV_DIR}/bin:$PATH"
 fi
 
-enable_local_gtfs_io() {
-    log "Installing gtfs-io as editable from local clone"
-    uv add --editable ./gtfs-io
-}
-
-enable_local_gtfs_django() {
-    log "Installing gtfs-django as editable from local clone"
-    uv add --editable ./gtfs-django
-}
-
 wait_for_database() {
     # Explicitly fail if DATABASE_URL is still missing after construction step.
     if [ -z "${DATABASE_URL:-}" ]; then
@@ -244,12 +234,6 @@ load_initial_data() {
 
 run_django_setup() {
     section "Starting Django setup..."
-
-    section "Enabling local gtfs-io package for development..."
-    enable_local_gtfs_io
-
-    section "Enabling local gtfs-django package for development..."
-    enable_local_gtfs_django
 
     section "Running makemigrations (DEBUG only)..."
     run_makemigrations

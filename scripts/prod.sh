@@ -228,8 +228,8 @@ while [ $ELAPSED -lt $MAX_WAIT ]; do
     if [ -n "$cid" ]; then
         status=$(docker inspect --format='{{.State.Status}}' "$cid" 2>/dev/null || echo "unknown")
         if [ "$status" = "running" ]; then
-            # Check if Daphne is listening by testing TCP inside the container
-            if docker exec "$cid" sh -c 'exec 3<>/dev/tcp/localhost/8000' 2>/dev/null; then
+            # Use Python's socket API; /bin/sh does not provide Bash's /dev/tcp.
+            if docker exec "$cid" python -c 'import socket; sock = socket.create_connection(("127.0.0.1", 8000), timeout=1); sock.close()' 2>/dev/null; then
                 ORCHESTRATOR_OK=true
                 break
             fi
