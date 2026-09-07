@@ -19,7 +19,7 @@ class Command(BaseCommand):
         if feed is None:
             raise CommandError(
                 "No Feed with is_current=True found. "
-                "Load the fixture first: manage.py loaddata gtfs.json"
+                "Import one first: manage.py bootstrap_schedule"
             )
 
         dest = publish_gtfs_zip(feed)
