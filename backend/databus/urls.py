@@ -15,14 +15,14 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+import re
+
 from django.contrib import admin
-from django.urls import URLPattern, URLResolver, path, include
+from django.urls import URLPattern, URLResolver, path, include, re_path
 from django.conf import settings
-from django.conf.urls.static import static
+from django.views.static import serve
 import os
 
-# static() below returns list[URLPattern], while the path(..., include(...)) entries
-# above are list[URLResolver] -- the explicit union lets both be appended in place.
 urlpatterns: list[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     path("", include("website.urls")),
@@ -37,6 +37,22 @@ serve_static_flag = os.environ.get("DJANGO_SERVE_STATIC", "").lower() in (
     "on",
 )
 if settings.DEBUG or serve_static_flag:
-    # For debugging purposes, serve media and static files through Django.
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    # NOTE: intentionally not using django.conf.urls.static.static() here --
+    # that helper has its own internal `if not settings.DEBUG: return []`
+    # guard, which silently ignores DJANGO_SERVE_STATIC whenever DEBUG=False
+    # (i.e. always in production). Wiring django.views.static.serve directly
+    # bypasses that guard so the flag actually works outside DEBUG, which is
+    # required in production since compose.prod.yml has no separate static
+    # file server (nginx/whitenoise) in front of Django.
+    urlpatterns += [
+        re_path(
+            r"^%s(?P<path>.*)$" % re.escape(settings.MEDIA_URL.lstrip("/")),
+            serve,
+            {"document_root": settings.MEDIA_ROOT},
+        ),
+        re_path(
+            r"^%s(?P<path>.*)$" % re.escape(settings.STATIC_URL.lstrip("/")),
+            serve,
+            {"document_root": settings.STATIC_ROOT},
+        ),
+    ]

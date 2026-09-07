@@ -40,6 +40,7 @@ services:
     volumes:
       - backend_venv:/home/app/.venv
       - static_files:/app/staticfiles
+      - feed_files:/app/feed/files
     depends_on:
       database:
         condition: service_healthy
@@ -86,6 +87,10 @@ services:
       - internal
 
   # ── Celery worker: schedule processing ────────────────────────────────────
+  # NOTE: only this worker and the orchestrator mount `feed_files` -- this is
+  # the only worker whose tasks (build_vehicle_positions/build_trip_updates/
+  # build_schedule in schedule_engine/tasks.py) write GTFS-RT/Schedule
+  # artifacts under feed/files/, which the orchestrator serves over HTTP.
   schedule-engine:
     build:
       context: ./backend
@@ -102,6 +107,7 @@ services:
       - no-new-privileges:true
     volumes:
       - backend_venv:/home/app/.venv
+      - feed_files:/app/feed/files
     depends_on:
       database:
         condition: service_healthy
@@ -340,6 +346,7 @@ volumes:
   message_broker_data:
   backend_venv:
   static_files:
+  feed_files:
 
 networks:
   internal:

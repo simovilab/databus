@@ -28,9 +28,11 @@ RUN groupadd --gid 1000 app && \
 # Set work directory
 WORKDIR /app
 
-# Pre-create venv directory with correct ownership so the Docker volume
-# inherits app:app on first mount (not root:root).
-RUN mkdir -p /home/app/.venv && \
+# Pre-create venv, staticfiles, and feed/files directories with correct
+# ownership so the Docker volumes mounted at these paths inherit app:app on
+# first mount (not root:root, which would make collectstatic and the
+# schedule_engine feed-building Celery tasks fail with PermissionError).
+RUN mkdir -p /home/app/.venv /app/staticfiles /app/feed/files && \
     chown -R app:app /app /home/app
 
 # Copy dependency files

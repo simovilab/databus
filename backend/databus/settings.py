@@ -31,6 +31,25 @@ DEBUG = config("DEBUG", cast=bool)
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 
+# Traefik (or any reverse proxy) terminates TLS and forwards plain HTTP to
+# Django, setting X-Forwarded-Proto to tell us the original scheme. Without
+# this, request.is_secure() is always False behind the proxy, which breaks
+# CSRF's Origin/Referer check on every HTTPS POST (e.g. the admin login).
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Origins trusted to make unsafe (POST/PUT/PATCH/DELETE) requests, required
+# by Django's CSRF middleware since Django 4.0. Defaults to every allowed
+# host served over HTTPS (true for all production domains behind Traefik);
+# override with a comma-separated CSRF_TRUSTED_ORIGINS if a host needs a
+# different scheme/port (e.g. plain HTTP in local development).
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS",
+    cast=Csv(),
+    default=",".join(
+        f"https://{host}" for host in ALLOWED_HOSTS if host and host != "*"
+    ),
+)
+
 
 # Application definition
 

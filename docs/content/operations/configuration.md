@@ -23,6 +23,7 @@ Databús is configured entirely through environment variables loaded from `.env`
 |---|---|---|---|
 | `SECRET_KEY` | *(empty)* | Yes | Django secret key. Generate with `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`. |
 | `ALLOWED_HOSTS` | *(empty)* | Yes | Comma-separated list of allowed hostnames. In development: `localhost,127.0.0.1`. |
+| `CSRF_TRUSTED_ORIGINS` | `https://<host>` for every `ALLOWED_HOSTS` entry | No | Origins trusted for unsafe (POST/PUT/PATCH/DELETE) requests, required by Django's CSRF middleware. The default assumes every allowed host is served over HTTPS (true in production behind Traefik); override only if a host needs a different scheme/port. Paired with `SECURE_PROXY_SSL_HEADER` (hardcoded to trust Traefik's `X-Forwarded-Proto`) so `request.is_secure()` and CSRF's Origin check work correctly behind the reverse proxy. |
 | `DEBUG` | *(not set)* | No | Set to `True` for development. Never set in production. |
 | `STATIC_URL` | `/static/` | No | URL prefix for static files. |
 | `MEDIA_URL` | `/media/` | No | URL prefix for media files. |
