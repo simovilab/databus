@@ -78,8 +78,12 @@ docker compose -f compose.dev.yml exec orchestrator uv run python manage.py crea
 # Open Django shell
 docker compose -f compose.dev.yml exec orchestrator uv run python manage.py shell
 
-# Load bUCR GTFS fixture
-docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata gtfs.json
+# Seed: publishers (loaded in every env) then the demo fleet (dev only)
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata publishers.json
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata demo_fleet.json
+
+# Import the GTFS Schedule from the publisher's upstream URL (no-op if already imported)
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py bootstrap_schedule
 
 # Refresh GTFS model foreign keys after a feed import
 docker compose -f compose.dev.yml exec orchestrator uv run python manage.py update_foreign_keys
@@ -175,9 +179,10 @@ This sequence exercises the complete run lifecycle end-to-end:
 # Terminal 1 — start the full stack
 ./scripts/dev.sh
 
-# Terminal 2 — load GTFS feed
+# Terminal 2 — import the GTFS Schedule (the orchestrator already does this on
+# startup; run it by hand only if you skipped DJANGO_SETUP)
 docker compose -f compose.dev.yml exec orchestrator \
-    uv run python manage.py loaddata gtfs.json
+    uv run python manage.py bootstrap_schedule
 
 # Terminal 3 — start the simulator (separate repo)
 cd ../simulator && docker compose up simulator web
