@@ -93,7 +93,8 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 staticfiles/
-migrations/
+# migrations/ is intentionally NOT ignored: the schema must be reproducible
+# from a clean clone (a build without migrations creates no tables at all).
 
 # Flask stuff:
 instance/
