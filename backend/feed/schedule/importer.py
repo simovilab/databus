@@ -1,7 +1,7 @@
 """GTFS Schedule zip importer.
 
 Ported from infobús's ``save_schedule_to_database``, adapted for databús's
-``GTFSProvider``/``Feed`` schema. HEAD-checks a provider's upstream
+``FeedPublisher``/``Feed`` schema. HEAD-checks a provider's upstream
 ``schedule_url`` ETag; if it differs from the current ``Feed``'s, downloads
 and bulk-imports the new GTFS zip table-by-table, flips ``is_current``, and
 returns ``True``.
@@ -34,7 +34,7 @@ from feed.models import (
     CalendarDate,
     Feed,
     FeedInfo,
-    GTFSProvider,
+    FeedPublisher,
     Route,
     Shape,
     Stop,
@@ -228,17 +228,17 @@ def _parse_last_modified(resp: requests.Response) -> datetime:
         return datetime.now(timezone.utc)
 
 
-def import_schedule_if_changed(provider: GTFSProvider) -> bool:
+def import_schedule_if_changed(provider: FeedPublisher) -> bool:
     """Import *provider*'s GTFS Schedule zip when its upstream ETag changed.
 
     Returns True if a new Feed was imported, False if unchanged or on error.
     """
     if not provider.schedule_url:
-        logger.warning("GTFSProvider %s has no schedule_url; skipping", provider.code)
+        logger.warning("FeedPublisher %s has no schedule_url; skipping", provider.code)
         return False
 
     current_feed = (
-        Feed.objects.filter(gtfs_provider=provider, is_current=True)
+        Feed.objects.filter(feed_publisher=provider, is_current=True)
         .order_by("-retrieved_at")
         .first()
     )
@@ -284,7 +284,7 @@ def import_schedule_if_changed(provider: GTFSProvider) -> bool:
                 http_etag=new_tag,
                 http_last_modified=last_modified,
                 is_current=True,
-                gtfs_provider=provider,
+                feed_publisher=provider,
             )
 
             for table_name, model in _TABLES:

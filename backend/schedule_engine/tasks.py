@@ -147,12 +147,12 @@ def fetch_schedule() -> str:
 
     logger = logging.getLogger(__name__)
 
-    from feed.models import GTFSProvider
+    from feed.models import FeedPublisher
     from feed.schedule.importer import import_schedule_if_changed
 
-    providers = list(GTFSProvider.objects.filter(is_active=True))
+    providers = list(FeedPublisher.objects.filter(is_active=True))
     if not providers:
-        logger.warning("fetch_schedule: no active GTFSProvider rows found")
+        logger.warning("fetch_schedule: no active FeedPublisher rows found")
         return "fetch_schedule: no active providers"
 
     updated: list[str] = []

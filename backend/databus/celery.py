@@ -6,7 +6,7 @@ up behind a slow source); `build-vehicle-positions-every-15s` and
 `build-trip-updates-every-15s` rebuild the two GTFS-RT feeds every 15s;
 `scan-stale-runs-every-30s` sweeps for runs that have gone quiet;
 `build-schedule-daily` rebuilds the GTFS Schedule zip once a day; and
-`fetch-schedule-hourly-at-30` HEAD-checks each active GTFSProvider's schedule_url ETag
+`fetch-schedule-hourly-at-30` HEAD-checks each active FeedPublisher's schedule_url ETag
 every hour at :30 and imports the GTFS Schedule when it changed.
 """
 

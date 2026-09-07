@@ -181,7 +181,8 @@ Additional Databús-specific models:
 | `RouteStop` | Stop sequence per route + shape + direction |
 | `TripDuration` | Trip duration metadata for scheduling |
 | `TripTime` | Departure times at timepoints (for the run-scheduling UI) |
-| `GTFSProvider` | Registry of GTFS data providers and feed URLs |
+| `TransitSystem` | A transit network (e.g. bUCR) served by one or more publishers |
+| `FeedPublisher` | Registry of GTFS feed publishers and their feed URLs |
 
 ### GTFS Realtime persistence models
 
@@ -198,5 +199,5 @@ Additional Databús-specific models:
 ## Management commands
 
 `update_foreign_keys` — repairs FK links in `feed` models after a bulk import
-(e.g., after `loaddata gtfs.json`). Run it if FK integrity errors appear after
+(e.g., after a `bootstrap_schedule` / `fetch_schedule` import). Run it if FK integrity errors appear after
 a feed import.

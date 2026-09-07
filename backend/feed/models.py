@@ -1,4 +1,4 @@
-"""GTFS Schedule Django models, plus GTFSProvider/Feed for feed versioning."""
+"""GTFS Schedule Django models, plus TransitSystem/FeedPublisher/Feed for feed versioning."""
 
 import re
 from typing import TYPE_CHECKING, Any
@@ -33,15 +33,51 @@ def validate_no_spaces_or_special_symbols(value: str) -> None:
         )
 
 
-class GTFSProvider(models.Model):
-    """A provider provides transportation services GTFS data.
+class TransitSystem(models.Model):
+    """A collection of feed publishers serving a common purpose, e.g. a campus or city network.
 
-    It might or might not be the same as the agency in the GTFS feed. A GTFS provider can serve multiple agencies.
+    Mirrors infobús's `feed.TransitSystem` so both systems describe the same
+    entity the same way (see `context/behavior/infobus/`).
     """
 
-    provider_id = models.BigAutoField(primary_key=True)
+    name = models.CharField(max_length=255, help_text="Nombre del sistema de transporte.")
     code = models.CharField(
         max_length=31,
+        unique=True,
+        help_text="Código (típicamente el acrónimo) del sistema de transporte. No debe tener espacios ni símbolos especiales.",
+        validators=[validate_no_spaces_or_special_symbols],
+    )
+    description = models.TextField(
+        blank=True, null=True, help_text="Descripción del sistema de transporte."
+    )
+    is_active = models.BooleanField(
+        default=False, help_text="¿Está activo el sistema de transporte?"
+    )
+
+    def __str__(self) -> str:
+        """Return the transit system's code and name."""
+        return f"{self.code}: {self.name}"
+
+
+class FeedPublisher(models.Model):
+    """A publisher provides transportation services GTFS data for one transit system.
+
+    It might or might not be the same as the agency in the GTFS feed. A feed
+    publisher can serve multiple agencies.
+    """
+
+    publisher_id = models.BigAutoField(primary_key=True)
+    transit_system = models.ForeignKey(
+        TransitSystem,
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name="feed_publishers",
+        help_text="Sistema de transporte servido por este editor de suministros.",
+    )
+    code = models.CharField(
+        max_length=31,
+        unique=True,
         help_text="Código (típicamente el acrónimo) de la empresa. No debe tener espacios ni símbolos especiales.",
         validators=[validate_no_spaces_or_special_symbols],
     )
@@ -82,7 +118,7 @@ class GTFSProvider(models.Model):
     )
 
     def __str__(self) -> str:
-        """Return the provider's display name and code."""
+        """Return the publisher's display name and code."""
         return f"{self.name} ({self.code})"
 
 
@@ -102,11 +138,11 @@ class GTFSProvider(models.Model):
 # the outcome). This looks like an upstream django-stubs limitation, not a
 # real bug in these models.
 class Feed(models.Model):  # type: ignore[django-manager-missing]
-    """One retrieved version of a GTFS Schedule feed from a provider."""
+    """One retrieved version of a GTFS Schedule feed from a publisher."""
 
     feed_id = models.CharField(max_length=100, primary_key=True, unique=True)
-    gtfs_provider = models.ForeignKey(
-        GTFSProvider, on_delete=models.SET_NULL, blank=True, null=True
+    feed_publisher = models.ForeignKey(
+        FeedPublisher, on_delete=models.SET_NULL, blank=True, null=True
     )
     http_etag = models.CharField(max_length=1023, blank=True, null=True)
     http_last_modified = models.DateTimeField(blank=True, null=True)
@@ -637,8 +673,8 @@ class FeedMessage(models.Model):
     )
 
     feed_message_id = models.CharField(max_length=63, primary_key=True)
-    provider = models.ForeignKey(
-        GTFSProvider, on_delete=models.SET_NULL, blank=True, null=True
+    publisher = models.ForeignKey(
+        FeedPublisher, on_delete=models.SET_NULL, blank=True, null=True
     )
     entity_type = models.CharField(max_length=63, choices=ENTITY_TYPE_CHOICES)
     timestamp = models.DateTimeField(auto_now=True)

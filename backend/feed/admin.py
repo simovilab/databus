@@ -12,13 +12,14 @@ from .models import (
     FeedInfo,
     FeedMessage,
     GeoShape,
-    GTFSProvider,
+    FeedPublisher,
     Route,
     RouteStop,
     Shape,
     Stop,
     StopTime,
     StopTimeUpdate,
+    TransitSystem,
     Trip,
     TripDuration,
     TripTime,
@@ -35,7 +36,8 @@ class StopAdmin(admin.GISModelAdmin):
     exclude = ["stop_lat", "stop_lon"]
 
 
-admin.site.register(GTFSProvider)
+admin.site.register(TransitSystem)
+admin.site.register(FeedPublisher)
 admin.site.register(Feed)
 admin.site.register(Agency)
 admin.site.register(Stop, StopAdmin)
