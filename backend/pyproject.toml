@@ -86,7 +86,7 @@ check_untyped_defs = false
 # instead of collapsing to the top-level basename.
 explicit_package_bases = true
 mypy_path = "."
-# migrations are gitignored/regenerated at container start; gtfs-eta is the
+# migrations are committed Django schema history; gtfs-eta is the
 # sibling repo's own codebase (see [tool.ruff] above for the full rationale);
 # .venv is the local virtualenv, not project code.
 exclude = "(^|/)(migrations|gtfs-eta|\\.venv)(/|$)"

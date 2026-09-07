@@ -105,6 +105,37 @@ clone_gtfs_django() {
 
 clone_gtfs_django
 
+# --------------------------------------------
+section "Preparing gtfs-eta workspace member..."
+# --------------------------------------------
+
+clone_gtfs_eta() {
+    if [ -d "gtfs-eta/.git" ]; then
+        log "gtfs-eta already present; skipping clone"
+        return
+    fi
+
+    CLONE_LOCKDIR="/app/.gtfs-eta-clone.lockdir"
+    while ! mkdir "${CLONE_LOCKDIR}" 2>/dev/null; do
+        if [ -d "gtfs-eta/.git" ]; then
+            log "gtfs-eta became available"
+            return
+        fi
+        sleep 1
+    done
+
+    if [ -d "gtfs-eta/.git" ]; then
+        rmdir "${CLONE_LOCKDIR}"
+        return
+    fi
+
+    log "Cloning gtfs-eta repository..."
+    git clone https://github.com/dotjae/gtfs-eta.git gtfs-eta
+    rmdir "${CLONE_LOCKDIR}"
+}
+
+clone_gtfs_eta
+
 # ----------------------------------------------
 section "Enabling Python virtual environment..."
 # ----------------------------------------------
@@ -184,16 +215,6 @@ wait_for_database() {
     done
 }
 
-run_makemigrations() {
-    if is_true "${DEBUG:-False}"; then
-        APPS_TO_MIGRATE=("feed" "schedule_engine" "realtime_engine" "operations")
-        log "Creating migrations for: ${APPS_TO_MIGRATE[*]}"
-        uv run python manage.py makemigrations "${APPS_TO_MIGRATE[@]}" || warn "No changes detected for migrations"
-    else
-        log "Skipping makemigrations outside DEBUG (DEBUG=${DEBUG:-})"
-    fi
-}
-
 run_migrate() {
     log "Running database migrations..."
     uv run python manage.py migrate --noinput
@@ -270,9 +291,6 @@ bootstrap_schedule() {
 
 run_django_setup() {
     section "Starting Django setup..."
-
-    section "Running makemigrations (DEBUG only)..."
-    run_makemigrations
 
     section "Running migrate..."
     run_migrate
