@@ -7,7 +7,6 @@
   - `views.py` — one function, `index`, renders `templates/index.html`
   - `urls.py` — one route: `path("", views.index, name="inicio")`
   - `models.py` — empty (no models)
-  - `fixtures/auth.json` — seed auth fixture (unrelated to the page itself)
 
 ## Data in / data out
 

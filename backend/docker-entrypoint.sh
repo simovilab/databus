@@ -233,18 +233,48 @@ collect_static_files() {
     uv run python manage.py collectstatic --noinput || warn "Static files collection skipped"
 }
 
-load_initial_data() {
-    if [ -f feed/fixtures/gtfs.json ]; then
-        log "Loading initial data fixture gtfs.json"
-        uv run python manage.py loaddata gtfs.json || warn "Initial data load failed"
-        if [ -f feed/files/gtfs.zip ]; then
-            log "GTFS Schedule zip already present; skipping export (daily task or 'manage.py export_gtfs' will refresh it)"
-        else
-            log "Exporting GTFS Schedule zip"
-            uv run python manage.py export_gtfs || warn "GTFS Schedule zip export skipped"
-        fi
+# Seeds the transit system and its feed publisher. Runs in EVERY environment:
+# bootstrap_schedule imports only for active publishers, so without these rows
+# there is no GTFS Schedule and every GTFS-RT feed is silently empty. Contains
+# no credentials and no user accounts.
+load_publishers() {
+    if [ -f feed/fixtures/publishers.json ]; then
+        log "Loading publishers fixture publishers.json"
+        uv run python manage.py loaddata publishers.json || warn "Publisher load failed"
     else
-        log "No optional initial data fixture gtfs.json present"
+        warn "No publishers.json fixture present; bootstrap_schedule will find no publisher"
+    fi
+}
+
+# Seeds the demo fleet (company, vehicles, equipment, sensors, operators).
+# DEBUG-only: it ships known dev passwords and fixed primary keys, so it must
+# never run against a real deployment.
+load_initial_data() {
+    if ! is_true "${DEBUG:-False}"; then
+        log "Skipping demo fleet fixture load outside DEBUG (DEBUG=${DEBUG:-})"
+        return
+    fi
+
+    if [ -f operations/fixtures/demo_fleet.json ]; then
+        log "Loading demo fleet fixture demo_fleet.json"
+        uv run python manage.py loaddata demo_fleet.json || warn "Demo fleet load failed"
+    else
+        log "No demo fleet fixture demo_fleet.json present"
+    fi
+}
+
+# Imports the GTFS Schedule for any active publisher that has no feed yet.
+# Runs in every environment: an empty schedule means empty GTFS-RT feeds, and
+# waiting for the next hourly fetch_schedule tick is not an acceptable cold
+# start. It is a no-op once a current Feed exists.
+bootstrap_schedule() {
+    uv run python manage.py bootstrap_schedule || warn "GTFS Schedule bootstrap failed"
+
+    if [ -f feed/files/gtfs.zip ]; then
+        log "GTFS Schedule zip already present; skipping export (daily task or 'manage.py export_gtfs' will refresh it)"
+    else
+        log "Exporting GTFS Schedule zip"
+        uv run python manage.py export_gtfs || warn "GTFS Schedule zip export skipped"
     fi
 }
 
@@ -269,8 +299,14 @@ run_django_setup() {
     section "Collecting static files..."
     collect_static_files
 
-    section "Loading initial data (if present)..."
+    section "Loading publishers..."
+    load_publishers
+
+    section "Loading demo fleet (DEBUG only)..."
     load_initial_data
+
+    section "Bootstrapping GTFS Schedule (if no feed yet)..."
+    bootstrap_schedule
 
     section "Django application setup complete!"
 }

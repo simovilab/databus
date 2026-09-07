@@ -1,8 +1,7 @@
 """Shared fixtures for api app tests: a minimal GTFS feed with one route, shape, and stop.
 
-Built imperatively via the ORM (small, in-code fixture data) rather than the
-large `feed/fixtures/gtfs.json` bundle, so each test only pulls in the rows
-it actually needs.
+Built imperatively via the ORM (small, in-code fixture data) rather than an
+imported upstream feed, so each test only pulls in the rows it actually needs.
 """
 
 from datetime import date
