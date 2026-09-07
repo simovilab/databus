@@ -6,8 +6,8 @@ icon: lucide/activity
 
 `MODEL.md` describes a second, separate state machine for vehicle motion that runs concurrently with the lifecycle FSM. This page documents the design intent and the current implementation status.
 
-!!! warning "Implementation gap"
-    The motion FSM described in `MODEL.md` (`IS_MOVING` / `IS_STOPPED` / `IS_PAUSED`) does not yet exist in the code as a working service. The `backend/runs/domain/progress/` module exists as a structural scaffold, but its state enum (`RunProgressStates`) mirrors the lifecycle states rather than the motion states, and the `RunProgressService` in `backend/runs/services/progress.py` is a stub (no active call path, hardcoded `current_stop = 1`). This page describes both the design intent and the actual code state.
+!!! warning "Design intent only — the scaffold was removed"
+    The motion FSM described in `MODEL.md` (`IS_MOVING` / `IS_STOPPED` / `IS_PAUSED`) does not exist in the code, as a working service or otherwise. A structural scaffold once lived at `backend/runs/domain/progress/` (states/events/transitions/guards/actions mirroring the lifecycle FSM) plus a stub `RunProgressService` in `backend/runs/services/progress.py`, but neither ever had a live call path — the scaffold's state enum mirrored `RunLifecycleStates` rather than the motion states, and the service hardcoded `current_stop = 1`. Both were deleted as dead code during release cleanup, commit `a3cbb0a` ("refactor(runs): drop dead RunProgress FSM chain"). This page describes the design intent and the actual active implementation of stop-state detection, which is a different, simpler mechanism than the planned motion FSM.
 
 ## Design intent (MODEL.md)
 
@@ -35,51 +35,40 @@ stateDiagram-v2
 
 The FSM was designed to emit a trace — a sequence of labeled transitions carrying timestamps and position data — that could be consumed by the analytics pipeline for scheduling and on-time performance analysis.
 
-## What exists in the code
+This remains future design intent. Nothing below is a step toward it; it is a separate, already-shipped mechanism that happens to answer a related question ("is the vehicle stopped at a stop right now?") without any FSM.
 
-`backend/runs/domain/progress/` contains:
+## What exists in the code: per-tick stop-status computation
 
-- `states.py` — `RunProgressStates` enum: **identical to `RunLifecycleStates`** (Requested, Validated, …, Cancelled). Not the IS_MOVING/IS_STOPPED/IS_PAUSED states.
-- `events.py` — `RunProgressEvents` enum: identical to `RunLifecycleEvents`.
-- `transitions.py` — A transition table that mirrors `backend/runs/domain/lifecycle/transitions.py` exactly, using `RunProgressStates` and `RunProgressEvents`.
-- `guards.py` — Copy of lifecycle guards.
-- `actions.py` — Copy of lifecycle actions.
+There is no motion FSM in the code, dead or otherwise — the `progress/` scaffold and `RunProgressService` described above are gone. The **active** implementation of stop-state detection is a stateless, per-tick computation in `backend/runs/domain/progression/compute.py`, function `compute_stop_status`.
 
-The `RunProgressService` in `backend/runs/services/progress.py` is a stub:
+On every position update, `compute_stop_status`:
 
-```python
-class RunProgressService:
-    def process_event(self, event, payload):
-        run = self._load_run(payload)
-        if not self._is_active(run):  # checks run_lifecycle_state == "IN_PROGRESS"
-            return None
-        ...
-    def _detect_stop_events(self, run, context):
-        current_stop = 1  # TODO: self._infer_current_stop(run, context)
-        ...
-```
+1. Loads the cached GTFS shape geometry for the run's `(shape_id, trip_id)`.
+2. Projects the observed GPS point onto the shape polyline to get the along-track progress distance.
+3. Picks the upcoming stop (the next stop ahead by progress distance, or the last stop if the vehicle has passed all of them).
+4. Applies radius/speed rules to classify the vehicle against that stop:
+   - `distance <= STOP_RADIUS_M` (20.0 m) AND (speed unknown OR `speed <= STATIONARY_SPEED_MPS` (0.5 m/s)) → `STOPPED_AT`
+   - `distance <= INCOMING_AT_RADIUS_M` (50.0 m) AND still approaching (`point_progress_m < stop.progress_m`) → `INCOMING_AT`
+   - otherwise → `IN_TRANSIT_TO`
+5. Enforces a monotonic sequence floor: if the new candidate's `stop_sequence` would regress below the previous tick's, the previous sequence/stop_id are kept instead.
 
-No task, celery entry point, or MQTT handler calls `RunProgressService.process_event`.
+The whole computation is wrapped in `try/except Exception` and falls back to `IN_TRANSIT_TO` plus carry-forward of the previous state on any error (missing GTFS data, ORM errors, bad payloads) — it must never raise, since the caller runs it on every position tick.
 
-## Relationship to server-side progression
+This is a **stateless classification, not an FSM**: there are no explicit states, transitions, guards, or actions — just a pure function computing one of three status strings from the current tick's geometry. The only "memory" across ticks is the monotonic sequence floor.
 
-The server-side map-matching in `backend/runs/domain/progression/compute.py` produces a `vehicle_stop_status` dict with three states: `STOPPED_AT`, `INCOMING_AT`, `IN_TRANSIT_TO`. These correspond loosely to the motion FSM concept but are computed per telemetry tick and written to Redis as `run:<id>:vehicle_stop_status`, not as FSM transitions.
+### Where it's called and stored
 
-The stop-status computation uses:
+`backend/runs/domain/progression/producer.py::produce_stop_status` is the impure wrapper: it reads `vehicle:<vehicle_id>:position` and `run:<run_id>` from Redis, calls `compute_stop_status`, validates the result, and writes it to `run:<run_id>:vehicle_stop_status` (Redis hash key from `backend/runs/domain/telemetry/keys.py::stop_status_key`).
 
-- `STOP_RADIUS_M = 20.0` m — within this distance and low speed → `STOPPED_AT`
-- `INCOMING_AT_RADIUS_M = 50.0` m — within this distance and still approaching → `INCOMING_AT`
-- `STATIONARY_SPEED_MPS = 0.5` m/s — speed at or below this is considered dwell
-
-This is the active implementation of stop-state detection. The motion FSM scaffold in `progress/` is not yet connected to it.
+It is invoked from `process_position_update` (`backend/realtime_engine/tasks.py`), which runs after every MQTT position write. The resulting `vehicle_stop_status` dict is then re-fed into `detect_from_telemetry(..., leaf="progression", ...)` so `RunCompletedDetector` can fire `run_completed` when `current_status == "STOPPED_AT"` — see [detection.md](detection.md) and [commands-vs-detections.md](commands-vs-detections.md) for that path.
 
 ## Summary
 
 | Aspect | Design intent (MODEL.md) | Current code |
 |---|---|---|
 | Motion states | `IS_MOVING`, `IS_STOPPED`, `IS_PAUSED` | Not implemented |
-| Module location | `runs/domain/progress/` | Exists as a lifecycle mirror scaffold |
-| Active service | `RunProgressService` | Stub — no live call path |
-| Stop-state detection | Motion FSM transitions | Per-tick `compute.py` → `vehicle_stop_status` Redis hash |
+| Scaffold module | (none planned — would be new) | `runs/domain/progress/` existed as an unused lifecycle-mirror scaffold; deleted in `a3cbb0a` |
+| Stub service | (none planned — would be new) | `RunProgressService` existed as a dead stub; deleted in `a3cbb0a` |
+| Stop-state detection | Motion FSM transitions with a trace | Stateless per-tick `compute_stop_status()` → `vehicle_stop_status` Redis hash (`run:<id>:vehicle_stop_status`) |
 
-The motion FSM is planned for implementation. When implemented, it will run alongside the lifecycle FSM and produce structured traces for the analytics pipeline.
+The motion FSM is still only a design idea in `MODEL.md`. If it is ever implemented, it would run alongside the lifecycle FSM and produce structured traces for the analytics pipeline — but that is unrelated to the per-tick stop-status computation described above, which already ships and already drives `run_completed` detection.

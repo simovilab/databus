@@ -1,3 +1,5 @@
+"""Django ORM models for run assignment, lifecycle audit trail, and per-tick telemetry snapshots."""
+
 from django.contrib.gis.db import models
 from operations.models import Vehicle, Operator
 from runs.domain.lifecycle import RunLifecycleStates, choices
@@ -47,11 +49,14 @@ class Run(models.Model):
     )
     last_event_at = models.DateTimeField(blank=True, null=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return a human-readable "route/trip (date)" label for admin and logs."""
         return f"{self.route_id} / {self.trip_id} ({self.start_date})"
 
 
 class RunLifecycleTransition(models.Model):
+    """Immutable audit record of one FSM transition attempt (successful or rejected) for a run."""
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
     run = models.ForeignKey(Run, on_delete=models.CASCADE)
     event_name = models.CharField(max_length=128)
@@ -69,23 +74,9 @@ class RunLifecycleTransition(models.Model):
         ]
 
 
-class RunProgressEvent(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
-    run = models.ForeignKey(Run, on_delete=models.CASCADE)
-    event_type = models.CharField(max_length=128)
-    stop_id = models.CharField(max_length=64, null=True)
-    payload = models.JSONField(default=dict)
-    timestamp = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["run", "timestamp"]),
-            models.Index(fields=["event_type"]),
-        ]
-
-
 class Position(models.Model):
+    """One GPS/motion sample for a vehicle at a point in time."""
+
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     timestamp = models.DateTimeField()
     point = models.PointField(blank=True, null=True)
@@ -97,6 +88,8 @@ class Position(models.Model):
 
 
 class VehicleStopStatus(models.Model):
+    """Snapshot of a vehicle's relationship to its current/next stop (GTFS-RT VehicleStopStatus)."""
+
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     current_stop_sequence = models.PositiveIntegerField(blank=True, null=True)
@@ -114,6 +107,8 @@ class VehicleStopStatus(models.Model):
 
 
 class CongestionLevel(models.Model):
+    """Snapshot of a vehicle's congestion level (GTFS-RT CongestionLevel; producer not yet implemented)."""
+
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     congestion_level = models.CharField(
@@ -131,6 +126,8 @@ class CongestionLevel(models.Model):
 
 
 class OccupancyStatus(models.Model):
+    """Snapshot of a vehicle's passenger occupancy (GTFS-RT OccupancyStatus)."""
+
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT)
     timestamp = models.DateTimeField(auto_now_add=True)
     occupancy_status = models.CharField(

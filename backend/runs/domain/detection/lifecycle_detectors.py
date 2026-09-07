@@ -25,6 +25,7 @@ class RunTrackingStartedDetector:
     def detect(
         self, run_state: str, leaf: str, data: dict[str, Any], payload: dict[str, Any]
     ) -> DetectionResult | None:
+        """Fire RUN_TRACKING_STARTED when a CONFIRMED run receives any telemetry."""
         if run_state == RunLifecycleStates.CONFIRMED.value:
             return DetectionResult(self.fsm, RunLifecycleEvents.RUN_TRACKING_STARTED)
         return None
@@ -38,6 +39,7 @@ class RunStartedDetector:
     def detect(
         self, run_state: str, leaf: str, data: dict[str, Any], payload: dict[str, Any]
     ) -> DetectionResult | None:
+        """Fire RUN_STARTED when a TRACKING run's position shows it moving faster than MIN_MOVING_SPEED."""
         if run_state == RunLifecycleStates.TRACKING.value and leaf == "position":
             if float(data.get("speed", 0) or 0) > MIN_MOVING_SPEED:
                 return DetectionResult(self.fsm, RunLifecycleEvents.RUN_STARTED)
@@ -52,6 +54,7 @@ class RunTrackingRestoredDetector:
     def detect(
         self, run_state: str, leaf: str, data: dict[str, Any], payload: dict[str, Any]
     ) -> DetectionResult | None:
+        """Fire RUN_TRACKING_RESTORED when a NO_SIGNAL run receives any telemetry."""
         if run_state == RunLifecycleStates.NO_SIGNAL.value:
             return DetectionResult(self.fsm, RunLifecycleEvents.RUN_TRACKING_RESTORED)
         return None
@@ -69,6 +72,7 @@ class RunCompletedDetector:
     def detect(
         self, run_state: str, leaf: str, data: dict[str, Any], payload: dict[str, Any]
     ) -> DetectionResult | None:
+        """Fire RUN_COMPLETED when an IN_PROGRESS run reports STOPPED_AT with a stop_id."""
         if run_state == RunLifecycleStates.IN_PROGRESS.value and leaf == "progression":
             stop_id = data.get("stop_id")
             if data.get("current_status") == "STOPPED_AT" and stop_id:
@@ -79,8 +83,8 @@ class RunCompletedDetector:
 
 
 class RunInterruptedDetector:
-    pass
+    """Placeholder — not registered in `registry.TELEMETRY_DETECTORS`; interruption is triggered externally via the RUN_INTERRUPTED command, not detected from telemetry."""
 
 
 class RunShortTurnedDetector:
-    pass
+    """Placeholder — not registered in `registry.TELEMETRY_DETECTORS`; short-turning is triggered externally via the RUN_SHORT_TURNED command, not detected from telemetry."""

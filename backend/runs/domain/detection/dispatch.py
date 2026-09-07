@@ -12,21 +12,15 @@ Two layers:
 logic of their own.
 """
 
-import os
-from typing import Any
+from typing import Any, cast
 
-import redis
 from django.utils.timezone import now
 
+from databus.redis_client import create_redis_client
 from runs.domain.detection.result import DetectionResult
 from runs.domain.detection import registry
 
-r = redis.Redis(
-    host=os.getenv("REDIS_HOST", "state"),
-    port=int(os.getenv("REDIS_PORT", "6379")),
-    db=0,
-    decode_responses=True,
-)
+r = create_redis_client()
 
 # Lifecycle events whose guard (``is_vehicle_tracked``) requires the run to
 # already be in ``runs:tracking``. The arrival of telemetry is precisely the
@@ -45,7 +39,7 @@ def plan_telemetry_events(
     leaf: str,
     data: dict[str, Any],
     base_payload: dict[str, Any],
-    detectors=registry.TELEMETRY_DETECTORS,
+    detectors: list[Any] = registry.TELEMETRY_DETECTORS,
 ) -> list[DetectionResult]:
     """Plan at most one event per FSM for a telemetry message."""
     results: list[DetectionResult] = []
@@ -66,7 +60,7 @@ def plan_scan_events(
     lifecycle_state: str | None,
     staleness_s: float,
     payload: dict[str, Any],
-    detectors=registry.PERIODIC_DETECTORS,
+    detectors: list[Any] = registry.PERIODIC_DETECTORS,
 ) -> list[DetectionResult]:
     """Plan at most one lifecycle event for a staleness scan tick."""
     if lifecycle_state is None:
@@ -95,7 +89,10 @@ def _fire(result: DetectionResult, base_payload: dict[str, Any]) -> None:
 def detect_from_telemetry(
     run_id: str, vehicle_id: str, leaf: str, data: dict[str, Any]
 ) -> None:
-    lifecycle_state = r.hget(f"run:{run_id}", "run_lifecycle_state")
+    """Evaluate telemetry detectors for one message and queue any fired lifecycle events."""
+    # r has decode_responses=True, so hget really returns str | None; cast narrows
+    # away the Awaitable branch that redis-py's shared sync/async stub attaches.
+    lifecycle_state = cast("str | None", r.hget(f"run:{run_id}", "run_lifecycle_state"))
     if not lifecycle_state:
         return
 
@@ -111,7 +108,7 @@ def detect_from_telemetry(
 
 def detect_from_scan(run_id: str, staleness_s: float, raw_last_seen: str) -> int:
     """Evaluate periodic detectors for one run; returns number of events fired."""
-    lifecycle_state = r.hget(f"run:{run_id}", "run_lifecycle_state")
+    lifecycle_state = cast("str | None", r.hget(f"run:{run_id}", "run_lifecycle_state"))
     base_payload = {
         "run_id": run_id,
         "last_seen_at": raw_last_seen,

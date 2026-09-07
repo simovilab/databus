@@ -1,3 +1,1 @@
-from django.shortcuts import render
-
-# Create your views here.
+"""Django views for realtime_engine (none: this app exposes no HTTP endpoints)."""

@@ -12,7 +12,8 @@ Databús is configured entirely through environment variables loaded from `.env`
 |---|---|
 | `.env.example` | Template committed to the repository. Contains safe defaults and empty slots for secrets. |
 | `.env` | Your local configuration. **Never commit this file.** |
-| `.env.prod` | Production overrides (domains, TLS, credentials). Loaded alongside `.env` by `compose.prod.yml`. |
+| `.env.dev` | Development overrides (`DEBUG=True`, `DJANGO_SERVE_STATIC=True`, dev ETA-model defaults, `MQTT_HOST`/`MQTT_PORT`). Loaded alongside `.env` by `compose.dev.yml` (`env_file: [.env, .env.dev]` on every backend service). |
+| `.env.prod` | Production overrides (`DEBUG=False` today; add domains/TLS/credential overrides here if they differ from `.env`). Loaded alongside `.env` by `compose.prod.yml`. |
 
 ## Variable reference
 
@@ -25,6 +26,7 @@ Databús is configured entirely through environment variables loaded from `.env`
 | `DEBUG` | *(not set)* | No | Set to `True` for development. Never set in production. |
 | `STATIC_URL` | `/static/` | No | URL prefix for static files. |
 | `MEDIA_URL` | `/media/` | No | URL prefix for media files. |
+| `DJANGO_SERVE_STATIC` | *(unset, i.e. falsy)* | No | When truthy (`1`/`true`/`yes`/`on`), serves `STATIC_URL`/`MEDIA_URL` through Django even outside `DEBUG` (`databus/urls.py`). `DEBUG=True` already implies this; set it explicitly to serve static/media without full `DEBUG`. `.env.dev` sets it to `True`. |
 
 ### Database (PostgreSQL / PostGIS)
 
@@ -45,6 +47,8 @@ Databús is configured entirely through environment variables loaded from `.env`
 | `REDIS_PASSWORD` | `redispassword` | Yes (prod) | Redis AUTH password. Required in `compose.prod.yml` (the `state` service starts with `--requirepass`). Leave empty for bare-metal dev without auth. |
 | `REDIS_DB` | `0` | No | Redis database index. |
 
+All Redis clients in `databus` — `realtime_engine/tasks.py`, `realtime_engine/mqtt.py`, `schedule_engine/tasks.py`, `runs/domain/lifecycle/{guards,actions}.py`, `runs/domain/detection/dispatch.py`, `runs/domain/progression/{producer,stop_times}.py` — are built via the shared factory in `databus/redis_client.py`, and the Channels `CHANNEL_LAYERS` config in `databus/settings.py` follows the same env vars directly. All of them honor `REDIS_PASSWORD` when it is set. Leaving it empty or unset (the dev default) connects without AUTH, so bare-metal dev without auth keeps working unchanged.
+
 ### RabbitMQ (AMQP message broker)
 
 | Variable | Default | Required | Purpose |
@@ -64,6 +68,16 @@ Databús is configured entirely through environment variables loaded from `.env`
 
 !!! warning "Do not set MQTT_CONSUMER_ENABLED=true on multiple workers"
     Each worker that has this variable enabled will subscribe to the broker and process every MQTT message. That means double-processing all telemetry. The compose files are pre-configured correctly; only change this if you know what you are doing.
+
+### ETA prediction (gtfs-eta)
+
+Read by `backend/runs/domain/progression/stop_times.py`, which is called by `realtime_engine.tasks.process_position_update` after every position write to keep `run:<run_id>:stop_time_updates` current for the GTFS-RT `trip_updates` builder.
+
+| Variable | Default | Required | Purpose |
+|---|---|---|---|
+| `MODEL_REGISTRY_DIR` | *(none in databus code)* | Yes | Directory where the `gtfs_eta` model registry lives. Read directly by the `gtfs_eta` package itself, not by a `databus` default — must be set before starting a worker that runs `process_position_update`. `.env.example`/`.env.dev` set it to `eta_models`. |
+| `ETA_MAX_STOPS` | `3` | No | Maximum number of upcoming stops passed to the ETA estimator per position tick. `.env.dev` overrides this to `10` for local development. |
+| `ETA_DEFAULT_UNCERTAINTY_S` | `120` | No | Uncertainty (seconds) attached to every predicted arrival, passed through to the GTFS-RT feed. |
 
 ### Production domain routing (Traefik)
 
@@ -87,14 +101,17 @@ These variables control which host ports the compose services bind to in develop
 | Variable | Default | Mapped service |
 |---|---|---|
 | `BACKEND_PORT` | `8000` | Django (orchestrator) |
-| `DATABASE_PORT` | `5432` | PostgreSQL |
 | `STATE_PORT` | `6379` | Redis |
 | `MQTT_BROKER_PORT` | `1883` | NanoMQ |
 | `MESSAGE_BROKER_AMQP_PORT` | `5672` | RabbitMQ AMQP |
 | `MESSAGE_BROKER_MANAGEMENT_PORT` | `15672` | RabbitMQ management UI |
+| `MESSAGE_BROKER_PROMETHEUS_PORT` | `15692` | RabbitMQ Prometheus metrics |
 | `ANALYTICS_PORT` | `4200` | Prefect |
 | `TASK_MONITORING_PORT` | `5555` | Flower |
 | `USER_INTERFACE_PORT` | `13000` | Nuxt frontend |
+
+!!! note "PostgreSQL has no host port mapping in `compose.dev.yml`"
+    `.env.example` still defines `DATABASE_PORT=5432`, but the `database` service in `compose.dev.yml` has no `ports:` entry — it is internal-only, reachable from other containers but not from the host. `./scripts/dev.sh` prints the same thing at startup ("PostgreSQL (database) internal only"). Reach it from the host with `docker compose -f compose.dev.yml exec database psql -U postgres`.
 
 ### Other
 

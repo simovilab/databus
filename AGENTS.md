@@ -66,8 +66,12 @@ docker compose -f compose.dev.yml exec orchestrator uv run python manage.py crea
 # Custom management command to refresh GTFS model FKs
 docker compose -f compose.dev.yml exec orchestrator uv run python manage.py update_foreign_keys
 
-# Load fixture data (bUCR GTFS)
-docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata gtfs.json
+# Seed: publishers (loaded in every env) then the demo fleet (dev only)
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata publishers.json
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata demo_fleet.json
+
+# Import the GTFS Schedule from the publisher's upstream URL (no-op if already imported)
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py bootstrap_schedule
 
 # Non-Docker
 cd backend

@@ -14,6 +14,7 @@ Import graph (one-directional):
 """
 
 from datetime import datetime
+from typing import Protocol
 
 from runs.domain.telemetry import (
     congestion_level,
@@ -24,6 +25,33 @@ from runs.domain.telemetry import (
     trip,
     vehicle_stop_status,
 )
+
+
+class RedisLike(Protocol):
+    """Structural type for the Redis client surface these builders call.
+
+    Declared with plain (non-``Awaitable``) return types on purpose: redis-py's
+    stubs type every command ``Awaitable[X] | X`` since the mixin is shared
+    with the async client, but callers here always pass the synchronous,
+    ``decode_responses=True`` client. Typing the parameter against this
+    narrower structural protocol — rather than ``redis.Redis`` directly —
+    resolves calls like ``r.hgetall(...)`` to the plain ``X`` branch without
+    per-call casts, and lets tests pass a dict-backed fake instead of a real
+    client. Real callers narrow at the boundary (see ``tasks.py``), mirroring
+    the cast-helper idiom in ``runs/domain/progression/producer.py``.
+    """
+
+    def hgetall(self, key: str) -> dict[str, str]:
+        """Return the hash stored at ``key`` as a string-keyed, string-valued dict."""
+        ...
+
+    def smembers(self, key: str) -> set[str]:
+        """Return the members of the set stored at ``key``."""
+        ...
+
+    def get(self, key: str) -> str | None:
+        """Return the string value stored at ``key``, or ``None`` if absent."""
+        ...
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +74,7 @@ def get_entity_id(vehicle_id: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def build_vehicle_position_entity(r, run_id: str) -> dict | None:
+def build_vehicle_position_entity(r: RedisLike, run_id: str) -> dict | None:
     """Assemble one GTFS-RT VehiclePosition entity dict from Redis.
 
     Reads the per-entity hashes (written by the MQTT consumer and lifecycle
@@ -135,7 +163,7 @@ def build_vehicle_position_entity(r, run_id: str) -> dict | None:
     return entity
 
 
-def build_trip_update_entity(r, run_id: str) -> dict | None:
+def build_trip_update_entity(r: RedisLike, run_id: str) -> dict | None:
     """Assemble one GTFS-RT TripUpdate entity dict from Redis.
 
     Returns ``None`` when neither position nor stop-status data are present
@@ -201,8 +229,20 @@ def build_trip_update_entity(r, run_id: str) -> dict | None:
     # entries in the feed).
     raw = r.get(keys.stop_time_updates_key(run_id))
     entries = stop_time_updates.from_redis(raw)
+
+    # Defensive sort + dedup: the producer already guarantees ordering and
+    # uniqueness, but belt-and-suspenders here ensures a corrupt projection
+    # never produces an invalid GTFS-RT feed.
+    seen_seqs: set[int] = set()
+    deduped_entries: list[dict] = []
+    for entry in sorted(entries, key=lambda e: e["stop_sequence"]):
+        seq = entry["stop_sequence"]
+        if seq not in seen_seqs:
+            seen_seqs.add(seq)
+            deduped_entries.append(entry)
+
     tu["stop_time_update"] = []
-    for u in entries:
+    for u in deduped_entries:
         tu["stop_time_update"].append(
             {
                 "stop_sequence": u["stop_sequence"],
@@ -226,7 +266,7 @@ def build_trip_update_entity(r, run_id: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 
-def build_vehicle_positions_feed(r) -> dict:
+def build_vehicle_positions_feed(r: RedisLike) -> dict:
     """Build a complete GTFS-RT VehiclePositions FeedMessage dict.
 
     Iterates ``runs:in_progress``, assembles one entity per run via
@@ -260,7 +300,7 @@ def build_vehicle_positions_feed(r) -> dict:
     return feed
 
 
-def build_trip_updates_feed(r) -> dict:
+def build_trip_updates_feed(r: RedisLike) -> dict:
     """Build a complete GTFS-RT TripUpdates FeedMessage dict.
 
     Iterates ``runs:in_progress``, assembles one entity per run via

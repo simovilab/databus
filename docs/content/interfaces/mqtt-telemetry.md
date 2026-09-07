@@ -11,6 +11,15 @@ Vehicles (or simulators) publish telemetry to the NanoMQ broker. The
 Broker: **NanoMQ** at `telemetry-broker:1883` (internal) / `mqtt.<domain>:8883`
 (TLS, production).
 
+!!! note "Two producers, one topic contract"
+    Position data reaches the `transit/vehicle/<id>/position` topic through
+    two paths: devices/simulators that speak MQTT publish there directly, and
+    devices that only expose an HTTP+JSON endpoint are polled every 10 s by
+    the `fetch_positions` Celery task, which republishes what it fetches onto
+    the same topic. Both paths converge on the single MQTT contract described
+    below — see [HTTP polling ingestion path](#http-polling-ingestion-path)
+    for how the second path works.
+
 ---
 
 ## Topic grammar
@@ -116,10 +125,61 @@ Reports passenger load.
 2. `classify_status(occupancy_percentage)` computes the server-policy enum value.
 3. `validate_for_write(occ_payload)` validates the combined payload.
 4. `r.hset(vehicle:<id>:occupancy, mapping=...)` writes the hash.
-5. `detect_from_telemetry(run_id, vehicle_id, "occupancy", data)` is called
+5. `r.set(runs:last_seen:<run_id>, now().isoformat())` is written synchronously.
+6. `detect_from_telemetry(run_id, vehicle_id, "occupancy", data)` is called
    inline (not via the Celery queue) — occupancy detection is cheap and must
    fire lifecycle events immediately for tracking-start and restore detectors.
-6. `r.set(runs:last_seen:<run_id>, now().isoformat())` is written synchronously.
+
+---
+
+## HTTP polling ingestion path
+
+Not every telemetry device exposes an MQTT publisher — some fleet-tracking
+providers (e.g. NavSat-style endpoints) only expose an HTTP+JSON polling
+endpoint. For those, `realtime_engine.tasks.fetch_positions`
+(`backend/realtime_engine/tasks.py`) is a Celery Beat task, scheduled every
+**10 seconds** (`fetch-positions` in `backend/databus/celery.py`, with
+`expires=10` so a poll that couldn't even start within its own cycle is
+revoked rather than queuing up behind a slow source), that:
+
+1. Builds the in-service vehicle-id set from every `vehicle:<id>:current_run`
+   key present in Redis — the same gate the MQTT consumer itself uses.
+2. Queries `operations.Sensor` rows that are `status="ACTIVE"`,
+   `provides_position=True`, and `source_type` in `["http", "both"]`.
+3. Skips any sensor whose own `equipment.vehicle` is not in the in-service
+   set (avoids paying the HTTP cost for out-of-service vehicles), then
+   fetches the remaining sensors via the registered `"http"` adapter
+   (`backend/realtime_engine/sources/http_json.py`), each call independently
+   try/excepted so one failing source can't sink the poll.
+4. Filters the fetched readings down to in-service vehicles again (a fleet
+   endpoint can return many vehicles from a single sensor's URL, not just the
+   one tied to that sensor's own equipment).
+5. Publishes the survivors via `MqttPublisher.publish_batch`
+   (`backend/realtime_engine/sources/publisher.py`) onto
+   `transit/vehicle/<vehicle_id>/position`, QoS 0, not retained — **the exact
+   same topic and payload shape** the MQTT consumer already subscribes to.
+
+The task carries a `soft_time_limit=25` so one pathological source (a host
+that hangs on every request) can't hold a worker slot indefinitely; on
+`SoftTimeLimitExceeded` it logs the in-flight sensor and returns early
+without publishing.
+
+**HTTP+JSON adapter mapping:** a `Sensor` with `source_type="http"` (or
+`"both"`) configures `source_http_url` and `source_json_mapping` — a small
+schema of JSON-path mappings (`paths.lat`, `paths.lon`, optionally
+`paths.speed`, `paths.odometer`, `paths.bearing`, `paths.timestamp`,
+`paths.vehicle_id`) plus unit hints (`units.speed: "kmh"`,
+`units.odometer: "km"`, converted to SI) and a timestamp format/timezone.
+Only `lat`/`lon` are effectively required — a record that can't yield both is
+skipped. If the mapping doesn't resolve a `vehicle_id`, the adapter falls
+back to the sensor's own `equipment.vehicle`.
+
+This path only ever produces `position` leaf messages — there is no HTTP
+polling equivalent for `occupancy`.
+
+Source: `backend/realtime_engine/tasks.py::fetch_positions`,
+`backend/realtime_engine/sources/http_json.py`,
+`backend/realtime_engine/sources/publisher.py`, `backend/databus/celery.py`.
 
 ---
 

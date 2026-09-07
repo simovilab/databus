@@ -1,3 +1,5 @@
+"""Enumeration of events driving run lifecycle transitions — REST commands and telemetry-detected facts."""
+
 from enum import Enum
 
 

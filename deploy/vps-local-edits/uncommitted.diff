@@ -1,0 +1,74 @@
+diff --git a/.env.dev b/.env.dev
+index 103485f..48edb04 100644
+--- a/.env.dev
++++ b/.env.dev
+@@ -1,5 +1,5 @@
+ # Django Settings
+-DEBUG=True
++DEBUG=False
+ DJANGO_SERVE_STATIC=True
+ LOG_LEVEL=DEBUG
+ CREATE_SUPERUSER=True
+diff --git a/compose.dev.yml b/compose.dev.yml
+index 0344208..7799737 100644
+--- a/compose.dev.yml
++++ b/compose.dev.yml
+@@ -13,7 +13,7 @@ services:
+       - .env
+       - .env.dev
+     ports:
+-      - "${BACKEND_PORT:-8000}:8000"
++      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"   # loopback only; public access via traefik:443
+     volumes:
+       - ./backend:/app
+       - backend_venv:/home/app/.venv
+@@ -22,6 +22,11 @@ services:
+         condition: service_healthy
+       state:
+         condition: service_healthy
++    networks:
++      default: {}
++      traefik_proxy:
++        aliases:
++          - orchestrator          # bakes in the manual traefik attach (file provider -> http://orchestrator:8000)
+ 
+   realtime-engine:
+     build:
+@@ -112,8 +117,8 @@ services:
+   state:
+     image: redis:7-alpine
+     command: ["redis-server", "--appendonly", "yes"]
+-    ports:
+-      - "${STATE_PORT:-6379}:6379"
++    # Not published to the host — reached in-cluster as state:6379 over
++    # databus_network. Host exposure removed 2026-07-16 (was unauthenticated).
+     volumes:
+       - state_data:/data
+     healthcheck:
+@@ -125,16 +130,16 @@ services:
+   telemetry-broker:
+     image: emqx/nanomq:0.24.9-full
+     ports:
+-      - "${MQTT_BROKER_PORT:-1883}:1883"
++      - "127.0.0.1:${MQTT_BROKER_PORT:-1883}:1883"
+     volumes:
+       - ./telemetry-broker/nanomq.conf:/etc/nanomq.conf
+ 
+   message-broker:
+     image: rabbitmq:4-management
+     ports:
+-      - "${MESSAGE_BROKER_AMQP_PORT:-5672}:5672"          # AMQP
+-      - "${MESSAGE_BROKER_MANAGEMENT_PORT:-15672}:15672"  # Management UI
+-      - "${MESSAGE_BROKER_PROMETHEUS_PORT:-15692}:15692"  # Prometheus
++      - "127.0.0.1:${MESSAGE_BROKER_AMQP_PORT:-5672}:5672"          # AMQP
++      - "127.0.0.1:${MESSAGE_BROKER_MANAGEMENT_PORT:-15672}:15672"  # Management UI
++      - "127.0.0.1:${MESSAGE_BROKER_PROMETHEUS_PORT:-15692}:15692"  # Prometheus
+     volumes:
+       - ./message-broker/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+       - message_broker_data:/var/lib/rabbitmq
+@@ -209,3 +214,5 @@ volumes:
+ networks:
+   default:
+     name: databus_network
++  traefik_proxy:
++    external: true

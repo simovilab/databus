@@ -237,7 +237,7 @@ stop. See [Run lifecycle › Detection layer](../runs/detection.md).
 | Function | `keys.stop_time_updates_key(run_id)` |
 | Writer | Stop-times producer (`runs/domain/progression/stop_times.py`) |
 | Reader | `schedule_engine/builders.py::build_trip_update_entity` |
-| TTL | Staleness TTL (set by producer; absent key = skip stop_time_update in feed) |
+| TTL | 60 s (`STOP_TIME_UPDATES_TTL_S` in `runs/domain/progression/stop_times.py`); absent key = skip stop_time_update in feed |
 
 !!! warning "Not a hash"
     This key is a Redis **string** holding a JSON-encoded array. Do not
@@ -285,8 +285,13 @@ Holds an ISO-8601 timestamp of the last telemetry received for this run.
 Written synchronously (not via the Celery task queue) so staleness detection
 is never delayed by queue latency.
 
-Used by `scan_stale_runs` to trigger `run_tracking_lost` (> 60 s staleness
-while `IN_PROGRESS`) and `run_tracking_expired` (> 300 s while `NO_SIGNAL`).
+Used by `scan_stale_runs` to trigger `run_tracking_lost` (staleness beyond
+`TELEMETRY_GRACE_S` = 60 s while `IN_PROGRESS`) and `run_tracking_expired`
+(staleness beyond `TELEMETRY_EXPIRY_S` = 600 s while `NO_SIGNAL`). Both
+constants live in `runs/domain/detection/thresholds.py` — the module's own
+docstring notes these two values previously disagreed between
+`realtime_engine/tasks.py` (300 s) and `runs/domain/lifecycle/guards.py`
+(600 s) and were consolidated to this single source of truth at 600 s.
 
 ---
 
@@ -295,13 +300,17 @@ while `IN_PROGRESS`) and `run_tracking_expired` (> 300 s while `NO_SIGNAL`).
 | Attribute | Value |
 | --- | --- |
 | Redis type | Set |
-| Writer | Lifecycle action |
+| Writer | Lifecycle actions `add_to_tracking_set` / `remove_from_tracking_set` (`runs/domain/lifecycle/actions.py`) |
 | Reader | `scan_stale_runs`, `RunTrackingStartedDetector` |
 | TTL | None |
 
-Set of `run_id` values for runs that have started receiving telemetry
-(i.e., have reached `Tracking` state or beyond). Used as the scan target for
-stale-run detection.
+Set of `run_id` values for runs that have started receiving telemetry (added
+on `Confirmed → Tracking`, `run_tracking_started`). This is the **scan work
+queue** for `scan_stale_runs`, not a live status flag: entering `No Signal`
+(`run_tracking_lost`) does **not** remove the run — the transition's action
+list is only `sync_lifecycle_state` (`runs/domain/lifecycle/transitions.py`).
+A run is removed only on a fully-terminal outcome: `run_tracking_expired`,
+`run_interrupted`, `run_short_turned`, or `run_completed`.
 
 ---
 
@@ -310,13 +319,17 @@ stale-run detection.
 | Attribute | Value |
 | --- | --- |
 | Redis type | Set |
-| Writer | Lifecycle action |
+| Writer | Lifecycle actions `add_to_in_progress_set` / `remove_from_in_progress_set` (`runs/domain/lifecycle/actions.py`) |
 | Reader | Feed builders (`build_vehicle_positions_feed`, `build_trip_updates_feed`) |
 | TTL | None |
 
-Set of `run_id` values for runs currently in `In Progress` state. The feed
-builders iterate this set to determine which runs to include in the GTFS-RT
-output.
+Set of `run_id` values for runs in `In Progress` **or** `No Signal` state —
+not `In Progress` alone. Same reasoning as `runs:tracking` above:
+`run_tracking_lost` (`In Progress → No Signal`) does not call
+`remove_from_in_progress_set`, so the run stays in the set until a terminal
+transition removes it. The feed builders iterate this set to determine which
+runs to include in the GTFS-RT output, so a `No Signal` run's last-written
+Redis snapshot keeps appearing in the feed until it is removed.
 
 ---
 

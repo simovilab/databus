@@ -160,9 +160,24 @@ Defined at the top of `compute.py`:
 
 This dict is written to `run:<run_id>:vehicle_stop_status` by `producer.py` and then re-fed into the detection layer as the synthetic `"progression"` leaf to drive `RunCompletedDetector`.
 
+## Downstream: the ETA / stop-time-updates projection
+
+`run:<run_id>:vehicle_stop_status` (produced above) feeds a second projection: predicted arrival/departure times for upcoming stops, written to `run:<run_id>:stop_time_updates` and consumed by the TripUpdates GTFS-RT feed (see [Server-side processing](server-processing.md), step 3, and [GTFS Realtime publishing](gtfs-rt-publishing.md)).
+
+The pure/impure split mirrors `compute.py` / `producer.py`:
+
+| Module | Role |
+|---|---|
+| `compute_stop_time_updates` (`backend/runs/domain/progression/stop_times.py`) | Pure: builds the `upcoming_stops` list from `geom.stops` filtered by `current_stop_sequence`/`current_status`, then calls the ETA estimator. |
+| `produce_stop_times` (same file) | Impure glue: reads `run:<run_id>`, `vehicle:<id>:position`, and `run:<run_id>:vehicle_stop_status` from Redis, resolves `ShapeGeometry` via the same `shapes.get_shape_geometry` cache used above, and conditionally writes the result. |
+
+The estimator call itself, `gtfs_eta.eta_service.estimator.estimate_stop_times(...)`, is imported **lazily inside the function** — this is a deliberate seam so a missing/unconfigured ETA model registry (`MODEL_REGISTRY_DIR`) never breaks Celery worker startup. `ETA_MAX_STOPS` (default `3`) caps how many upcoming stops are sent to the estimator per tick; `ETA_DEFAULT_UNCERTAINTY_S` (default `120`) is the uncertainty value attached to every prediction.
+
+Unlike `compute_stop_status`, which always writes a fallback, `produce_stop_times` writes **only when the estimator returns at least one prediction** — an estimator error or an untrained route leaves the previous `run:<run_id>:stop_time_updates` value untouched, to expire on its own 60-second TTL rather than being overwritten with an empty array.
+
 ## Related pages
 
-- [Server-side processing](server-processing.md) — where `produce_stop_status` is called in the task pipeline.
+- [Server-side processing](server-processing.md) — where `produce_stop_status` and `produce_stop_times` are called in the task pipeline.
 - [Detection layer](../runs/detection.md) — how the computed stop status drives the run lifecycle.
 - [Data model: telemetry contracts](../data-model/telemetry-contracts.md) — `vehicle_stop_status` contract definition.
-- [GTFS Realtime publishing](gtfs-rt-publishing.md) — how the computed status appears in GTFS-RT feeds.
+- [GTFS Realtime publishing](gtfs-rt-publishing.md) — how the computed status and stop-time-updates appear in GTFS-RT feeds.

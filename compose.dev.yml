@@ -17,6 +17,13 @@ services:
     volumes:
       - ./backend:/app
       - backend_venv:/home/app/.venv
+      # Sibling repo consumed as a uv path dependency (see
+      # backend/pyproject.toml [tool.uv.sources] gtfs-eta comment). Mounted
+      # read-write because uv's setuptools editable build writes/touches
+      # gtfs_eta.egg-info/ inside the source tree on install (a gitignored
+      # build artifact, not tracked repo content) — a read-only mount makes
+      # `uv sync` fail. databus code never otherwise writes into gtfs-eta.
+      - ../gtfs-eta:/gtfs-eta
     depends_on:
       database:
         condition: service_healthy
@@ -40,6 +47,7 @@ services:
     volumes:
       - ./backend:/app
       - backend_venv:/home/app/.venv
+      - ../gtfs-eta:/gtfs-eta
     depends_on:
       database:
         condition: service_healthy
@@ -64,6 +72,7 @@ services:
     volumes:
       - ./backend:/app
       - backend_venv:/home/app/.venv
+      - ../gtfs-eta:/gtfs-eta
     depends_on:
       database:
         condition: service_healthy
@@ -86,6 +95,7 @@ services:
     volumes:
       - ./backend:/app
       - backend_venv:/home/app/.venv
+      - ../gtfs-eta:/gtfs-eta
     depends_on:
       database:
         condition: service_healthy

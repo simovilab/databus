@@ -1,8 +1,11 @@
+"""DRF views for the api app: operations/run resources, GTFS Schedule resources, and run lifecycle endpoints."""
+
 from django.conf import settings
-from django.http import FileResponse
+from django.http import FileResponse, HttpRequest
 from django.contrib.auth import authenticate
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.authentication import TokenAuthentication
@@ -11,7 +14,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.views import SpectacularRedocView
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.utils.decorators import method_decorator
-from realtime_engine.tasks import run_lifecycle_event
 from runs.services.exceptions import RunLifecycleError
 from runs.services.lifecycle import RunLifecycleService
 from runs.domain.lifecycle import RunLifecycleEvents
@@ -80,9 +82,12 @@ from .serializers import (
     FindTripsSerializer,
 )
 from datetime import datetime
+from datetime import date as DateType
+from uuid import UUID
 
 
-def get_schema(request):
+def get_schema(request: HttpRequest) -> FileResponse:
+    """Serve the static GTFS Realtime OpenAPI schema (docs/schema/realtime.yml) as a file download."""
     file_path = settings.BASE_DIR / "api" / "realtime.yml"
     return FileResponse(
         open(file_path, "rb"), as_attachment=True, filename="realtime.yml"
@@ -91,7 +96,7 @@ def get_schema(request):
 
 @method_decorator(xframe_options_exempt, name="dispatch")
 class RedocView(SpectacularRedocView):
-    pass
+    """Render the ReDoc API docs page, exempted from clickjacking protection so it can be embedded."""
 
 
 # -------------
@@ -100,7 +105,10 @@ class RedocView(SpectacularRedocView):
 
 
 class LoginView(APIView):
-    def post(self, request):
+    """Authenticate an operator by username/password and issue a DRF auth token."""
+
+    def post(self, request: Request) -> Response:
+        """Validate credentials and return an auth token with the operator's basic info."""
         username = request.data.get("username")
         password = request.data.get("password")
         user = authenticate(username=username, password=password)
@@ -120,18 +128,24 @@ class LoginView(APIView):
 
 
 class CompanyViewSet(viewsets.ModelViewSet):
+    """REST resource for Company records (the legal entities operating vehicles)."""
+
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
     # authentication_classes = [TokenAuthentication]
 
 
 class DataProviderViewSet(viewsets.ModelViewSet):
+    """REST resource for DataProvider records (owners of telemetry equipment)."""
+
     queryset = DataProvider.objects.all()
     serializer_class = DataProviderSerializer
     authentication_classes = [TokenAuthentication]
 
 
 class VehicleViewSet(viewsets.ModelViewSet):
+    """REST resource for Vehicle records, filterable by company."""
+
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
     filter_backends = [DjangoFilterBackend]
@@ -140,11 +154,14 @@ class VehicleViewSet(viewsets.ModelViewSet):
 
 
 class EquipmentViewSet(viewsets.ModelViewSet):
+    """REST resource for telemetry Equipment records."""
+
     queryset = Equipment.objects.all()
     serializer_class = EquipmentSerializer
     authentication_classes = [TokenAuthentication]
 
-    def create(self, request):
+    def create(self, request: Request) -> Response:
+        """Create an Equipment record and return only its ID."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -156,6 +173,8 @@ class EquipmentViewSet(viewsets.ModelViewSet):
 
 
 class EquipmentLogViewSet(viewsets.ModelViewSet):
+    """REST resource for EquipmentLog records, the historical audit trail of Equipment changes."""
+
     queryset = EquipmentLog.objects.all()
     serializer_class = EquipmentLogSerializer
     filter_backends = [DjangoFilterBackend]
@@ -165,6 +184,8 @@ class EquipmentLogViewSet(viewsets.ModelViewSet):
 
 
 class OperatorViewSet(viewsets.ModelViewSet):
+    """REST resource for Operator records (drivers, dispatchers, administrators)."""
+
     queryset = Operator.objects.all()
     serializer_class = OperatorSerializer
     authentication_classes = [TokenAuthentication]
@@ -182,7 +203,8 @@ class CreateRunViewSet(APIView):
     It only allows the POST method with the new run data.
     """
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
+        """Register a run and drive it REQUESTED -> VALIDATED -> INITIALIZED, or report the failing step."""
         service = RunLifecycleService()
         # Serialization and validation of the input data
         try:
@@ -211,6 +233,10 @@ class CreateRunViewSet(APIView):
             )
         # Record creation puts the run in REQUESTED state (run_requested event)
         try:
+            # vehicle/operator_obj are guaranteed non-None here: the `if errors`
+            # check above already returned when either lookup came back empty.
+            assert vehicle is not None
+            assert operator_obj is not None
             run = Run.objects.create(**payload)
             run.vehicle.set([vehicle])
             run.operator.set([operator_obj])
@@ -260,7 +286,8 @@ class RunStateViewSet(APIView):
     It only allows the GET method with the run_id as path parameter.
     """
 
-    def get(self, request, run_id):
+    def get(self, request: Request, run_id: UUID) -> Response:
+        """Return the run's current lifecycle state, or 404 if the run does not exist."""
         run = Run.objects.filter(id=run_id).first()
         if not run:
             return Response(
@@ -280,7 +307,8 @@ class RunUpdateViewSet(APIView):
     It only allows the POST method with the event to process.
     """
 
-    def post(self, request, run_id):
+    def post(self, request: Request, run_id: UUID) -> Response:
+        """Process a lowercase run lifecycle event against the run's FSM and return the new state."""
         service = RunLifecycleService()
         serializer = RunUpdateSerializer(data=request.data)
         if not serializer.is_valid():
@@ -320,8 +348,12 @@ class RunUpdateViewSet(APIView):
             )
         payload["event"] = event_value
         try:
+            # event_value was just checked against every RunLifecycleEvents
+            # value, so this reconstruction cannot raise; process_event wants
+            # the enum member itself (same convention as
+            # realtime_engine/tasks.py's run_lifecycle_event task).
             new_run_lifecycle_state, _guards, _actions = service.process_event(
-                event_value, payload
+                RunLifecycleEvents(event_value), payload
             )
         except RunLifecycleError as e:
             return Response(
@@ -343,7 +375,8 @@ class RunHistoryView(APIView):
     is authoritative even if a downstream action later fails).
     """
 
-    def get(self, request, run_id):
+    def get(self, request: Request, run_id: UUID) -> Response:
+        """Return the run's FSM transitions ordered by timestamp, or 404 if the run does not exist."""
         if not Run.objects.filter(id=run_id).exists():
             return Response(
                 {"status": "error", "errors": {"detail": f"run {run_id} not found"}},
@@ -372,24 +405,32 @@ class RunHistoryView(APIView):
 
 
 class PositionViewSet(viewsets.ModelViewSet):
+    """REST resource for vehicle Position samples (GPS/motion telemetry)."""
+
     queryset = Position.objects.all()
     serializer_class = PositionSerializer
     authentication_classes = [TokenAuthentication]
 
 
 class VehicleStopStatusViewSet(viewsets.ModelViewSet):
+    """REST resource for vehicle stop-status snapshots (GTFS-RT VehicleStopStatus)."""
+
     queryset = VehicleStopStatus.objects.all()
     serializer_class = VehicleStopStatusSerializer
     authentication_classes = [TokenAuthentication]
 
 
 class CongestionLevelViewSet(viewsets.ModelViewSet):
+    """REST resource for vehicle congestion-level snapshots (GTFS-RT CongestionLevel)."""
+
     queryset = CongestionLevel.objects.all()
     serializer_class = CongestionLevelSerializer
     authentication_classes = [TokenAuthentication]
 
 
 class OccupancyViewSet(viewsets.ModelViewSet):
+    """REST resource for vehicle occupancy snapshots (GTFS-RT OccupancyStatus)."""
+
     queryset = OccupancyStatus.objects.all()
     serializer_class = OccupancyStatusSerializer
     authentication_classes = [TokenAuthentication]
@@ -591,7 +632,13 @@ class FeedInfoViewSet(viewsets.ModelViewSet):
 
 
 class ServiceTodayView(APIView):
-    def get(self, request):
+    """Endpoint returning the GTFS service IDs active on a given (or today's) date."""
+
+    def get(self, request: Request) -> Response:
+        """Return service IDs active on `?date=YYYY-MM-DD` (default today), from exceptions or the weekly calendar."""
+        # `date` holds a full `datetime` when parsed from the query param, or a
+        # bare `date` when defaulted to today; both work as GTFS date filters.
+        date: datetime | DateType
         if request.query_params.get("date"):
             date = datetime.strptime(request.query_params.get("date"), "%Y-%m-%d")
         else:
@@ -623,34 +670,42 @@ class ServiceTodayView(APIView):
 
 
 class WhichShapesView(APIView):
-    def get(self, request):
+    """First step of the run-registration UI cascade: given a route, return the distinct shapes used by its stops."""
+
+    def get(self, request: Request) -> Response:
+        """Return shape metadata (shape_id, name, desc, from/to) for the distinct GeoShapes used by `?route_id=` in the current feed, or an empty list if the route/feed can't be resolved."""
         route_id = request.query_params.get("route_id")
         feed = Feed.objects.filter(is_current=True).first()
-        route = Route.objects.filter(feed=feed, route_id=route_id).first()
-        shapes = RouteStop.objects.filter(route=route)
-        shapes = shapes.values("shape").distinct()
-        geo_shapes = []
-        for shape in shapes:
-            geo_shape = (
-                GeoShape.objects.filter(id=shape["shape"])
-                .values(
-                    "shape_id",
-                    "direction_id",
-                    "shape_name",
-                    "shape_desc",
-                    "shape_from",
-                    "shape_to",
-                )
-                .first()
-            )
-            geo_shapes.append(geo_shape)
+        route = (
+            Route.objects.filter(feed=feed, route_id=route_id).first()
+            if route_id
+            else None
+        )
+        if not route:
+            return Response([])
+
+        shape_pks = (
+            RouteStop.objects.filter(linked_route=route)
+            .values_list("linked_shape", flat=True)
+            .distinct()
+        )
+        geo_shapes = GeoShape.objects.filter(id__in=shape_pks).values(
+            "shape_id",
+            "shape_name",
+            "shape_desc",
+            "shape_from",
+            "shape_to",
+        )
 
         serializer = WhichShapesSerializer(geo_shapes, many=True)
         return Response(serializer.data)
 
 
 class FindTripsView(APIView):
-    def get(self, request):
+    """Second step of the run-registration UI cascade: given a route/service/shape selection, return candidate trips."""
+
+    def get(self, request: Request) -> Response:
+        """Return trips for `?route_id=&service_id=&shape_id=`, each tagged with its run's lifecycle state, or 400 if any parameter is missing."""
         # Get the query parameters
         route_id = request.query_params.get("route_id")
         service_id = request.query_params.get("service_id")
@@ -674,10 +729,13 @@ class FindTripsView(APIView):
 
         selected_trips = []
         for trip in trips:
+            # TripTime relates to Trip via the `linked_trip` FK (resolved on
+            # save from feed+trip_id) rather than the bare trip_id string, so
+            # this can't cross-match a same-numbered trip from another feed.
             this_trip = (
-                TripTime.objects.filter(trip_id=trip.trip_id)
-                .order_by("trip_time")
-                .values("trip_id", "trip_time")
+                TripTime.objects.filter(linked_trip=trip)
+                .order_by("departure_time")
+                .values("trip_id", "departure_time")
                 .first()
             )
             if this_trip:
@@ -699,7 +757,7 @@ class FindTripsView(APIView):
                 selected_trips.append(
                     {
                         "trip_id": this_trip["trip_id"],
-                        "trip_time": this_trip["trip_time"],
+                        "trip_time": this_trip["departure_time"],
                         "run_lifecycle_state": run_lifecycle_state,
                         "direction_id": trip.direction_id,
                         "trip_headsign": trip.trip_headsign,

@@ -16,7 +16,8 @@ Databús runs three Celery processes: two workers consuming different queues, an
 │  Tasks:                             │  │  Tasks:                             │
 │  • process_position_update          │  │  • build_vehicle_positions          │
 │  • run_lifecycle_event              │  │  • build_trip_updates               │
-│  • scan_stale_runs                  │  │  • build_alerts                     │
+│  • scan_stale_runs                  │  │  • build_alerts (stub, unscheduled) │
+│  • fetch_positions                  │  │  • build_schedule                   │
 │                                     │  │                                     │
 │  Bootstep: MQTTConsumerStep         │  │  No bootstep active                 │
 │  (gated by MQTT_CONSUMER_ENABLED)   │  │                                     │
@@ -35,8 +36,8 @@ All three processes load `backend/databus/celery.py` as the Celery app. The queu
 
 | Queue | Consumed by | Tasks |
 |---|---|---|
-| `realtime_engine` | `realtime-engine` worker | `process_position_update`, `run_lifecycle_event`, `scan_stale_runs` |
-| `schedule_engine` | `schedule-engine` worker | `build_vehicle_positions`, `build_trip_updates`, `build_alerts` |
+| `realtime_engine` | `realtime-engine` worker | `process_position_update`, `run_lifecycle_event`, `scan_stale_runs`, `fetch_positions` |
+| `schedule_engine` | `schedule-engine` worker | `build_vehicle_positions`, `build_trip_updates`, `build_alerts`, `build_schedule` |
 
 Queue separation ensures that a spike in MQTT telemetry (many `process_position_update` tasks) does not starve GTFS-RT building tasks, and vice versa.
 
@@ -70,13 +71,23 @@ app.conf.beat_schedule = {
         "task": "schedule_engine.tasks.build_trip_updates",
         "schedule": timedelta(seconds=15),
     },
-    "build-alerts-every-10s": {
-        "task": "schedule_engine.tasks.build_alerts",
-        "schedule": timedelta(seconds=10),
-    },
     "scan-stale-runs-every-30s": {
         "task": "realtime_engine.tasks.scan_stale_runs",
         "schedule": timedelta(seconds=30),
+    },
+    "fetch-positions": {
+        "task": "realtime_engine.tasks.fetch_positions",
+        "schedule": timedelta(seconds=10),
+        # A task that couldn't even start within its own 10s cycle is stale
+        # by the time a worker slot frees up -- revoke it instead of letting
+        # queued fetch_positions runs pile up behind a slow/unreachable
+        # source (see fetch_positions' soft_time_limit for the in-flight
+        # bound on runs that DO start).
+        "options": {"expires": 10},
+    },
+    "build-schedule-daily": {
+        "task": "schedule_engine.tasks.build_schedule",
+        "schedule": timedelta(days=1),
     },
 }
 ```
@@ -85,8 +96,12 @@ app.conf.beat_schedule = {
 |---|---|---|---|---|
 | `build-vehicle-positions-every-15s` | `build_vehicle_positions` | `schedule_engine` | 15 s | Rebuild `vehicle_positions.{pb,json}` |
 | `build-trip-updates-every-15s` | `build_trip_updates` | `schedule_engine` | 15 s | Rebuild `trip_updates.{pb,json}`, push WebSocket heartbeat |
-| `build-alerts-every-10s` | `build_alerts` | `schedule_engine` | 10 s | Stub — returns a string, writes no file |
 | `scan-stale-runs-every-30s` | `scan_stale_runs` | `realtime_engine` | 30 s | Detect `run_tracking_lost` / `run_tracking_expired` |
+| `fetch-positions` | `fetch_positions` | `realtime_engine` | 10 s (`expires=10`) | Poll ACTIVE HTTP-source sensors for in-service vehicles and publish their readings over MQTT. Gated on `vehicle:<id>:current_run` (the same in-service test the MQTT consumer uses), not on `runs:in_progress` — see the docstring in `backend/realtime_engine/tasks.py`. A cycle that can't even start within its own 10 s window is revoked (`expires=10`) instead of queuing behind a slow/unreachable source. |
+| `build-schedule-daily` | `build_schedule` | `schedule_engine` | 1 day | Export the current GTFS Schedule to a zip via `feed.schedule.exporter.publish_gtfs_zip` |
+
+!!! note "`build_alerts` exists but is not scheduled"
+    `schedule_engine.tasks.build_alerts` is a real Celery task (queue `schedule_engine`) but is **deliberately not** in `app.conf.beat_schedule`. Its docstring says why: it's a placeholder that returns a fixed string and writes no feed file — the ServiceAlert feed builder isn't implemented yet. It can still be invoked manually (e.g. from the Django admin or a shell), but nothing fires it periodically.
 
 ## Celery task monitoring: Flower
 
@@ -107,9 +122,9 @@ Flower connects to RabbitMQ and shows:
 
 | Compose service | Celery command | Build target |
 |---|---|---|
-| `realtime-engine` | `celery -A databus worker -Q realtime_engine -l info` | `realtime-engine` |
-| `schedule-engine` | `celery -A databus worker -Q schedule_engine -l info` | `schedule-engine` |
-| `scheduler` | `celery -A databus beat -l info` | `scheduler` |
+| `realtime-engine` | `celery -A databus worker -Q realtime_engine --loglevel=info` | `realtime-engine` |
+| `schedule-engine` | `celery -A databus worker -Q schedule_engine --loglevel=info` | `schedule-engine` |
+| `scheduler` | `celery -A databus beat --loglevel=info` | `scheduler` |
 
 Build targets are defined in `backend/Dockerfile`. Each target installs the same Python environment but sets a different `CMD`.
 

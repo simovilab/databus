@@ -35,10 +35,7 @@ edit_uri = "edit/main/docs/content/"
 # The site_url is the canonical URL for your site. When building online
 # documentation you should set this.
 # Read more: https://zensical.org/docs/setup/basics/#site_url
-#
-# TODO: set to the production docs host. In prod this is the `DOCS_DOMAIN`
-# Traefik env var (compose.prod.yml). Confirm the exact host with the team, e.g.:
-#site_url = "https://docs.databus.cr/"
+site_url = "https://databus.simovilab.org/"
 
 # The copyright notice appears in the page footer and can contain an HTML
 # fragment.

@@ -49,11 +49,13 @@ realtime_engine queue  →  realtime-engine worker
   - process_position_update
   - run_lifecycle_event
   - scan_stale_runs
+  - fetch_positions
 
 schedule_engine queue  →  schedule-engine worker
   - build_vehicle_positions
   - build_trip_updates
-  - build_alerts
+  - build_schedule
+  - build_alerts   (routed here if ever called, but not in the beat schedule — see services.md)
 ```
 
 Tasks are routed by the `queue=` argument on the `@shared_task` decorator in the respective `tasks.py` modules.

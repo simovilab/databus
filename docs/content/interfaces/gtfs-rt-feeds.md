@@ -23,11 +23,13 @@ served statically in production).
 | `trip_updates.pb` | Protocol Buffer (binary) | `TripUpdate` | 15 s |
 | `trip_updates.json` | JSON (debug) | `TripUpdate` | 15 s |
 
-!!! warning "ServiceAlert feed: stub"
-    `build_alerts` runs every 10 s but returns the string
-    `"Feed ServiceAlert built"` without producing a file. No
-    `service_alerts.pb` is written. ServiceAlert emission is planned for a
-    future release.
+!!! warning "ServiceAlert feed: stub, not scheduled"
+    `schedule_engine.tasks.build_alerts` exists but only returns the string
+    `"Feed ServiceAlert built"` — it never produces a file, so no
+    `service_alerts.pb`/`.json` is written. It is also **not registered in
+    the Celery Beat schedule** (`backend/databus/celery.py`) — it never runs
+    automatically at all, deliberately, per its own docstring. ServiceAlert
+    emission is planned for a future release.
 
 ---
 
@@ -50,10 +52,12 @@ Assembled by `schedule_engine.tasks.build_vehicle_positions` →
 | `vehicle.vehicle.id` | `vehicle:<id>:metadata` → `id` | |
 | `vehicle.vehicle.label` | `vehicle:<id>:metadata` → `label` | |
 | `vehicle.vehicle.license_plate` | `vehicle:<id>:metadata` → `license_plate` | Omitted if absent |
+| `vehicle.vehicle.wheelchair_accessible` | `vehicle:<id>:metadata` → `wheelchair_accessible` | Omitted if absent |
 | `vehicle.position.latitude` | `vehicle:<id>:position` → `latitude` | |
 | `vehicle.position.longitude` | `vehicle:<id>:position` → `longitude` | |
 | `vehicle.position.bearing` | `vehicle:<id>:position` → `bearing` | Omitted if absent |
 | `vehicle.position.speed` | `vehicle:<id>:position` → `speed` | Omitted if absent |
+| `vehicle.position.odometer` | `vehicle:<id>:position` → `odometer` | Omitted if absent |
 | `vehicle.timestamp` | `vehicle:<id>:position` → `timestamp` | Lifted from position hash; falls back to `now()` |
 | `vehicle.current_stop_sequence` | `run:<id>:vehicle_stop_status` | Omitted if absent |
 | `vehicle.stop_id` | `run:<id>:vehicle_stop_status` | Omitted if absent |
@@ -167,6 +171,10 @@ the protobuf files for that).
 
 - `backend/schedule_engine/tasks.py` — Celery tasks
 - `backend/schedule_engine/builders.py` — pure assembly functions
-- `backend/databus/celery.py` — beat schedule (15 s / 15 s / 10 s cadence)
+- `backend/databus/celery.py` — beat schedule: `build_vehicle_positions` and
+  `build_trip_updates` every 15 s, `build_schedule` (GTFS Schedule zip) daily.
+  The other beat entries (`fetch_positions` every 10 s, `scan_stale_runs`
+  every 30 s) belong to `realtime_engine`, not the feed-building pipeline —
+  see [MQTT telemetry › HTTP polling ingestion path](mqtt-telemetry.md#http-polling-ingestion-path)
 - `backend/runs/domain/telemetry/` — contract modules used by builders
 - `backend/feed/files/` — output directory (mounted as a volume in production)

@@ -89,11 +89,13 @@ Output file: `backend/feed/files/trip_updates.{pb,json}` — refreshed every 15 
 ## Feed assembly
 
 Both feeds are assembled by the `schedule_engine` app. The beat fires
-`build_vehicle_positions` and `build_trip_updates` every 15 seconds, and
-`build_alerts` every 10 seconds. The builders read the Redis snapshot via
-the telemetry contract `from_redis` helpers, assemble a Python dict in GTFS-RT
-shape, convert it with `json_format.ParseDict`, and write both `.json` and
-`.pb` variants to `backend/feed/files/`.
+`build_vehicle_positions` and `build_trip_updates` every 15 seconds (`build_alerts`
+is a stub and is not on the beat schedule — see the warning above). The builders
+read the Redis snapshot via the telemetry contract `from_redis` helpers, assemble
+a Python dict in GTFS-RT shape, convert it with `json_format.ParseDict`, and write
+both `.json` and `.pb` variants to `backend/feed/files/`. Separately, a daily
+`build_schedule` task exports the current GTFS Schedule zip via
+`feed.schedule.exporter.publish_gtfs_zip`.
 
 See [Data flow › GTFS Realtime publishing](../data-flow/gtfs-rt-publishing.md)
 for the full pipeline and

@@ -43,9 +43,12 @@ sequenceDiagram
     S->>W: channel_layer.group_send("status", …)
 ```
 
+!!! note "This diagram shows the MQTT-native path"
+    Devices that only expose an HTTP+JSON endpoint don't publish MQTT directly. Instead `realtime_engine.tasks.fetch_positions` polls them every 10 s and republishes onto the same `transit/vehicle/<id>/position` topic — from step 2 onward the pipeline is identical either way. See [Telemetry ingestion](telemetry-ingestion.md#http-polling-a-second-producer).
+
 | Page | What it covers |
 |---|---|
-| [Telemetry ingestion](telemetry-ingestion.md) | MQTT consumer bootstep, topic subscriptions, per-leaf pipeline |
+| [Telemetry ingestion](telemetry-ingestion.md) | MQTT consumer bootstep, topic subscriptions, per-leaf pipeline, HTTP-polling ingestion path |
 | [Server-side processing](server-processing.md) | `process_position_update` Celery task and its four steps |
 | [Map-matching & progression](map-matching.md) | GPS→polyline projection, three-state radius rules, monotonic guard |
 | [GTFS Realtime publishing](gtfs-rt-publishing.md) | Beat schedule, builders, output files |

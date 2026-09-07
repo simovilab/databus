@@ -49,9 +49,6 @@ TELEMETRY_EXPIRY_S = 600  # seconds
 | `IN_PROGRESS` AND `60 < staleness <= 600` | `run_tracking_lost` | `No Signal` |
 | `NO_SIGNAL` AND `staleness > 600` | `run_tracking_expired` | `Cancelled` |
 
-!!! note "README vs thresholds.py discrepancy"
-    `backend/realtime_engine/README.md` states the expiry threshold as 300 s. The actual code value in `backend/runs/domain/detection/thresholds.py` (the single source of truth for both detectors and guards) is **600 s**. The README predates the thresholds unification and has not been updated. Trust `thresholds.py`.
-
 The two-stage design gives the vehicle a grace window (60 s) to reconnect before the run enters `No Signal`, and then a longer window (up to 600 s total from last seen) before it is permanently cancelled.
 
 ## Why `runs:tracking` includes NO_SIGNAL runs

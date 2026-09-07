@@ -80,14 +80,26 @@ possible.
 
 Meaningful derived facts are preserved; raw signals are transient.
 
-Raw GPS pings are not persisted individually. What is persisted is:
+Raw GPS pings are not persisted individually. What is actually persisted
+today is:
 
 - The `RunLifecycleTransition` record for every FSM state change (with event,
-  from-state, to-state, guards, actions, and timestamp).
-- The `RunProgressEvent` record for stop-arrival events.
+  from-state, to-state, guards, actions, and timestamp) — this is the one
+  table with a live writer (`RunLifecycleService`).
 - GTFS-RT feed blobs (retained approximately one year) as durable snapshots of
   what was published.
-- Position and occupancy records for historical analysis.
+
+`backend/runs/models.py` also defines `Position`, `VehicleStopStatus`,
+`CongestionLevel`, and `OccupancyStatus` tables intended for historical
+position/occupancy analysis, but no current code path writes to them (the
+`Position.objects.create(...)` call in the API serializer is commented out) —
+treat them as reserved schema, not an active audit trail, until a producer
+exists.
+
+!!! note "`RunProgressEvent` does not exist in current code"
+    Earlier docs and the single checked-in migration (`runs/migrations/0001_initial.py`)
+    reference a `RunProgressEvent` model. It is not defined in the current
+    `backend/runs/models.py` — do not rely on it.
 
 This keeps the database size manageable and keeps the audit trail focused on
 what the system concluded, not every raw byte it received.

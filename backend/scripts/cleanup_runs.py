@@ -12,7 +12,6 @@ without restarting any services.
 PostgreSQL tables:
   runs_run                      Run records
   runs_runlifecycletransition   (CASCADE deleted with run)
-  runs_runprogressevent         (CASCADE deleted with run)
 
 With --telemetry:
   runs_position, runs_occupancy
@@ -46,9 +45,10 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import psycopg2
+import psycopg2.extensions
 import psycopg2.extras
 import redis
 
@@ -62,6 +62,7 @@ from runs.domain.telemetry import keys as _keys  # noqa: E402
 # Shell env vars take precedence over .env values.
 # ---------------------------------------------------------------------------
 
+
 def _load_dotenv() -> None:
     """Walk up from this file's directory looking for a .env file."""
     here = Path(__file__).resolve().parent
@@ -70,6 +71,7 @@ def _load_dotenv() -> None:
         if env_file.is_file():
             try:
                 from dotenv import load_dotenv
+
                 load_dotenv(env_file, override=False)
             except ImportError:
                 # Fallback: parse the file manually (no external deps needed)
@@ -84,6 +86,7 @@ def _load_dotenv() -> None:
                         os.environ.setdefault(key, val)
             break
 
+
 _load_dotenv()
 
 SEP = "=" * 80
@@ -94,14 +97,26 @@ SEP = "=" * 80
 # ---------------------------------------------------------------------------
 
 
-def get_db(host: str, port: int, name: str, user: str, password: str):
+def get_db(
+    host: str, port: int, name: str, user: str, password: str
+) -> psycopg2.extensions.connection:
+    """Open a PostgreSQL connection with the given connection parameters."""
     return psycopg2.connect(
-        host=host, port=port, dbname=name, user=user, password=password,
+        host=host,
+        port=port,
+        dbname=name,
+        user=user,
+        password=password,
     )
 
 
-def get_redis(host: str, port: int, db: int) -> redis.Redis:
-    return redis.Redis(host=host, port=port, db=db, decode_responses=True)
+def get_redis(
+    host: str, port: int, db: int, password: str | None = None
+) -> redis.Redis:
+    """Open a Redis client with the given connection parameters."""
+    return redis.Redis(
+        host=host, port=port, db=db, password=password or None, decode_responses=True
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +124,13 @@ def get_redis(host: str, port: int, db: int) -> redis.Redis:
 # ---------------------------------------------------------------------------
 
 
-def _count(cur, table: str, where: str = "", params: tuple = ()) -> int:
+def _count(
+    cur: psycopg2.extensions.cursor,
+    table: str,
+    where: str = "",
+    params: tuple[Any, ...] = (),
+) -> int:
+    """Count rows in `table`, optionally filtered by a WHERE clause."""
     sql = f"SELECT COUNT(*) FROM {table}"
     if where:
         sql += f" WHERE {where}"
@@ -117,7 +138,14 @@ def _count(cur, table: str, where: str = "", params: tuple = ()) -> int:
     return cur.fetchone()[0]
 
 
-def _delete(cur, table: str, where: str = "", params: tuple = (), dry_run: bool = False) -> int:
+def _delete(
+    cur: psycopg2.extensions.cursor,
+    table: str,
+    where: str = "",
+    params: tuple[Any, ...] = (),
+    dry_run: bool = False,
+) -> int:
+    """Delete rows from `table` (or just count them under --dry-run); returns the affected row count."""
     n = _count(cur, table, where, params)
     if n and not dry_run:
         sql = f"DELETE FROM {table}"
@@ -132,7 +160,39 @@ def _delete(cur, table: str, where: str = "", params: tuple = (), dry_run: bool 
 # ---------------------------------------------------------------------------
 
 
+def _get(r: redis.Redis, key: str) -> str | None:
+    """Read a Redis string value, narrowing away redis-py's shared Awaitable stub.
+
+    `r` here is always a synchronous, `decode_responses=True` client built by
+    `get_redis`, but redis-py's `CoreCommands` mixin types every command
+    `Awaitable[X] | X` since it's shared with the async client -- this cast
+    narrows to the sync branch that's actually returned.
+    """
+    return cast("str | None", r.get(key))
+
+
+def _hgetall(r: redis.Redis, key: str) -> dict[str, str]:
+    """Read a Redis hash as `dict[str, str]`, narrowing away redis-py's shared Awaitable stub."""
+    return cast("dict[str, str]", r.hgetall(key))
+
+
+def _smembers(r: redis.Redis, key: str) -> set[str]:
+    """Read a Redis set as `set[str]`, narrowing away redis-py's shared Awaitable stub."""
+    return cast("set[str]", r.smembers(key))
+
+
+def _rkeys(r: redis.Redis, pattern: str) -> list[str]:
+    """Read Redis keys matching a pattern as `list[str]`, narrowing away redis-py's shared Awaitable stub."""
+    return cast("list[str]", r.keys(pattern))
+
+
+def _srem(r: redis.Redis, set_key: str, *members: str) -> int:
+    """Remove members from a Redis set, narrowing srem's Awaitable-union return to int."""
+    return cast(int, r.srem(set_key, *members))
+
+
 def _rdel(r: redis.Redis, keys: list[str], dry_run: bool) -> int:
+    """Delete the given Redis keys that exist (or count them under --dry-run); returns the count."""
     targets = [k for k in keys if r.exists(k)]
     if targets and not dry_run:
         r.delete(*targets)
@@ -140,15 +200,17 @@ def _rdel(r: redis.Redis, keys: list[str], dry_run: bool) -> int:
 
 
 def _rsrem(r: redis.Redis, set_key: str, members: list[str], dry_run: bool) -> int:
+    """Remove members from a Redis set (or count matches under --dry-run); returns the removed/matched count."""
     if not members:
         return 0
     if dry_run:
         return sum(1 for m in members if r.sismember(set_key, m))
-    return int(r.srem(set_key, *members))
+    return _srem(r, set_key, *members)
 
 
 def _purge_redis_run(r: redis.Redis, run_id: str, dry_run: bool) -> dict[str, int]:
-    hash_data = r.hgetall(_keys.run_key(run_id))
+    """Delete (or count, under --dry-run) one run's Redis state: entity hashes, assignment keys, and set memberships."""
+    hash_data = _hgetall(r, _keys.run_key(run_id))
     vehicle_id = hash_data.get("vehicle")
     operator_id = hash_data.get("operator")
     trip_id = hash_data.get("trip_id")
@@ -165,11 +227,13 @@ def _purge_redis_run(r: redis.Redis, run_id: str, dry_run: bool) -> dict[str, in
     # Vehicle edge-data hashes (vehicle-keyed; only present when assigned).
     # vehicle:<id>:progression is decommissioned — omitted intentionally.
     if vehicle_id:
-        direct.extend([
-            _keys.position_key(vehicle_id),
-            _keys.occupancy_key(vehicle_id),
-            _keys.metadata_key(vehicle_id),
-        ])
+        direct.extend(
+            [
+                _keys.position_key(vehicle_id),
+                _keys.occupancy_key(vehicle_id),
+                _keys.metadata_key(vehicle_id),
+            ]
+        )
 
     assignments: list[str] = []
     if vehicle_id:
@@ -186,16 +250,17 @@ def _purge_redis_run(r: redis.Redis, run_id: str, dry_run: bool) -> dict[str, in
 
 
 def purge_redis_all_runs(r: redis.Redis, dry_run: bool) -> dict[str, Any]:
+    """Purge all run state from Redis (or preview it under --dry-run); returns a summary of what changed."""
     actions: list[str] = []
     keys_removed = 0
     set_removals = 0
 
     all_run_ids: set[str] = set()
-    all_run_ids.update(r.smembers("runs:tracking"))
-    all_run_ids.update(r.smembers("runs:in_progress"))
-    for key in r.keys("run:*"):
+    all_run_ids.update(_smembers(r, "runs:tracking"))
+    all_run_ids.update(_smembers(r, "runs:in_progress"))
+    for key in _rkeys(r, "run:*"):
         all_run_ids.add(key.split(":", 1)[1])
-    for key in r.keys("runs:last_seen:*"):
+    for key in _rkeys(r, "runs:last_seen:*"):
         all_run_ids.add(key.split(":", 2)[2])
 
     for run_id in sorted(all_run_ids):
@@ -212,7 +277,7 @@ def purge_redis_all_runs(r: redis.Redis, dry_run: bool) -> dict[str, Any]:
         "runs:last_seen:*",
         "run:*",
     ):
-        for key in r.keys(pattern):
+        for key in _rkeys(r, pattern):
             n = _rdel(r, [key], dry_run)
             if n:
                 keys_removed += n
@@ -220,17 +285,22 @@ def purge_redis_all_runs(r: redis.Redis, dry_run: bool) -> dict[str, Any]:
 
     for set_key in ("runs:tracking", "runs:in_progress"):
         if r.exists(set_key):
-            members = list(r.smembers(set_key))
+            members = list(_smembers(r, set_key))
             if members:
                 if not dry_run:
                     r.delete(set_key)
                 set_removals += len(members)
                 actions.append(f"del {set_key} ({len(members)} members)")
 
-    return {"keys_removed": keys_removed, "set_removals": set_removals, "actions": actions}
+    return {
+        "keys_removed": keys_removed,
+        "set_removals": set_removals,
+        "actions": actions,
+    }
 
 
 def purge_redis_one_run(r: redis.Redis, run_id: str, dry_run: bool) -> dict[str, Any]:
+    """Purge (or preview, under --dry-run) one run's Redis state; returns a summary of what changed."""
     result = _purge_redis_run(r, run_id, dry_run)
     return {
         "keys_removed": result["keys"],
@@ -239,10 +309,12 @@ def purge_redis_one_run(r: redis.Redis, run_id: str, dry_run: bool) -> dict[str,
     }
 
 
-def purge_redis_vehicle(r: redis.Redis, vehicle_id: str, dry_run: bool) -> dict[str, Any]:
+def purge_redis_vehicle(
+    r: redis.Redis, vehicle_id: str, dry_run: bool
+) -> dict[str, Any]:
     """Free the Redis assignment for one vehicle and cascade-purge its run."""
     current_run_key = f"vehicle:{vehicle_id}:current_run"
-    run_id = r.get(current_run_key)
+    run_id = _get(r, current_run_key)
     if run_id:
         return purge_redis_one_run(r, run_id, dry_run)
     n = _rdel(r, [current_run_key], dry_run)
@@ -257,13 +329,15 @@ def purge_redis_vehicle(r: redis.Redis, vehicle_id: str, dry_run: bool) -> dict[
 # Django's on_delete=CASCADE is ORM-level only — no DB-level CASCADE exists.
 _RUN_CHILD_TABLES = (
     "runs_runlifecycletransition",
-    "runs_runprogressevent",
     "runs_run_vehicle",
     "runs_run_operator",
 )
 
 
-def db_purge_all_runs(conn, include_telemetry: bool, dry_run: bool) -> dict[str, Any]:
+def db_purge_all_runs(
+    conn: psycopg2.extensions.connection, include_telemetry: bool, dry_run: bool
+) -> dict[str, Any]:
+    """Delete (or count, under --dry-run) all runs and their child rows from PostgreSQL."""
     counts: dict[str, int] = {}
     with conn.cursor() as cur:
         if include_telemetry:
@@ -277,7 +351,13 @@ def db_purge_all_runs(conn, include_telemetry: bool, dry_run: bool) -> dict[str,
     return counts
 
 
-def db_purge_one_run(conn, run_id: str, include_telemetry: bool, dry_run: bool) -> dict[str, Any]:
+def db_purge_one_run(
+    conn: psycopg2.extensions.connection,
+    run_id: str,
+    include_telemetry: bool,
+    dry_run: bool,
+) -> dict[str, Any]:
+    """Delete (or count, under --dry-run) one run and its child rows from PostgreSQL."""
     counts: dict[str, int] = {}
     with conn.cursor() as cur:
         if include_telemetry:
@@ -289,7 +369,11 @@ def db_purge_one_run(conn, run_id: str, include_telemetry: bool, dry_run: bool) 
                 fmt = ",".join(["%s"] * len(vehicle_ids))
                 for table in ("runs_position", "runs_progression", "runs_occupancy"):
                     counts[table] = _delete(
-                        cur, table, f"vehicle_id IN ({fmt})", tuple(vehicle_ids), dry_run
+                        cur,
+                        table,
+                        f"vehicle_id IN ({fmt})",
+                        tuple(vehicle_ids),
+                        dry_run,
                     )
         for child in _RUN_CHILD_TABLES:
             _delete(cur, child, "run_id = %s", (run_id,), dry_run)
@@ -299,7 +383,13 @@ def db_purge_one_run(conn, run_id: str, include_telemetry: bool, dry_run: bool) 
     return counts
 
 
-def db_purge_vehicle_runs(conn, vehicle_id: str, include_telemetry: bool, dry_run: bool) -> dict[str, Any]:
+def db_purge_vehicle_runs(
+    conn: psycopg2.extensions.connection,
+    vehicle_id: str,
+    include_telemetry: bool,
+    dry_run: bool,
+) -> dict[str, Any]:
+    """Delete (or count, under --dry-run) all of a vehicle's runs and their child rows from PostgreSQL."""
     counts: dict[str, int] = {}
     with conn.cursor() as cur:
         if include_telemetry:
@@ -308,7 +398,9 @@ def db_purge_vehicle_runs(conn, vehicle_id: str, include_telemetry: bool, dry_ru
                     cur, table, "vehicle_id = %s", (vehicle_id,), dry_run
                 )
         # Collect run IDs for this vehicle before touching M2M tables
-        cur.execute("SELECT run_id FROM runs_run_vehicle WHERE vehicle_id = %s", (vehicle_id,))
+        cur.execute(
+            "SELECT run_id FROM runs_run_vehicle WHERE vehicle_id = %s", (vehicle_id,)
+        )
         run_ids = [row[0] for row in cur.fetchall()]
         if run_ids:
             fmt = ",".join(["%s"] * len(run_ids))
@@ -330,6 +422,7 @@ def db_purge_vehicle_runs(conn, vehicle_id: str, include_telemetry: bool, dry_ru
 
 
 def _print_db_section(counts: dict[str, int], dry_run: bool) -> None:
+    """Print the per-table row counts deleted (or that would be deleted) from PostgreSQL."""
     verb = "would delete" if dry_run else "deleted"
     total = sum(counts.values())
     if total == 0:
@@ -343,6 +436,7 @@ def _print_db_section(counts: dict[str, int], dry_run: bool) -> None:
 
 
 def _print_redis_section(result: dict[str, Any], dry_run: bool) -> None:
+    """Print the Redis keys and set memberships removed (or that would be removed)."""
     verb = "would remove" if dry_run else "removed"
     actions = result.get("actions", [])
     if not actions:
@@ -362,6 +456,7 @@ def print_report(
     redis_result: dict[str, Any] | None,
     dry_run: bool,
 ) -> None:
+    """Print a summary header plus the DB and/or Redis sections for whichever cleanups ran."""
     label = "DRY RUN" if dry_run else "EXECUTED"
     print(f"\n{SEP}\n{label}\n{SEP}\n")
     if db_counts is not None:
@@ -376,6 +471,7 @@ def print_report(
 
 
 def main() -> None:
+    """Parse CLI args, connect to PostgreSQL and/or Redis, run the selected cleanup mode, and print a report."""
     parser = argparse.ArgumentParser(
         description="Clean run state from PostgreSQL and Redis",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -411,7 +507,9 @@ Common recipes:
 
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--run", metavar="RUN_ID", help="Delete one run by ID")
-    mode.add_argument("--vehicle", metavar="VEHICLE_ID", help="Delete all runs for a vehicle")
+    mode.add_argument(
+        "--vehicle", metavar="VEHICLE_ID", help="Delete all runs for a vehicle"
+    )
     mode.add_argument("--db-only", action="store_true", help="Only clean PostgreSQL")
     mode.add_argument("--redis-only", action="store_true", help="Only clean Redis")
 
@@ -420,18 +518,25 @@ Common recipes:
         action="store_true",
         help="Also delete runs_position / runs_occupancy rows (runs_progression is decommissioned)",
     )
-    parser.add_argument("--dry-run", action="store_true", help="Preview only; touch nothing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview only; touch nothing"
+    )
     parser.add_argument("--yes", action="store_true", help="Skip confirmation prompt")
 
     # Connection overrides — CLI > env var > localhost default
-    parser.add_argument("--db-host",    default=os.getenv("DB_HOST", "localhost"))
-    parser.add_argument("--db-port",    default=int(os.getenv("DB_PORT", "5432")), type=int)
-    parser.add_argument("--db-name",    default=os.getenv("DB_NAME", "databus"))
-    parser.add_argument("--db-user",    default=os.getenv("DB_USER", "postgres"))
-    parser.add_argument("--db-pass",    default=os.getenv("DB_PASSWORD", "postgres"))
+    parser.add_argument("--db-host", default=os.getenv("DB_HOST", "localhost"))
+    parser.add_argument(
+        "--db-port", default=int(os.getenv("DB_PORT", "5432")), type=int
+    )
+    parser.add_argument("--db-name", default=os.getenv("DB_NAME", "databus"))
+    parser.add_argument("--db-user", default=os.getenv("DB_USER", "postgres"))
+    parser.add_argument("--db-pass", default=os.getenv("DB_PASSWORD", "postgres"))
     parser.add_argument("--redis-host", default=os.getenv("REDIS_HOST", "localhost"))
-    parser.add_argument("--redis-port", default=int(os.getenv("REDIS_PORT", "6379")), type=int)
-    parser.add_argument("--redis-db",   default=int(os.getenv("REDIS_DB", "0")), type=int)
+    parser.add_argument(
+        "--redis-port", default=int(os.getenv("REDIS_PORT", "6379")), type=int
+    )
+    parser.add_argument("--redis-db", default=int(os.getenv("REDIS_DB", "0")), type=int)
+    parser.add_argument("--redis-password", default=os.getenv("REDIS_PASSWORD", ""))
 
     args = parser.parse_args()
 
@@ -444,34 +549,46 @@ Common recipes:
 
     if need_db:
         try:
-            conn = get_db(args.db_host, args.db_port, args.db_name, args.db_user, args.db_pass)
+            conn = get_db(
+                args.db_host, args.db_port, args.db_name, args.db_user, args.db_pass
+            )
         except Exception as e:
-            print(f"\n⚠️  Cannot connect to PostgreSQL at {args.db_host}:{args.db_port}/{args.db_name}")
+            print(
+                f"\n⚠️  Cannot connect to PostgreSQL at {args.db_host}:{args.db_port}/{args.db_name}"
+            )
             print(f"Error: {e}")
-            print(f"\nTip: if running on the host, pass --db-host localhost\n")
+            print("\nTip: if running on the host, pass --db-host localhost\n")
             sys.exit(1)
 
     if need_redis:
         try:
-            r = get_redis(args.redis_host, args.redis_port, args.redis_db)
+            r = get_redis(
+                args.redis_host, args.redis_port, args.redis_db, args.redis_password
+            )
             r.ping()
         except Exception as e:
-            print(f"\n⚠️  Cannot connect to Redis at {args.redis_host}:{args.redis_port}")
+            print(
+                f"\n⚠️  Cannot connect to Redis at {args.redis_host}:{args.redis_port}"
+            )
             print(f"Error: {e}")
-            print(f"\nTip: if running on the host, pass --redis-host localhost\n")
+            print("\nTip: if running on the host, pass --redis-host localhost\n")
             sys.exit(1)
 
     # --- Confirmation ---
     is_bulk = not args.run and not args.vehicle
     if is_bulk and not args.dry_run and not args.yes:
-        scope = "DB + Redis" if (need_db and need_redis) else ("DB" if need_db else "Redis")
+        scope = (
+            "DB + Redis" if (need_db and need_redis) else ("DB" if need_db else "Redis")
+        )
         print(f"\n⚠️  This will delete ALL run state from {scope}.")
         confirm = input("    Type 'yes' to continue: ")
         if confirm.strip().lower() != "yes":
             print("Aborted.\n")
             sys.exit(0)
 
-    print(f"\nRun Cleanup @ DB={args.db_host}:{args.db_port}/{args.db_name}  Redis={args.redis_host}:{args.redis_port}")
+    print(
+        f"\nRun Cleanup @ DB={args.db_host}:{args.db_port}/{args.db_name}  Redis={args.redis_host}:{args.redis_port}"
+    )
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Dry run: {args.dry_run}")
     print()
@@ -481,14 +598,20 @@ Common recipes:
     redis_result: dict[str, Any] | None = None
 
     if need_db:
+        # need_db implies get_db() above succeeded (its except branch exits the process).
+        assert conn is not None
         if args.run:
             db_counts = db_purge_one_run(conn, args.run, args.telemetry, args.dry_run)
         elif args.vehicle:
-            db_counts = db_purge_vehicle_runs(conn, args.vehicle, args.telemetry, args.dry_run)
+            db_counts = db_purge_vehicle_runs(
+                conn, args.vehicle, args.telemetry, args.dry_run
+            )
         else:
             db_counts = db_purge_all_runs(conn, args.telemetry, args.dry_run)
 
     if need_redis:
+        # need_redis implies get_redis() above succeeded (its except branch exits the process).
+        assert r is not None
         if args.run:
             redis_result = purge_redis_one_run(r, args.run, args.dry_run)
         elif args.vehicle:

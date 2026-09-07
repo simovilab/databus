@@ -1,5 +1,8 @@
-from typing import Any
+"""Drive Run FSM transitions: find candidates, check guards, execute actions, and persist the outcome."""
+
+from typing import Any, cast
 from django.utils.timezone import now
+from messages.publisher import publish_event
 from runs.domain.lifecycle import RunLifecycleEvents
 from runs.domain.lifecycle import RunLifecycleStates
 from runs.domain.lifecycle import Transition
@@ -9,12 +12,16 @@ from runs.models import Run, RunLifecycleTransition
 
 
 class RunLifecycleService:
+    """Execute run lifecycle events against the table-driven FSM, auditing every attempt."""
+
     def __init__(self) -> None:
+        """Initialize the transition registry used to look up candidate transitions."""
         self.registry: TransitionRegistry = TransitionRegistry()
 
     def process_event(
         self, event: RunLifecycleEvents, payload: dict[str, Any]
     ) -> tuple[RunLifecycleStates, dict[str, bool], dict[str, bool]]:
+        """Apply `event` to the run's current state, or raise RunLifecycleError if no transition succeeds."""
         run = self._load_run(payload)
         candidates = self.registry.find(run.run_lifecycle_state, event)
         attempts: list[dict[str, Any]] = []
@@ -39,12 +46,23 @@ class RunLifecycleService:
             {
                 "detail": f"No valid transition for event '{event}' from state '{run.run_lifecycle_state}'.",
                 "attempts": attempts,
+                "current_state": run.run_lifecycle_state,
             }
         )
 
     def _load_run(self, payload: dict[str, Any]) -> Run:
+        """Look up the Run named by payload["run_id"], failing fast if it's absent."""
         run_id = payload.get("run_id")
-        return Run.objects.get(id=run_id)
+        if not run_id:
+            # Without this, a payload missing run_id falls through to
+            # Run.objects.get(id=None), which never matches and surfaces as a
+            # confusing Run.DoesNotExist. Raise the app's own lifecycle error
+            # instead so existing RunLifecycleError handlers (API views,
+            # realtime_engine.tasks.run_lifecycle_event) already catch it.
+            raise RunLifecycleError({"detail": "lifecycle event payload missing run_id"})
+        # payload is dict[str, Any], so .get() is typed as Any | None; cast is a
+        # static-only narrowing — run_id is confirmed truthy by the check above.
+        return Run.objects.get(id=cast(str, run_id))
 
     def _check_guards(
         self, run: Run, transition: Transition, payload: dict[str, Any]
@@ -81,7 +99,7 @@ class RunLifecycleService:
         except RunLifecycleError as exc:
             raise RunLifecycleError({"detail": str(exc)}) from exc
         self._update_run_lifecycle_state(run, transition, payload)
-        self._publish_run_lifecycle_transition(run, transition.to_state)
+        self._publish_run_lifecycle_transition(run, transition, payload)
         return transition.to_state, actions
 
     def _update_run_lifecycle_state(
@@ -92,9 +110,26 @@ class RunLifecycleService:
         run.save()
 
     def _publish_run_lifecycle_transition(
-        self, run: Run, new: RunLifecycleStates
+        self, run: Run, transition: "Transition", payload: dict[str, Any]
     ) -> None:
-        pass
+        """Publish the completed transition as a run lifecycle domain event (fire-and-forget)."""
+        data: dict[str, Any] = {}
+        vehicle_id = payload.get("vehicle_id") or run.vehicle.values_list(
+            "id", flat=True
+        ).first()
+        if vehicle_id:
+            data["vehicle_id"] = str(vehicle_id)
+        if run.trip_id:
+            data["trip_id"] = run.trip_id
+        if run.route_id:
+            data["route_id"] = run.route_id
+        publish_event(
+            event=transition.event.value,
+            run_id=run.id,
+            from_state=transition.from_state.value,
+            to_state=transition.to_state.value,
+            data=data,
+        )
 
     def _persist_run_lifecycle_transition(
         self,

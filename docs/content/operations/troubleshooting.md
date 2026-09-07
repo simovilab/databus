@@ -144,7 +144,11 @@ GET run:<id>:stop_time_updates
 
 ## Stale run cleanup
 
-After stopping the simulator or during testing, Redis may hold state for runs that are no longer active. The `scripts/cleanup_redis.py` script (added in commit `18f9bde`) handles this.
+After stopping the simulator or during testing, Redis (and PostgreSQL) may hold state for runs that are no longer active. Two scripts handle this at different scopes; commit `18f9bde` (`chore(scripts): add run-state cleanup script and refresh Redis utilities`) added `backend/scripts/cleanup_runs.py` and refreshed `scripts/cleanup_redis.py` to the current Redis key schema.
+
+### `scripts/cleanup_redis.py` — Redis-only, age-based
+
+Removes stale vehicle data from Redis based on a data-age threshold. Does not touch PostgreSQL.
 
 ```bash
 # Dry run — see what would be deleted
@@ -176,6 +180,35 @@ run:*:stop_time_updates
 ```
 
 It does **not** delete `run:<id>` (the run hash), `runs:in_progress`, or `runs:tracking` — those are owned by the lifecycle layer and cleaned up by the run completion/cancellation actions.
+
+### `backend/scripts/cleanup_runs.py` — PostgreSQL + Redis, run-scoped
+
+A more complete reset: wipes run state from **both** PostgreSQL (`runs_run` and its cascade-deleted child tables — `runs_runlifecycletransition`, `runs_run_vehicle`, `runs_run_operator`) and Redis (`runs:tracking`/`runs:in_progress` set membership, `run:<id>` and its sub-keys, `vehicle:<id>:*` keys, and the `vehicle|operator|trip:<id>:current_run` assignment keys) so a dev box can start fresh without restarting any service.
+
+```bash
+docker compose -f compose.dev.yml exec -it orchestrator uv run scripts/cleanup_runs.py [options]
+```
+
+| Mode (mutually exclusive) | Effect |
+|---|---|
+| *(default)* | Delete all runs from DB + purge all run state from Redis. |
+| `--run <id>` | Delete one run by ID (DB + Redis). |
+| `--vehicle <id>` | Delete all runs for a vehicle (DB + Redis); also frees the vehicle's `current_run` key if it has no matching run. |
+| `--db-only` / `--redis-only` | Restrict to one store. |
+
+Other flags: `--telemetry` (also wipe `runs_position`/`runs_progression`/`runs_occupancy` rows), `--dry-run` (preview, touches nothing), `--yes` (skip the confirmation prompt), plus `--db-*`/`--redis-*` connection overrides. Full flag reference: `backend/scripts/README.md`.
+
+```bash
+# Preview only
+uv run scripts/cleanup_runs.py --dry-run
+
+# Full reset: wipe all runs from DB + Redis
+uv run scripts/cleanup_runs.py --yes
+
+# Clear one specific run / one vehicle's runs
+uv run scripts/cleanup_runs.py --run <uuid>
+uv run scripts/cleanup_runs.py --vehicle <vehicle_id>
+```
 
 ## GTFS-RT feeds not updating
 
@@ -224,6 +257,8 @@ To force immediate cleanup:
 1. Use the Django admin to manually set the run's lifecycle state to `Cancelled`.
 2. Use `scripts/cleanup_redis.py --force-all` to clear the Redis entity hashes.
 3. Verify with `inspect_redis.py` that the run is gone from `runs:tracking` and `runs:in_progress`.
+
+For a single known run ID, `docker compose -f compose.dev.yml exec -it orchestrator uv run scripts/cleanup_runs.py --run <run_id>` is a faster alternative to steps 1–3 — it **deletes** the run row and its Redis keys outright (rather than cancelling and leaving the row), so use it only when you don't need to keep the run record. See [Stale run cleanup](#stale-run-cleanup) above.
 
 ## Common log messages
 

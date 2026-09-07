@@ -1,3 +1,5 @@
+"""Register run and per-tick telemetry snapshot models with the Django admin site."""
+
 from django.contrib.gis import admin
 from .models import Run, Position, VehicleStopStatus, CongestionLevel, OccupancyStatus
 
