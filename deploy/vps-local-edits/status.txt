@@ -1,0 +1,10 @@
+ M .env.dev
+ M compose.dev.yml
+?? .env.bak.pre-rotation.20260716T221923Z
+?? .vps-local-backup/
+?? CLAUDE.md
+?? backend/feed/files/
+?? docs/DOCS-AUDIT-REPORT.md
+?? docs/ZENSICAL-REFERENCE.md
+?? graphify-out/
+?? scripts/compact_feeds.py

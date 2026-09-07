@@ -20,6 +20,7 @@ from .models import (
     Stop,
     StopTime,
     StopTimeUpdate,
+    TransitSystem,
     Trip,
     TripDuration,
     TripTime,

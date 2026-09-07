@@ -1,13 +1,16 @@
 # Feed · GTFS Schedule domain + published feed files
 
-- **Purpose**: owns the GTFS Schedule domain models, feed versioning (`FeedPublisher`/`Feed`), the
-  Schedule zip exporter, and the HTTP endpoints that serve published GTFS Schedule and GTFS
-  Realtime files from disk. Not to be confused with `schedule_engine`, which _builds_ the GTFS-RT
-  protobufs consumed here.
+- **Purpose**: owns the GTFS Schedule domain models, feed versioning
+  (`TransitSystem`/`FeedPublisher`/`Feed`), the Schedule importer and zip exporter, and the HTTP
+  endpoints that serve published GTFS Schedule and GTFS Realtime files from disk. Not to be
+  confused with `schedule_engine`, which _builds_ the GTFS-RT protobufs consumed here.
 - **Key modules**:
-  - `models.py` — `FeedPublisher`, `Feed`, and one concrete model per GTFS Schedule table
+  - `models.py` — `TransitSystem`, `FeedPublisher`, `Feed`, and one concrete model per GTFS
+    Schedule table
+  - `schedule/importer.py` — `import_schedule_if_changed`, the upstream ETag check + zip import
   - `schedule/exporter.py` — `build_gtfs_zip` / `publish_gtfs_zip`
   - `management/commands/export_gtfs.py` — `manage.py export_gtfs`
+  - `management/commands/bootstrap_schedule.py` — `manage.py bootstrap_schedule`
   - `views.py` / `urls.py` — file-serving endpoints
 
 ## Domain models
@@ -22,8 +25,11 @@ the registration-UI lookups in `api`. `FeedMessage`/`TripUpdate`/`StopTimeUpdate
 model the normalized GTFS-RT entities for persisted blobs; `Alert` is a placeholder (TODO in
 source, not fed by any current pipeline).
 
-`FeedPublisher` is the org that supplies a feed (may serve multiple agencies); `Feed` is one
-retrieved version, marked `is_current=True` to select the active feed. `is_current` is read
+`TransitSystem` is the transit network (e.g. bUCR); `FeedPublisher` is the org that publishes its
+GTFS for one transit system (may serve multiple agencies) and carries the upstream feed URL;
+`Feed` is one retrieved version, marked `is_current=True` to select the active feed. Feeds are
+never checked in as fixtures — they arrive via `manage.py bootstrap_schedule` on a cold start and
+the hourly `schedule_engine.tasks.fetch_schedule` task thereafter. `is_current` is read
 directly by `api`'s `WhichShapesView`/`FindTripsView` and by the exporter — there is no automatic
 supersession logic in this app; whichever `Feed` is flagged is authoritative.
 

@@ -79,12 +79,18 @@ Once everything is running, access the browser with the following address, which
 http://localhost:8000/
 ```
 
-## Load fixtures (Optional)
+## Seed data (Optional)
 
-bUCR GTFS data can be loaded with the following command:
+The orchestrator seeds the demo fleet and imports the GTFS Schedule on startup when `DEBUG=True`.
+To do either by hand:
 
 ```bash
-docker compose -f Docker/compose.dev.yml exec web uv run python manage.py loaddata gtfs.json
+# Publishers (always) + demo fleet (dev only)
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata publishers.json
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata demo_fleet.json
+
+# GTFS Schedule, fetched from the publisher's upstream URL (no-op if already imported)
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py bootstrap_schedule
 ```
 
 ## Common Issues

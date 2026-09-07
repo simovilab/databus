@@ -1,48 +1,137 @@
 [
   {
     "model": "operations.company",
-    "pk": "ST",
+    "pk": "SIMOVI",
     "fields": {
-      "name": "Sección Transportes",
-      "description": "Sección Transportes de la Oficina de Servicios Generales de la Universidad de Costa Rica",
+      "name": "SIMOVI",
+      "description": "Agencia operadora de la flotilla de demostración de bUCR.",
       "legal_id": null,
       "phone": null,
       "email": null,
-      "website": null,
-      "location": "SRID=4326;POINT (-84.06167418885983 9.953682854982432)",
+      "website": "https://simovi.org/",
+      "location": null,
       "logo": "",
-      "linked_agency": [2]
-    }
-  },
-  {
-    "model": "operations.operator",
-    "pk": "123456",
-    "fields": {
-      "user": 1,
-      "phone": null,
-      "photo": "",
-      "is_driver": true,
-      "is_dispatcher": true,
-      "is_administrator": true,
-      "company": ["ST"]
+      "linked_agency": []
     }
   },
   {
     "model": "operations.dataprovider",
-    "pk": "navsat",
+    "pk": "NavSat",
     "fields": {
+      "company": [
+        "SIMOVI"
+      ],
       "name": "NavSat",
-      "description": "NavSat",
-      "email": "navsat@navsat.com",
+      "description": "Proveedor de telemetría AVL de la flotilla bUCR.",
+      "email": null,
       "phone": null,
       "logo": ""
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 9001,
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$0HuIvc3eb6V5oPOur0bcsF$o1YdGD5KQk0vRLd41jQs/GtvP7RzHfj503ECMsIUs1w=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "driver1",
+      "first_name": "Conductor",
+      "last_name": "Uno",
+      "email": "",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2026-01-01T00:00:00Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "operations.operator",
+    "pk": "op-driver1",
+    "fields": {
+      "user": 9001,
+      "phone": null,
+      "photo": "",
+      "is_driver": true,
+      "is_dispatcher": false,
+      "is_administrator": false,
+      "company": [
+        "SIMOVI"
+      ]
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 9002,
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$0HuIvc3eb6V5oPOur0bcsF$o1YdGD5KQk0vRLd41jQs/GtvP7RzHfj503ECMsIUs1w=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "driver2",
+      "first_name": "Conductor",
+      "last_name": "Dos",
+      "email": "",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2026-01-01T00:00:00Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "operations.operator",
+    "pk": "op-driver2",
+    "fields": {
+      "user": 9002,
+      "phone": null,
+      "photo": "",
+      "is_driver": true,
+      "is_dispatcher": false,
+      "is_administrator": false,
+      "company": [
+        "SIMOVI"
+      ]
+    }
+  },
+  {
+    "model": "auth.user",
+    "pk": 9003,
+    "fields": {
+      "password": "pbkdf2_sha256$1200000$0HuIvc3eb6V5oPOur0bcsF$o1YdGD5KQk0vRLd41jQs/GtvP7RzHfj503ECMsIUs1w=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "dispatcher1",
+      "first_name": "Despachador",
+      "last_name": "Uno",
+      "email": "",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2026-01-01T00:00:00Z",
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "operations.operator",
+    "pk": "op-dispatcher1",
+    "fields": {
+      "user": 9003,
+      "phone": null,
+      "photo": "",
+      "is_driver": false,
+      "is_dispatcher": true,
+      "is_administrator": false,
+      "company": [
+        "SIMOVI"
+      ]
     }
   },
   {
     "model": "operations.vehicle",
     "pk": "299-1014",
     "fields": {
-      "company": "ST",
+      "company": "SIMOVI",
       "label": "299-1014",
       "license_plate": "299-1014",
       "wheelchair_accessible": "NO_VALUE",
@@ -60,7 +149,7 @@
     "model": "operations.vehicle",
     "pk": "299-1015",
     "fields": {
-      "company": "ST",
+      "company": "SIMOVI",
       "label": "299-1015",
       "license_plate": "299-1015",
       "wheelchair_accessible": "NO_VALUE",
@@ -78,7 +167,7 @@
     "model": "operations.vehicle",
     "pk": "299-604",
     "fields": {
-      "company": "ST",
+      "company": "SIMOVI",
       "label": "299-604",
       "license_plate": "299-604",
       "wheelchair_accessible": "NO_VALUE",
@@ -94,9 +183,27 @@
   },
   {
     "model": "operations.vehicle",
+    "pk": "299-987",
+    "fields": {
+      "company": "SIMOVI",
+      "label": "299-987",
+      "license_plate": "299-987",
+      "wheelchair_accessible": "NO_VALUE",
+      "wifi": "NO_VALUE",
+      "air_conditioning": "NO_VALUE",
+      "mobile_charging": "NO_VALUE",
+      "bike_rack": "NO_VALUE",
+      "has_screen": false,
+      "has_headsign_screen": false,
+      "has_audio": false,
+      "status": "IN_SERVICE"
+    }
+  },
+  {
+    "model": "operations.vehicle",
     "pk": "299-921",
     "fields": {
-      "company": "ST",
+      "company": "SIMOVI",
       "label": "299-921",
       "license_plate": "299-921",
       "wheelchair_accessible": "NO_VALUE",
@@ -114,7 +221,7 @@
     "model": "operations.vehicle",
     "pk": "299-922",
     "fields": {
-      "company": "ST",
+      "company": "SIMOVI",
       "label": "299-922",
       "license_plate": "299-922",
       "wheelchair_accessible": "NO_VALUE",
@@ -129,173 +236,113 @@
     }
   },
   {
-    "model": "operations.vehicle",
-    "pk": "299-987",
-    "fields": {
-      "company": "ST",
-      "label": "299-987",
-      "license_plate": "299-987",
-      "wheelchair_accessible": "NO_VALUE",
-      "wifi": "NO_VALUE",
-      "air_conditioning": "NO_VALUE",
-      "mobile_charging": "NO_VALUE",
-      "bike_rack": "NO_VALUE",
-      "has_screen": false,
-      "has_headsign_screen": false,
-      "has_audio": false,
-      "status": "IN_SERVICE"
-    }
-  },
-  {
     "model": "operations.equipment",
-    "pk": "0c50dc1b-0773-42e2-b5cf-514eaf192cdb",
+    "pk": "e3040da9-5a63-58d5-8e4d-c598e1d0884f",
     "fields": {
-      "data_provider": "navsat",
-      "name": "OBE 299-922",
-      "vehicle": "299-922",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
-      "status": "ACTIVE",
-      "created_at": "2026-09-04T19:00:40.817Z",
-      "updated_at": "2026-09-04T19:00:40.817Z"
-    }
-  },
-  {
-    "model": "operations.equipment",
-    "pk": "2cec183d-d037-402a-9f88-0da4aed5ff05",
-    "fields": {
-      "data_provider": "navsat",
-      "name": "OBE 299-987",
-      "vehicle": "299-987",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
-      "status": "ACTIVE",
-      "created_at": "2026-09-04T19:01:28.274Z",
-      "updated_at": "2026-09-04T19:01:28.274Z"
-    }
-  },
-  {
-    "model": "operations.equipment",
-    "pk": "3b3ff721-be7c-40b7-85ac-a631b6216cb1",
-    "fields": {
-      "data_provider": "navsat",
-      "name": "OBE 299-604",
-      "vehicle": "299-604",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
-      "status": "ACTIVE",
-      "created_at": "2026-09-04T19:01:09.234Z",
-      "updated_at": "2026-09-04T19:01:09.234Z"
-    }
-  },
-  {
-    "model": "operations.equipment",
-    "pk": "5dc3b2f3-067f-424c-8f17-a74fcfc74bcd",
-    "fields": {
-      "data_provider": "navsat",
-      "name": "OBE 299-921",
-      "vehicle": "299-921",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
-      "status": "ACTIVE",
-      "created_at": "2026-09-04T19:00:53.877Z",
-      "updated_at": "2026-09-04T19:00:53.877Z"
-    }
-  },
-  {
-    "model": "operations.equipment",
-    "pk": "7cc8495d-8440-4024-a334-6d1cadc09e87",
-    "fields": {
-      "data_provider": "navsat",
-      "name": "OBE 299-1014",
+      "data_provider": "NavSat",
+      "name": "NavSat 299-1014",
       "vehicle": "299-1014",
       "serial_number": null,
-      "brand": null,
-      "model": null,
+      "brand": "NavSat",
+      "model": "NavSat AVL",
       "os_version": null,
       "app_version": null,
       "status": "ACTIVE",
-      "created_at": "2026-09-04T18:58:15.732Z",
-      "updated_at": "2026-09-04T18:59:25.025Z"
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   },
   {
     "model": "operations.equipment",
-    "pk": "b444a3e6-80c6-4f5f-9783-ae4919bb473e",
+    "pk": "8e220ac7-212c-5e29-8390-5fb959800e87",
     "fields": {
-      "data_provider": "navsat",
-      "name": "OBE 299-1015",
+      "data_provider": "NavSat",
+      "name": "NavSat 299-1015",
       "vehicle": "299-1015",
       "serial_number": null,
-      "brand": null,
-      "model": null,
+      "brand": "NavSat",
+      "model": "NavSat AVL",
       "os_version": null,
       "app_version": null,
       "status": "ACTIVE",
-      "created_at": "2026-09-04T19:00:21.463Z",
-      "updated_at": "2026-09-04T19:00:21.463Z"
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   },
   {
-    "model": "operations.sensor",
-    "pk": "43e5c5f3-5205-450c-8b90-95acdd8c6cd1",
+    "model": "operations.equipment",
+    "pk": "d616b40c-1ce9-5639-992b-005ea6e35c51",
     "fields": {
-      "name": "GPS 299-987",
-      "equipment": "2cec183d-d037-402a-9f88-0da4aed5ff05",
-      "provides_vehicle": true,
-      "provides_operator": false,
-      "provides_run": false,
-      "provides_position": true,
-      "provides_progression": false,
-      "provides_occupancy": false,
-      "provides_conditions": false,
-      "provides_emissions": false,
-      "provides_travelers": false,
-      "provides_authorizations": false,
-      "provides_fares": false,
-      "provides_transfers": false,
-      "provides_alerts": false,
-      "source_type": "http",
-      "source_http_url": "https://wsclientes.navsat.com/ws/navsatbi/laststatenavmi/rcu/bdxFtpLuYSfi/114700/0/todos",
-      "source_json_mapping": {
-        "type": "array",
-        "paths": {
-          "lat": "latitude",
-          "lon": "longitude",
-          "speed": "speed",
-          "odometer": "odometer",
-          "timestamp": "crDateTime",
-          "vehicle_id": "plateNumber"
-        },
-        "units": { "speed": "kmh", "odometer": "km" },
-        "timestamp": {
-          "tz": "America/Costa_Rica",
-          "format": "%Y-%m-%d %H:%M:%S"
-        }
-      },
+      "data_provider": "NavSat",
+      "name": "NavSat 299-604",
+      "vehicle": "299-604",
+      "serial_number": null,
+      "brand": "NavSat",
+      "model": "NavSat AVL",
+      "os_version": null,
+      "app_version": null,
       "status": "ACTIVE",
-      "created_at": "2026-09-04T19:10:02.406Z",
-      "updated_at": "2026-09-04T19:10:02.406Z"
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "operations.equipment",
+    "pk": "59ce8abe-a911-5535-bb40-e603d2d841c0",
+    "fields": {
+      "data_provider": "NavSat",
+      "name": "NavSat 299-987",
+      "vehicle": "299-987",
+      "serial_number": null,
+      "brand": "NavSat",
+      "model": "NavSat AVL",
+      "os_version": null,
+      "app_version": null,
+      "status": "ACTIVE",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "operations.equipment",
+    "pk": "08dadebc-328c-5c48-a878-62e039faab3d",
+    "fields": {
+      "data_provider": "NavSat",
+      "name": "NavSat 299-921",
+      "vehicle": "299-921",
+      "serial_number": null,
+      "brand": "NavSat",
+      "model": "NavSat AVL",
+      "os_version": null,
+      "app_version": null,
+      "status": "ACTIVE",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "operations.equipment",
+    "pk": "152f1ee6-a0cd-5df8-b89d-f484633ea0ea",
+    "fields": {
+      "data_provider": "NavSat",
+      "name": "NavSat 299-922",
+      "vehicle": "299-922",
+      "serial_number": null,
+      "brand": "NavSat",
+      "model": "NavSat AVL",
+      "os_version": null,
+      "app_version": null,
+      "status": "ACTIVE",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   },
   {
     "model": "operations.sensor",
-    "pk": "a816095d-f9b3-4572-8970-4faa9edf0f93",
+    "pk": "ffc34312-1b77-5215-bd86-7dbb603777a6",
     "fields": {
       "name": "GPS 299-1014",
-      "equipment": "7cc8495d-8440-4024-a334-6d1cadc09e87",
+      "equipment": "e3040da9-5a63-58d5-8e4d-c598e1d0884f",
       "provides_vehicle": true,
       "provides_operator": false,
       "provides_run": false,
@@ -310,7 +357,7 @@
       "provides_transfers": false,
       "provides_alerts": false,
       "source_type": "http",
-      "source_http_url": "https://wsclientes.navsat.com/ws/navsatbi/laststatenavmi/rcu/bdxFtpLuYSfi/114700/0/todos",
+      "source_http_url": "https://navsat.example.com/REPLACE_WITH_REAL_NAVSAT_URL",
       "source_json_mapping": {
         "type": "array",
         "paths": {
@@ -321,149 +368,26 @@
           "timestamp": "crDateTime",
           "vehicle_id": "plateNumber"
         },
-        "units": { "speed": "kmh", "odometer": "km" },
-        "timestamp": {
-          "tz": "America/Costa_Rica",
-          "format": "%Y-%m-%d %H:%M:%S"
-        }
-      },
-      "status": "ACTIVE",
-      "created_at": "2026-09-04T19:06:57.212Z",
-      "updated_at": "2026-09-04T19:06:57.212Z"
-    }
-  },
-  {
-    "model": "operations.sensor",
-    "pk": "cad09daa-8782-45b0-87e6-13063df4e6dd",
-    "fields": {
-      "name": "GPS 299-604",
-      "equipment": "3b3ff721-be7c-40b7-85ac-a631b6216cb1",
-      "provides_vehicle": true,
-      "provides_operator": false,
-      "provides_run": false,
-      "provides_position": true,
-      "provides_progression": false,
-      "provides_occupancy": false,
-      "provides_conditions": false,
-      "provides_emissions": false,
-      "provides_travelers": false,
-      "provides_authorizations": false,
-      "provides_fares": false,
-      "provides_transfers": false,
-      "provides_alerts": false,
-      "source_type": "http",
-      "source_http_url": "https://wsclientes.navsat.com/ws/navsatbi/laststatenavmi/rcu/bdxFtpLuYSfi/114700/0/todos",
-      "source_json_mapping": {
-        "type": "array",
-        "paths": {
-          "lat": "latitude",
-          "lon": "longitude",
-          "speed": "speed",
-          "odometer": "odometer",
-          "timestamp": "crDateTime",
-          "vehicle_id": "plateNumber"
+        "units": {
+          "speed": "kmh",
+          "odometer": "km"
         },
-        "units": { "speed": "kmh", "odometer": "km" },
         "timestamp": {
           "tz": "America/Costa_Rica",
           "format": "%Y-%m-%d %H:%M:%S"
         }
       },
       "status": "ACTIVE",
-      "created_at": "2026-09-04T19:09:04.324Z",
-      "updated_at": "2026-09-04T19:09:04.324Z"
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   },
   {
     "model": "operations.sensor",
-    "pk": "d50d1fb4-607c-4497-b226-9c40cea9c4d6",
-    "fields": {
-      "name": "GPS 299-921",
-      "equipment": "5dc3b2f3-067f-424c-8f17-a74fcfc74bcd",
-      "provides_vehicle": true,
-      "provides_operator": false,
-      "provides_run": false,
-      "provides_position": true,
-      "provides_progression": false,
-      "provides_occupancy": false,
-      "provides_conditions": false,
-      "provides_emissions": false,
-      "provides_travelers": false,
-      "provides_authorizations": false,
-      "provides_fares": false,
-      "provides_transfers": false,
-      "provides_alerts": false,
-      "source_type": "http",
-      "source_http_url": "https://wsclientes.navsat.com/ws/navsatbi/laststatenavmi/rcu/bdxFtpLuYSfi/114700/0/todos",
-      "source_json_mapping": {
-        "type": "array",
-        "paths": {
-          "lat": "latitude",
-          "lon": "longitude",
-          "speed": "speed",
-          "odometer": "odometer",
-          "timestamp": "crDateTime",
-          "vehicle_id": "plateNumber"
-        },
-        "units": { "speed": "kmh", "odometer": "km" },
-        "timestamp": {
-          "tz": "America/Costa_Rica",
-          "format": "%Y-%m-%d %H:%M:%S"
-        }
-      },
-      "status": "ACTIVE",
-      "created_at": "2026-09-04T19:08:34.591Z",
-      "updated_at": "2026-09-04T19:08:34.591Z"
-    }
-  },
-  {
-    "model": "operations.sensor",
-    "pk": "d74ce819-6d3f-4d7a-9ddc-a76c2dc0ecd0",
-    "fields": {
-      "name": "GPS 299-922",
-      "equipment": "0c50dc1b-0773-42e2-b5cf-514eaf192cdb",
-      "provides_vehicle": true,
-      "provides_operator": false,
-      "provides_run": false,
-      "provides_position": true,
-      "provides_progression": false,
-      "provides_occupancy": false,
-      "provides_conditions": false,
-      "provides_emissions": false,
-      "provides_travelers": false,
-      "provides_authorizations": false,
-      "provides_fares": false,
-      "provides_transfers": false,
-      "provides_alerts": false,
-      "source_type": "http",
-      "source_http_url": "https://wsclientes.navsat.com/ws/navsatbi/laststatenavmi/rcu/bdxFtpLuYSfi/114700/0/todos",
-      "source_json_mapping": {
-        "type": "array",
-        "paths": {
-          "lat": "latitude",
-          "lon": "longitude",
-          "speed": "speed",
-          "odometer": "odometer",
-          "timestamp": "crDateTime",
-          "vehicle_id": "plateNumber"
-        },
-        "units": { "speed": "kmh", "odometer": "km" },
-        "timestamp": {
-          "tz": "America/Costa_Rica",
-          "format": "%Y-%m-%d %H:%M:%S"
-        }
-      },
-      "status": "ACTIVE",
-      "created_at": "2026-09-04T19:08:05.563Z",
-      "updated_at": "2026-09-04T19:08:05.563Z"
-    }
-  },
-  {
-    "model": "operations.sensor",
-    "pk": "f530dd7c-59d6-41a5-bae0-a45744776401",
+    "pk": "17d5ffbc-2a6a-57e9-87a0-d78f0a1bd761",
     "fields": {
       "name": "GPS 299-1015",
-      "equipment": "b444a3e6-80c6-4f5f-9783-ae4919bb473e",
+      "equipment": "8e220ac7-212c-5e29-8390-5fb959800e87",
       "provides_vehicle": true,
       "provides_operator": false,
       "provides_run": false,
@@ -478,7 +402,7 @@
       "provides_transfers": false,
       "provides_alerts": false,
       "source_type": "http",
-      "source_http_url": "https://wsclientes.navsat.com/ws/navsatbi/laststatenavmi/rcu/bdxFtpLuYSfi/114700/0/todos",
+      "source_http_url": "https://navsat.example.com/REPLACE_WITH_REAL_NAVSAT_URL",
       "source_json_mapping": {
         "type": "array",
         "paths": {
@@ -489,127 +413,198 @@
           "timestamp": "crDateTime",
           "vehicle_id": "plateNumber"
         },
-        "units": { "speed": "kmh", "odometer": "km" },
+        "units": {
+          "speed": "kmh",
+          "odometer": "km"
+        },
         "timestamp": {
           "tz": "America/Costa_Rica",
           "format": "%Y-%m-%d %H:%M:%S"
         }
       },
       "status": "ACTIVE",
-      "created_at": "2026-09-04T19:07:36.065Z",
-      "updated_at": "2026-09-04T19:07:36.065Z"
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   },
   {
-    "model": "operations.equipmentlog",
-    "pk": 2,
+    "model": "operations.sensor",
+    "pk": "ee386a3c-3754-5453-a9fb-1f0f8d8792f5",
     "fields": {
-      "equipment": "7cc8495d-8440-4024-a334-6d1cadc09e87",
-      "data_provider": "navsat",
-      "vehicle": "299-1014",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
+      "name": "GPS 299-604",
+      "equipment": "d616b40c-1ce9-5639-992b-005ea6e35c51",
+      "provides_vehicle": true,
+      "provides_operator": false,
+      "provides_run": false,
+      "provides_position": true,
+      "provides_progression": false,
+      "provides_occupancy": false,
+      "provides_conditions": false,
+      "provides_emissions": false,
+      "provides_travelers": false,
+      "provides_authorizations": false,
+      "provides_fares": false,
+      "provides_transfers": false,
+      "provides_alerts": false,
+      "source_type": "http",
+      "source_http_url": "https://navsat.example.com/REPLACE_WITH_REAL_NAVSAT_URL",
+      "source_json_mapping": {
+        "type": "array",
+        "paths": {
+          "lat": "latitude",
+          "lon": "longitude",
+          "speed": "speed",
+          "odometer": "odometer",
+          "timestamp": "crDateTime",
+          "vehicle_id": "plateNumber"
+        },
+        "units": {
+          "speed": "kmh",
+          "odometer": "km"
+        },
+        "timestamp": {
+          "tz": "America/Costa_Rica",
+          "format": "%Y-%m-%d %H:%M:%S"
+        }
+      },
       "status": "ACTIVE",
-      "updated_at": "2026-09-04T18:58:15.733Z"
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   },
   {
-    "model": "operations.equipmentlog",
-    "pk": 3,
+    "model": "operations.sensor",
+    "pk": "5f9669e9-4b47-5d40-86aa-76f7315d540d",
     "fields": {
-      "equipment": "7cc8495d-8440-4024-a334-6d1cadc09e87",
-      "data_provider": "navsat",
-      "vehicle": "299-1014",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
+      "name": "GPS 299-987",
+      "equipment": "59ce8abe-a911-5535-bb40-e603d2d841c0",
+      "provides_vehicle": true,
+      "provides_operator": false,
+      "provides_run": false,
+      "provides_position": true,
+      "provides_progression": false,
+      "provides_occupancy": false,
+      "provides_conditions": false,
+      "provides_emissions": false,
+      "provides_travelers": false,
+      "provides_authorizations": false,
+      "provides_fares": false,
+      "provides_transfers": false,
+      "provides_alerts": false,
+      "source_type": "http",
+      "source_http_url": "https://navsat.example.com/REPLACE_WITH_REAL_NAVSAT_URL",
+      "source_json_mapping": {
+        "type": "array",
+        "paths": {
+          "lat": "latitude",
+          "lon": "longitude",
+          "speed": "speed",
+          "odometer": "odometer",
+          "timestamp": "crDateTime",
+          "vehicle_id": "plateNumber"
+        },
+        "units": {
+          "speed": "kmh",
+          "odometer": "km"
+        },
+        "timestamp": {
+          "tz": "America/Costa_Rica",
+          "format": "%Y-%m-%d %H:%M:%S"
+        }
+      },
       "status": "ACTIVE",
-      "updated_at": "2026-09-04T18:59:25.026Z"
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   },
   {
-    "model": "operations.equipmentlog",
-    "pk": 4,
+    "model": "operations.sensor",
+    "pk": "56b757c8-7476-5583-996e-2022cf32110e",
     "fields": {
-      "equipment": "b444a3e6-80c6-4f5f-9783-ae4919bb473e",
-      "data_provider": "navsat",
-      "vehicle": "299-1015",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
+      "name": "GPS 299-921",
+      "equipment": "08dadebc-328c-5c48-a878-62e039faab3d",
+      "provides_vehicle": true,
+      "provides_operator": false,
+      "provides_run": false,
+      "provides_position": true,
+      "provides_progression": false,
+      "provides_occupancy": false,
+      "provides_conditions": false,
+      "provides_emissions": false,
+      "provides_travelers": false,
+      "provides_authorizations": false,
+      "provides_fares": false,
+      "provides_transfers": false,
+      "provides_alerts": false,
+      "source_type": "http",
+      "source_http_url": "https://navsat.example.com/REPLACE_WITH_REAL_NAVSAT_URL",
+      "source_json_mapping": {
+        "type": "array",
+        "paths": {
+          "lat": "latitude",
+          "lon": "longitude",
+          "speed": "speed",
+          "odometer": "odometer",
+          "timestamp": "crDateTime",
+          "vehicle_id": "plateNumber"
+        },
+        "units": {
+          "speed": "kmh",
+          "odometer": "km"
+        },
+        "timestamp": {
+          "tz": "America/Costa_Rica",
+          "format": "%Y-%m-%d %H:%M:%S"
+        }
+      },
       "status": "ACTIVE",
-      "updated_at": "2026-09-04T19:00:21.463Z"
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   },
   {
-    "model": "operations.equipmentlog",
-    "pk": 5,
+    "model": "operations.sensor",
+    "pk": "30f63829-3cb9-53ef-be24-c9c9c1e19f98",
     "fields": {
-      "equipment": "0c50dc1b-0773-42e2-b5cf-514eaf192cdb",
-      "data_provider": "navsat",
-      "vehicle": "299-922",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
+      "name": "GPS 299-922",
+      "equipment": "152f1ee6-a0cd-5df8-b89d-f484633ea0ea",
+      "provides_vehicle": true,
+      "provides_operator": false,
+      "provides_run": false,
+      "provides_position": true,
+      "provides_progression": false,
+      "provides_occupancy": false,
+      "provides_conditions": false,
+      "provides_emissions": false,
+      "provides_travelers": false,
+      "provides_authorizations": false,
+      "provides_fares": false,
+      "provides_transfers": false,
+      "provides_alerts": false,
+      "source_type": "http",
+      "source_http_url": "https://navsat.example.com/REPLACE_WITH_REAL_NAVSAT_URL",
+      "source_json_mapping": {
+        "type": "array",
+        "paths": {
+          "lat": "latitude",
+          "lon": "longitude",
+          "speed": "speed",
+          "odometer": "odometer",
+          "timestamp": "crDateTime",
+          "vehicle_id": "plateNumber"
+        },
+        "units": {
+          "speed": "kmh",
+          "odometer": "km"
+        },
+        "timestamp": {
+          "tz": "America/Costa_Rica",
+          "format": "%Y-%m-%d %H:%M:%S"
+        }
+      },
       "status": "ACTIVE",
-      "updated_at": "2026-09-04T19:00:40.818Z"
-    }
-  },
-  {
-    "model": "operations.equipmentlog",
-    "pk": 6,
-    "fields": {
-      "equipment": "5dc3b2f3-067f-424c-8f17-a74fcfc74bcd",
-      "data_provider": "navsat",
-      "vehicle": "299-921",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
-      "status": "ACTIVE",
-      "updated_at": "2026-09-04T19:00:53.878Z"
-    }
-  },
-  {
-    "model": "operations.equipmentlog",
-    "pk": 7,
-    "fields": {
-      "equipment": "3b3ff721-be7c-40b7-85ac-a631b6216cb1",
-      "data_provider": "navsat",
-      "vehicle": "299-604",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
-      "status": "ACTIVE",
-      "updated_at": "2026-09-04T19:01:09.234Z"
-    }
-  },
-  {
-    "model": "operations.equipmentlog",
-    "pk": 8,
-    "fields": {
-      "equipment": "2cec183d-d037-402a-9f88-0da4aed5ff05",
-      "data_provider": "navsat",
-      "vehicle": "299-987",
-      "serial_number": null,
-      "brand": null,
-      "model": null,
-      "os_version": null,
-      "app_version": null,
-      "status": "ACTIVE",
-      "updated_at": "2026-09-04T19:01:28.274Z"
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
     }
   }
 ]

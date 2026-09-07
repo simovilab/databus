@@ -1,0 +1,26 @@
+[
+  {
+    "model": "feed.transitsystem",
+    "pk": 1,
+    "fields": {
+      "name": "Buses de la Universidad de Costa Rica",
+      "code": "bUCR",
+      "description": "Sistema de buses internos del Campus Universitario Rodrigo Facio.",
+      "is_active": true
+    }
+  },
+  {
+    "model": "feed.feedpublisher",
+    "pk": 1,
+    "fields": {
+      "transit_system": 1,
+      "code": "SIMOVI",
+      "name": "SIMOVI",
+      "description": "Sistema de Movilidad Inteligente. Publica los suministros GTFS del sistema bUCR.",
+      "website": "https://simovi.org/",
+      "schedule_url": "https://feeds.simovi.org/bucr/schedule/gtfs.zip",
+      "timezone": "America/Costa_Rica",
+      "is_active": true
+    }
+  }
+]

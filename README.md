@@ -75,7 +75,9 @@ docker compose -f compose.dev.yml logs -f orchestrator  # single service
 docker compose -f compose.dev.yml exec orchestrator uv run python manage.py migrate
 docker compose -f compose.dev.yml exec orchestrator uv run python manage.py createsuperuser
 docker compose -f compose.dev.yml exec orchestrator uv run python manage.py shell
-docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata gtfs.json
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata publishers.json
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py loaddata demo_fleet.json
+docker compose -f compose.dev.yml exec orchestrator uv run python manage.py bootstrap_schedule
 
 # Stop
 docker compose -f compose.dev.yml down
@@ -170,9 +172,10 @@ End-to-end demo of a complete run lifecycle driven by MQTT telemetry from the si
 # Terminal 1 — start the full databus stack
 cd databus && bash scripts/dev.sh
 
-# Terminal 2 — load GTFS feed
+# Terminal 2 — import the GTFS Schedule (the orchestrator already does this on
+# startup; run it by hand only if you skipped DJANGO_SETUP)
 docker compose -f compose.dev.yml exec orchestrator \
-    uv run python manage.py loaddata gtfs.json
+    uv run python manage.py bootstrap_schedule
 
 # Terminal 3 — start the simulator (wired to databus broker)
 # The simulator's scheduler posts to /api/create-run on each schedule entry's
