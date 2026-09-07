@@ -12,7 +12,6 @@ without restarting any services.
 PostgreSQL tables:
   runs_run                      Run records
   runs_runlifecycletransition   (CASCADE deleted with run)
-  runs_runprogressevent         (CASCADE deleted with run)
 
 With --telemetry:
   runs_position, runs_occupancy
@@ -63,6 +62,7 @@ from runs.domain.telemetry import keys as _keys  # noqa: E402
 # Shell env vars take precedence over .env values.
 # ---------------------------------------------------------------------------
 
+
 def _load_dotenv() -> None:
     """Walk up from this file's directory looking for a .env file."""
     here = Path(__file__).resolve().parent
@@ -71,6 +71,7 @@ def _load_dotenv() -> None:
         if env_file.is_file():
             try:
                 from dotenv import load_dotenv
+
                 load_dotenv(env_file, override=False)
             except ImportError:
                 # Fallback: parse the file manually (no external deps needed)
@@ -84,6 +85,7 @@ def _load_dotenv() -> None:
                         val = val.strip().strip('"').strip("'")
                         os.environ.setdefault(key, val)
             break
+
 
 _load_dotenv()
 
@@ -100,11 +102,17 @@ def get_db(
 ) -> psycopg2.extensions.connection:
     """Open a PostgreSQL connection with the given connection parameters."""
     return psycopg2.connect(
-        host=host, port=port, dbname=name, user=user, password=password,
+        host=host,
+        port=port,
+        dbname=name,
+        user=user,
+        password=password,
     )
 
 
-def get_redis(host: str, port: int, db: int, password: str | None = None) -> redis.Redis:
+def get_redis(
+    host: str, port: int, db: int, password: str | None = None
+) -> redis.Redis:
     """Open a Redis client with the given connection parameters."""
     return redis.Redis(
         host=host, port=port, db=db, password=password or None, decode_responses=True
@@ -219,11 +227,13 @@ def _purge_redis_run(r: redis.Redis, run_id: str, dry_run: bool) -> dict[str, in
     # Vehicle edge-data hashes (vehicle-keyed; only present when assigned).
     # vehicle:<id>:progression is decommissioned — omitted intentionally.
     if vehicle_id:
-        direct.extend([
-            _keys.position_key(vehicle_id),
-            _keys.occupancy_key(vehicle_id),
-            _keys.metadata_key(vehicle_id),
-        ])
+        direct.extend(
+            [
+                _keys.position_key(vehicle_id),
+                _keys.occupancy_key(vehicle_id),
+                _keys.metadata_key(vehicle_id),
+            ]
+        )
 
     assignments: list[str] = []
     if vehicle_id:
@@ -282,7 +292,11 @@ def purge_redis_all_runs(r: redis.Redis, dry_run: bool) -> dict[str, Any]:
                 set_removals += len(members)
                 actions.append(f"del {set_key} ({len(members)} members)")
 
-    return {"keys_removed": keys_removed, "set_removals": set_removals, "actions": actions}
+    return {
+        "keys_removed": keys_removed,
+        "set_removals": set_removals,
+        "actions": actions,
+    }
 
 
 def purge_redis_one_run(r: redis.Redis, run_id: str, dry_run: bool) -> dict[str, Any]:
@@ -295,7 +309,9 @@ def purge_redis_one_run(r: redis.Redis, run_id: str, dry_run: bool) -> dict[str,
     }
 
 
-def purge_redis_vehicle(r: redis.Redis, vehicle_id: str, dry_run: bool) -> dict[str, Any]:
+def purge_redis_vehicle(
+    r: redis.Redis, vehicle_id: str, dry_run: bool
+) -> dict[str, Any]:
     """Free the Redis assignment for one vehicle and cascade-purge its run."""
     current_run_key = f"vehicle:{vehicle_id}:current_run"
     run_id = _get(r, current_run_key)
@@ -313,7 +329,6 @@ def purge_redis_vehicle(r: redis.Redis, vehicle_id: str, dry_run: bool) -> dict[
 # Django's on_delete=CASCADE is ORM-level only — no DB-level CASCADE exists.
 _RUN_CHILD_TABLES = (
     "runs_runlifecycletransition",
-    "runs_runprogressevent",
     "runs_run_vehicle",
     "runs_run_operator",
 )
@@ -354,7 +369,11 @@ def db_purge_one_run(
                 fmt = ",".join(["%s"] * len(vehicle_ids))
                 for table in ("runs_position", "runs_progression", "runs_occupancy"):
                     counts[table] = _delete(
-                        cur, table, f"vehicle_id IN ({fmt})", tuple(vehicle_ids), dry_run
+                        cur,
+                        table,
+                        f"vehicle_id IN ({fmt})",
+                        tuple(vehicle_ids),
+                        dry_run,
                     )
         for child in _RUN_CHILD_TABLES:
             _delete(cur, child, "run_id = %s", (run_id,), dry_run)
@@ -379,7 +398,9 @@ def db_purge_vehicle_runs(
                     cur, table, "vehicle_id = %s", (vehicle_id,), dry_run
                 )
         # Collect run IDs for this vehicle before touching M2M tables
-        cur.execute("SELECT run_id FROM runs_run_vehicle WHERE vehicle_id = %s", (vehicle_id,))
+        cur.execute(
+            "SELECT run_id FROM runs_run_vehicle WHERE vehicle_id = %s", (vehicle_id,)
+        )
         run_ids = [row[0] for row in cur.fetchall()]
         if run_ids:
             fmt = ",".join(["%s"] * len(run_ids))
@@ -486,7 +507,9 @@ Common recipes:
 
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--run", metavar="RUN_ID", help="Delete one run by ID")
-    mode.add_argument("--vehicle", metavar="VEHICLE_ID", help="Delete all runs for a vehicle")
+    mode.add_argument(
+        "--vehicle", metavar="VEHICLE_ID", help="Delete all runs for a vehicle"
+    )
     mode.add_argument("--db-only", action="store_true", help="Only clean PostgreSQL")
     mode.add_argument("--redis-only", action="store_true", help="Only clean Redis")
 
@@ -495,18 +518,24 @@ Common recipes:
         action="store_true",
         help="Also delete runs_position / runs_occupancy rows (runs_progression is decommissioned)",
     )
-    parser.add_argument("--dry-run", action="store_true", help="Preview only; touch nothing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview only; touch nothing"
+    )
     parser.add_argument("--yes", action="store_true", help="Skip confirmation prompt")
 
     # Connection overrides — CLI > env var > localhost default
-    parser.add_argument("--db-host",    default=os.getenv("DB_HOST", "localhost"))
-    parser.add_argument("--db-port",    default=int(os.getenv("DB_PORT", "5432")), type=int)
-    parser.add_argument("--db-name",    default=os.getenv("DB_NAME", "databus"))
-    parser.add_argument("--db-user",    default=os.getenv("DB_USER", "postgres"))
-    parser.add_argument("--db-pass",    default=os.getenv("DB_PASSWORD", "postgres"))
+    parser.add_argument("--db-host", default=os.getenv("DB_HOST", "localhost"))
+    parser.add_argument(
+        "--db-port", default=int(os.getenv("DB_PORT", "5432")), type=int
+    )
+    parser.add_argument("--db-name", default=os.getenv("DB_NAME", "databus"))
+    parser.add_argument("--db-user", default=os.getenv("DB_USER", "postgres"))
+    parser.add_argument("--db-pass", default=os.getenv("DB_PASSWORD", "postgres"))
     parser.add_argument("--redis-host", default=os.getenv("REDIS_HOST", "localhost"))
-    parser.add_argument("--redis-port", default=int(os.getenv("REDIS_PORT", "6379")), type=int)
-    parser.add_argument("--redis-db",   default=int(os.getenv("REDIS_DB", "0")), type=int)
+    parser.add_argument(
+        "--redis-port", default=int(os.getenv("REDIS_PORT", "6379")), type=int
+    )
+    parser.add_argument("--redis-db", default=int(os.getenv("REDIS_DB", "0")), type=int)
     parser.add_argument("--redis-password", default=os.getenv("REDIS_PASSWORD", ""))
 
     args = parser.parse_args()
@@ -520,19 +549,27 @@ Common recipes:
 
     if need_db:
         try:
-            conn = get_db(args.db_host, args.db_port, args.db_name, args.db_user, args.db_pass)
+            conn = get_db(
+                args.db_host, args.db_port, args.db_name, args.db_user, args.db_pass
+            )
         except Exception as e:
-            print(f"\n⚠️  Cannot connect to PostgreSQL at {args.db_host}:{args.db_port}/{args.db_name}")
+            print(
+                f"\n⚠️  Cannot connect to PostgreSQL at {args.db_host}:{args.db_port}/{args.db_name}"
+            )
             print(f"Error: {e}")
             print("\nTip: if running on the host, pass --db-host localhost\n")
             sys.exit(1)
 
     if need_redis:
         try:
-            r = get_redis(args.redis_host, args.redis_port, args.redis_db, args.redis_password)
+            r = get_redis(
+                args.redis_host, args.redis_port, args.redis_db, args.redis_password
+            )
             r.ping()
         except Exception as e:
-            print(f"\n⚠️  Cannot connect to Redis at {args.redis_host}:{args.redis_port}")
+            print(
+                f"\n⚠️  Cannot connect to Redis at {args.redis_host}:{args.redis_port}"
+            )
             print(f"Error: {e}")
             print("\nTip: if running on the host, pass --redis-host localhost\n")
             sys.exit(1)
@@ -540,14 +577,18 @@ Common recipes:
     # --- Confirmation ---
     is_bulk = not args.run and not args.vehicle
     if is_bulk and not args.dry_run and not args.yes:
-        scope = "DB + Redis" if (need_db and need_redis) else ("DB" if need_db else "Redis")
+        scope = (
+            "DB + Redis" if (need_db and need_redis) else ("DB" if need_db else "Redis")
+        )
         print(f"\n⚠️  This will delete ALL run state from {scope}.")
         confirm = input("    Type 'yes' to continue: ")
         if confirm.strip().lower() != "yes":
             print("Aborted.\n")
             sys.exit(0)
 
-    print(f"\nRun Cleanup @ DB={args.db_host}:{args.db_port}/{args.db_name}  Redis={args.redis_host}:{args.redis_port}")
+    print(
+        f"\nRun Cleanup @ DB={args.db_host}:{args.db_port}/{args.db_name}  Redis={args.redis_host}:{args.redis_port}"
+    )
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Dry run: {args.dry_run}")
     print()
@@ -562,7 +603,9 @@ Common recipes:
         if args.run:
             db_counts = db_purge_one_run(conn, args.run, args.telemetry, args.dry_run)
         elif args.vehicle:
-            db_counts = db_purge_vehicle_runs(conn, args.vehicle, args.telemetry, args.dry_run)
+            db_counts = db_purge_vehicle_runs(
+                conn, args.vehicle, args.telemetry, args.dry_run
+            )
         else:
             db_counts = db_purge_all_runs(conn, args.telemetry, args.dry_run)
 
